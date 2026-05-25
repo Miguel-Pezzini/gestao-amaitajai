@@ -159,7 +159,7 @@ Os requisitos funcionais estão organizados por módulo e classificados por prio
 - **Média** — desejável
 - **Baixa** — pode ser postergado
 
-#### 3.1.1 Módulo de Cadastro de Pacientes
+#### 3.1.1 Módulo de Cadastro de Pacientes: Milca
 
 **Quadro 5 – Requisitos funcionais: Módulo Cadastro de Pacientes**
 

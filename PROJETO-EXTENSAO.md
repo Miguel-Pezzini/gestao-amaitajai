@@ -78,6 +78,8 @@ O relatório de extensão define o sistema de forma flexível para expansões fu
 |---|---|
 | **Frontend** | React (JavaScript) |
 | **Backend** | Express.js (JavaScript) |
+| **Banco de dados** | MongoDB |
+| **Dev local (DB)** | Docker Compose (`backend/docker-compose.yml`) |
 | **Estilização** | Tailwind CSS |
 | **Componentes** | shadcn/ui |
 | **HTTP** | Axios |
@@ -86,6 +88,7 @@ O relatório de extensão define o sistema de forma flexível para expansões fu
 **Decisões arquiteturais:**
 
 - Arquitetura **cliente-servidor**
+- Persistência em **MongoDB** (NoSQL orientado a documentos)
 - Interface **responsiva** (desktop, tablet, celular)
 - Acesso via **navegadores modernos**, sem instalação local
 - Organização **modular** para manutenção e expansão
