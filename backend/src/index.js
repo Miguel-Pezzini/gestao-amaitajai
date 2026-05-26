@@ -1,9 +1,11 @@
 import app from "./app.js";
 import { connectDatabase, disconnectDatabase } from "./config/database.js";
 import { env } from "./config/env.js";
+import { ensureInitialAdminUser } from "./services/auth.service.js";
 
 async function start() {
   await connectDatabase();
+  await ensureInitialAdminUser();
 
   const server = app.listen(env.port, () => {
     console.log(`API em http://localhost:${env.port}`);
