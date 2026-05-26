@@ -34,6 +34,7 @@
 3. [Requisitos do Sistema](#3-requisitos-do-sistema)
    - 3.1 [Requisitos Funcionais](#31-requisitos-funcionais)
    - 3.2 [Requisitos Não Funcionais](#32-requisitos-não-funcionais)
+   - 3.3 [Status de Implementação](#33-status-de-implementação)
 4. [Casos de Uso](#4-casos-de-uso)
 5. [Delimitação do Escopo](#5-delimitação-do-escopo)
 6. [Considerações Finais](#6-considerações-finais)
@@ -57,17 +58,17 @@ Este documento tem por objetivo apresentar o levantamento e a análise de requis
 
 Considerando o nível técnico da equipe e o tempo disponível para o desenvolvimento, optou-se pela construção de um **Produto Mínimo Viável (MVP)** — conceito da Engenharia de Software que designa uma versão inicial do sistema com as funcionalidades essenciais — focado no módulo de **Cadastro e Agenda**. As funcionalidades priorizadas são:
 
-a) Cadastro de pacientes com categorização por fonte de custeio;
+a) Cadastro de pacientes com categorização por fonte de custeio — **implementado**;
 
-b) Agenda visual de atendimentos por profissional (diária e semanal);
+b) Agenda visual de atendimentos por profissional (diária e semanal) — *pendente*;
 
-c) Registro e controle de presença e faltas com justificativas;
+c) Registro e controle de presença e faltas com justificativas — *pendente*;
 
-d) Geração de lista de presença formatada para impressão;
+d) Geração de lista de presença formatada para impressão — *pendente*;
 
-e) Painel de check-in com visualização de chegadas em tempo real;
+e) Painel de check-in com visualização de chegadas em tempo real — *pendente*;
 
-f) Gerenciamento de fila de espera com nível de prioridade.
+f) Gerenciamento de fila de espera com nível de prioridade — *pendente*.
 
 As demais funcionalidades identificadas junto à ONG — prontuário eletrônico, plano terapêutico individual e relatórios financeiros — estão documentadas como **fora do escopo** desta etapa, podendo ser desenvolvidas em versões futuras do sistema.
 
@@ -151,6 +152,15 @@ Com base nessa análise, conclui-se que o sistema a ser desenvolvido está alinh
 
 Os requisitos do sistema descrevem as funcionalidades e restrições que o produto deve atender. São classificados em **requisitos funcionais** — que especificam comportamentos e funcionalidades — e **requisitos não funcionais** — que estabelecem critérios de qualidade, desempenho e restrições técnicas (SOMMERVILLE, 2019).
 
+**Legenda — status de implementação** *(atualizado conforme o código em maio/2026)*
+
+| Status | Significado |
+|---|---|
+| Implementado | Desenvolvido e disponível no sistema (frontend e/ou backend) |
+| Parcial | Base iniciada; funcionalidade ainda incompleta |
+| Pendente | Previsto no MVP; ainda não desenvolvido |
+| Futuro | Fora do escopo do MVP nesta etapa |
+
 ### 3.1 Requisitos Funcionais
 
 Os requisitos funcionais estão organizados por módulo e classificados por prioridade:
@@ -163,13 +173,13 @@ Os requisitos funcionais estão organizados por módulo e classificados por prio
 
 **Quadro 5 – Requisitos funcionais: Módulo Cadastro de Pacientes**
 
-| ID | Descrição do Requisito | Prioridade | Módulo |
-|---|---|---|---|
-| RF01 | O sistema deve permitir o cadastro de novos pacientes com os campos: nome completo, data de nascimento, responsável, telefone de contato e fonte de custeio (Municipal, Estadual ou Particular). | Alta | Cadastro |
-| RF02 | O sistema deve permitir a edição dos dados de um paciente já cadastrado. | Alta | Cadastro |
-| RF03 | O sistema deve permitir a inativação (exclusão lógica) de cadastro, sem apagar o histórico de atendimentos. | Média | Cadastro |
-| RF04 | O sistema deve permitir a busca de pacientes por nome ou nome do responsável. | Alta | Cadastro |
-| RF05 | O sistema deve exibir a listagem de pacientes com filtro por fonte de custeio. | Média | Cadastro |
+| ID | Descrição do Requisito | Prioridade | Módulo | Status |
+|---|---|---|---|---|
+| RF01 | O sistema deve permitir o cadastro de novos pacientes com os campos: nome completo, data de nascimento, responsável, telefone de contato e fonte de custeio (Municipal, Estadual ou Particular). | Alta | Cadastro | Implementado |
+| RF02 | O sistema deve permitir a edição dos dados de um paciente já cadastrado. | Alta | Cadastro | Implementado |
+| RF03 | O sistema deve permitir a inativação (exclusão lógica) de cadastro, sem apagar o histórico de atendimentos. | Média | Cadastro | Implementado |
+| RF04 | O sistema deve permitir a busca de pacientes por nome ou nome do responsável. | Alta | Cadastro | Implementado |
+| RF05 | O sistema deve exibir a listagem de pacientes com filtro por fonte de custeio. | Média | Cadastro | Implementado |
 
 *Fonte: elaborado pelos autores com base em informações da AMA Itajaí (2026).*
 
@@ -177,13 +187,13 @@ Os requisitos funcionais estão organizados por módulo e classificados por prio
 
 **Quadro 6 – Requisitos funcionais: Módulo Agenda**
 
-| ID | Descrição do Requisito | Prioridade | Módulo |
-|---|---|---|---|
-| RF06 | O sistema deve exibir agenda visual organizada por dia e semana, com visualização de horários, profissional e tipo de atendimento. | Alta | Agenda |
-| RF07 | O sistema deve permitir o agendamento de atendimentos individuais vinculando paciente e profissional. | Alta | Agenda |
-| RF08 | O sistema deve permitir a filtragem da agenda por profissional. | Alta | Agenda |
-| RF09 | O sistema deve exibir a fonte de custeio do paciente na visualização da agenda. | Média | Agenda |
-| RF10 | O sistema deve permitir o cancelamento de agendamento com registro de motivo. | Média | Agenda |
+| ID | Descrição do Requisito | Prioridade | Módulo | Status |
+|---|---|---|---|---|
+| RF06 | O sistema deve exibir agenda visual organizada por dia e semana, com visualização de horários, profissional e tipo de atendimento. | Alta | Agenda | Pendente |
+| RF07 | O sistema deve permitir o agendamento de atendimentos individuais vinculando paciente e profissional. | Alta | Agenda | Pendente |
+| RF08 | O sistema deve permitir a filtragem da agenda por profissional. | Alta | Agenda | Pendente |
+| RF09 | O sistema deve exibir a fonte de custeio do paciente na visualização da agenda. | Média | Agenda | Pendente |
+| RF10 | O sistema deve permitir o cancelamento de agendamento com registro de motivo. | Média | Agenda | Pendente |
 
 *Fonte: elaborado pelos autores com base em informações da AMA Itajaí (2026).*
 
@@ -191,13 +201,13 @@ Os requisitos funcionais estão organizados por módulo e classificados por prio
 
 **Quadro 7 – Requisitos funcionais: Módulo de Presença**
 
-| ID | Descrição do Requisito | Prioridade | Módulo |
-|---|---|---|---|
-| RF11 | O sistema deve gerar automaticamente a lista de presença diária com base nos atendimentos agendados. | Alta | Presença |
-| RF12 | O sistema deve permitir o registro da situação de cada atendimento: Presente, Falta ou Falta Justificada. | Alta | Presença |
-| RF13 | O sistema deve permitir inserir justificativa textual para faltas justificadas. | Alta | Presença |
-| RF14 | O sistema deve gerar lista de presença formatada e pronta para impressão (página de impressão ou PDF). | Alta | Presença |
-| RF15 | O sistema deve gerar listas de presença semanais consolidadas por profissional. | Média | Presença |
+| ID | Descrição do Requisito | Prioridade | Módulo | Status |
+|---|---|---|---|---|
+| RF11 | O sistema deve gerar automaticamente a lista de presença diária com base nos atendimentos agendados. | Alta | Presença | Pendente |
+| RF12 | O sistema deve permitir o registro da situação de cada atendimento: Presente, Falta ou Falta Justificada. | Alta | Presença | Pendente |
+| RF13 | O sistema deve permitir inserir justificativa textual para faltas justificadas. | Alta | Presença | Pendente |
+| RF14 | O sistema deve gerar lista de presença formatada e pronta para impressão (página de impressão ou PDF). | Alta | Presença | Pendente |
+| RF15 | O sistema deve gerar listas de presença semanais consolidadas por profissional. | Média | Presença | Pendente |
 
 *Fonte: elaborado pelos autores com base em informações da AMA Itajaí (2026).*
 
@@ -205,11 +215,11 @@ Os requisitos funcionais estão organizados por módulo e classificados por prio
 
 **Quadro 8 – Requisitos funcionais: Módulo de Check-in**
 
-| ID | Descrição do Requisito | Prioridade | Módulo |
-|---|---|---|---|
-| RF16 | O sistema deve permitir o registro de chegada (check-in) do paciente pela recepção. | Alta | Check-in |
-| RF17 | O sistema deve exibir painel em tempo real com o status dos pacientes: aguardando chegada, chegou ou ausente. | Alta | Check-in |
-| RF18 | O status de chegada do paciente deve ser visível pelo profissional terapêutico em sua agenda. | Média | Check-in |
+| ID | Descrição do Requisito | Prioridade | Módulo | Status |
+|---|---|---|---|---|
+| RF16 | O sistema deve permitir o registro de chegada (check-in) do paciente pela recepção. | Alta | Check-in | Pendente |
+| RF17 | O sistema deve exibir painel em tempo real com o status dos pacientes: aguardando chegada, chegou ou ausente. | Alta | Check-in | Pendente |
+| RF18 | O status de chegada do paciente deve ser visível pelo profissional terapêutico em sua agenda. | Média | Check-in | Pendente |
 
 *Fonte: elaborado pelos autores com base em informações da AMA Itajaí (2026).*
 
@@ -217,13 +227,13 @@ Os requisitos funcionais estão organizados por módulo e classificados por prio
 
 **Quadro 9 – Requisitos funcionais: Módulo de Fila de Espera**
 
-| ID | Descrição do Requisito | Prioridade | Módulo |
-|---|---|---|---|
-| RF19 | O sistema deve permitir o cadastro de pessoas na fila de espera, vinculado ao cadastro de paciente existente ou como pré-cadastro. | Alta | Fila |
-| RF20 | O sistema deve permitir atribuir nível de prioridade a cada entrada da fila (Alta, Média ou Baixa). | Alta | Fila |
-| RF21 | O sistema deve exibir a fila de espera ordenada por prioridade e data de inclusão. | Alta | Fila |
-| RF22 | O sistema deve registrar histórico de tentativas de contato com a família, informando data, horário e responsável. | Média | Fila |
-| RF23 | O sistema deve permitir registrar se a família demonstrou interesse imediato em ingressar no serviço. | Baixa | Fila |
+| ID | Descrição do Requisito | Prioridade | Módulo | Status |
+|---|---|---|---|---|
+| RF19 | O sistema deve permitir o cadastro de pessoas na fila de espera, vinculado ao cadastro de paciente existente ou como pré-cadastro. | Alta | Fila | Pendente |
+| RF20 | O sistema deve permitir atribuir nível de prioridade a cada entrada da fila (Alta, Média ou Baixa). | Alta | Fila | Pendente |
+| RF21 | O sistema deve exibir a fila de espera ordenada por prioridade e data de inclusão. | Alta | Fila | Pendente |
+| RF22 | O sistema deve registrar histórico de tentativas de contato com a família, informando data, horário e responsável. | Média | Fila | Pendente |
+| RF23 | O sistema deve permitir registrar se a família demonstrou interesse imediato em ingressar no serviço. | Baixa | Fila | Pendente |
 
 *Fonte: elaborado pelos autores com base em informações da AMA Itajaí (2026).*
 
@@ -233,17 +243,37 @@ Os requisitos não funcionais estabelecem critérios de qualidade e restrições
 
 **Quadro 10 – Requisitos não funcionais**
 
-| ID | Atributo de Qualidade | Descrição |
-|---|---|---|
-| RNF01 | Acessibilidade online | O sistema deve ser acessível via navegador web, sem necessidade de instalação, possibilitando acesso remoto por profissionais e famílias. |
-| RNF02 | Usabilidade | A interface deve ser intuitiva e de fácil aprendizado, considerando que os usuários podem ter pouca familiaridade com sistemas digitais. |
-| RNF03 | Responsividade | O sistema deve funcionar corretamente em diferentes tamanhos de tela (desktop, tablet e celular). |
-| RNF04 | Segurança e privacidade | O acesso ao sistema deve ser protegido por autenticação (login e senha). Os dados de pacientes devem ser restritos por perfil de usuário. |
-| RNF05 | Controle de acesso por perfil | O sistema deve distinguir permissões entre os perfis: Administrativo/Recepção e Profissional Terapêutico. |
-| RNF06 | Impressão | As listas de presença geradas devem ser formatadas adequadamente para impressão em papel A4, conforme exigência dos órgãos conveniados. |
-| RNF07 | Disponibilidade | O sistema deve estar disponível durante o horário de funcionamento da instituição, com mínima indisponibilidade planejada. |
+| ID | Atributo de Qualidade | Descrição | Status |
+|---|---|---|---|
+| RNF01 | Acessibilidade online | O sistema deve ser acessível via navegador web, sem necessidade de instalação, possibilitando acesso remoto por profissionais e famílias. | Parcial — app web para uso interno; portal para famílias fora do MVP |
+| RNF02 | Usabilidade | A interface deve ser intuitiva e de fácil aprendizado, considerando que os usuários podem ter pouca familiaridade com sistemas digitais. | Parcial — interface base implementada; validação com usuários pendente |
+| RNF03 | Responsividade | O sistema deve funcionar corretamente em diferentes tamanhos de tela (desktop, tablet e celular). | Parcial — layout responsivo (Tailwind); módulos do MVP ainda incompletos |
+| RNF04 | Segurança e privacidade | O acesso ao sistema deve ser protegido por autenticação (login e senha). Os dados de pacientes devem ser restritos por perfil de usuário. | Implementado — login, logout e sessão JWT; rotas de pacientes autenticadas |
+| RNF05 | Controle de acesso por perfil | O sistema deve distinguir permissões entre os perfis: Administrativo/Recepção e Profissional Terapêutico. | Parcial — navegação por perfil no frontend; campo `role` no usuário ainda pendente no backend |
+| RNF06 | Impressão | As listas de presença geradas devem ser formatadas adequadamente para impressão em papel A4, conforme exigência dos órgãos conveniados. | Pendente |
+| RNF07 | Disponibilidade | O sistema deve estar disponível durante o horário de funcionamento da instituição, com mínima indisponibilidade planejada. | Pendente — depende de infraestrutura e hospedagem |
 
 *Fonte: elaborado pelos autores com base em informações da AMA Itajaí (2026).*
+
+### 3.3 Status de Implementação
+
+Consolidação do progresso de desenvolvimento em maio/2026, com base no repositório do projeto (`frontend/` e `backend/`).
+
+**Quadro 11 – Resumo do status de implementação por módulo**
+
+| Módulo / artefato | Requisitos | Status geral |
+|---|---|---|
+| Cadastro de pacientes | RF01–RF05 | Implementado |
+| Agenda | RF06–RF10 | Pendente (rota e placeholder no sistema) |
+| Presença | RF11–RF15 | Pendente (rota e placeholder no sistema) |
+| Check-in | RF16–RF18 | Pendente (rota e placeholder no sistema) |
+| Fila de espera | RF19–RF23 | Pendente (rota e placeholder no sistema) |
+| Infraestrutura transversal | RNF01–RNF07 | Parcial (autenticação e shell do sistema) |
+| Funcionalidades futuras | Quadro 16 | Futuro |
+
+**Infraestrutura já disponível:** autenticação (login/logout/sessão), layout com menu lateral, visão geral e configuração modular das rotas do MVP.
+
+*Fonte: elaborado pelos autores com base no código do projeto (2026).*
 
 ---
 
@@ -263,6 +293,7 @@ Os casos de uso descrevem as interações entre os usuários e o sistema, detalh
 | **Fluxo Principal** | 1. Acessar menu 'Pacientes'; 2. Clicar em 'Novo Paciente'; 3. Preencher nome, data de nascimento, responsável, telefone e fonte de custeio; 4. Confirmar e salvar cadastro. |
 | **Fluxo Alternativo** | Paciente já cadastrado: o sistema emite alerta e oferece a opção de abrir o cadastro existente. |
 | **Pós-condição** | Novo paciente cadastrado com sucesso e disponível para agendamento. |
+| **Status de implementação** | Implementado |
 
 *Fonte: elaborado pelos autores (2026).*
 
@@ -278,6 +309,7 @@ Os casos de uso descrevem as interações entre os usuários e o sistema, detalh
 | **Fluxo Principal** | 1. Acessar a Agenda; 2. Selecionar data e horário disponível; 3. Vincular paciente e profissional; 4. Confirmar agendamento. |
 | **Fluxo Alternativo** | Conflito de horário: o sistema alerta sobre sobreposição e impede a confirmação. |
 | **Pós-condição** | Atendimento agendado e visível na agenda do profissional. |
+| **Status de implementação** | Pendente |
 
 *Fonte: elaborado pelos autores (2026).*
 
@@ -293,6 +325,7 @@ Os casos de uso descrevem as interações entre os usuários e o sistema, detalh
 | **Fluxo Principal** | 1. Acessar a lista de presença do dia; 2. Para cada paciente, selecionar: Presente, Falta ou Falta Justificada; 3. Inserir justificativa, se aplicável; 4. Salvar registros. |
 | **Fluxo Alternativo** | Lista não preenchida até o encerramento do dia: o sistema pode emitir notificação ao responsável. |
 | **Pós-condição** | Registros de presença salvos e disponíveis para geração de relatórios. |
+| **Status de implementação** | Pendente |
 
 *Fonte: elaborado pelos autores (2026).*
 
@@ -308,6 +341,7 @@ Os casos de uso descrevem as interações entre os usuários e o sistema, detalh
 | **Fluxo Principal** | 1. Acessar painel de check-in; 2. Localizar o nome do paciente; 3. Clicar em 'Registrar Chegada'; 4. Status atualizado no painel em tempo real. |
 | **Fluxo Alternativo** | Paciente sem agendamento no dia: o sistema emite alerta à recepcionista. |
 | **Pós-condição** | Status do paciente atualizado para 'Chegou' no painel e na agenda do profissional. |
+| **Status de implementação** | Pendente |
 
 *Fonte: elaborado pelos autores (2026).*
 
@@ -323,6 +357,7 @@ Os casos de uso descrevem as interações entre os usuários e o sistema, detalh
 | **Fluxo Principal** | 1. Acessar módulo de Presença; 2. Selecionar data ou período; 3. Clicar em 'Gerar Lista para Impressão'; 4. O sistema exibe a lista formatada em A4; 5. Usuário aciona a impressão. |
 | **Fluxo Alternativo** | Nenhum atendimento no período selecionado: o sistema exibe mensagem informativa. |
 | **Pós-condição** | Lista impressa disponível para coleta de assinaturas físicas dos responsáveis. |
+| **Status de implementação** | Pendente |
 
 *Fonte: elaborado pelos autores (2026).*
 
@@ -334,15 +369,15 @@ As funcionalidades listadas no Quadro 16 foram identificadas durante o levantame
 
 **Quadro 16 – Funcionalidades fora do escopo do MVP**
 
-| Funcionalidade | Descrição |
-|---|---|
-| Prontuário eletrônico | Histórico completo de atendimentos por paciente com registro sistematizado de evoluções clínicas. |
-| Anamnese | Cadastro e armazenamento do histórico clínico e familiar de cada paciente. |
-| Relatórios técnicos clínicos | Elaboração e armazenamento digital de relatórios terapêuticos individuais. |
-| Plano Terapêutico Individual | Acompanhamento de metas e evolução clínica por paciente. |
-| Relatórios financeiros | Relatórios por fonte de recurso (municipal, estadual, particular) para prestação de contas. |
-| Exportação para órgãos públicos | Geração de relatórios em formatos exigidos pelos convênios municipais e estaduais. |
-| Portal para responsáveis | Acesso externo para famílias acompanharem informações sobre o atendimento. |
+| Funcionalidade | Descrição | Status |
+|---|---|---|
+| Prontuário eletrônico | Histórico completo de atendimentos por paciente com registro sistematizado de evoluções clínicas. | Futuro |
+| Anamnese | Cadastro e armazenamento do histórico clínico e familiar de cada paciente. | Futuro |
+| Relatórios técnicos clínicos | Elaboração e armazenamento digital de relatórios terapêuticos individuais. | Futuro |
+| Plano Terapêutico Individual | Acompanhamento de metas e evolução clínica por paciente. | Futuro |
+| Relatórios financeiros | Relatórios por fonte de recurso (municipal, estadual, particular) para prestação de contas. | Futuro |
+| Exportação para órgãos públicos | Geração de relatórios em formatos exigidos pelos convênios municipais e estaduais. | Futuro |
+| Portal para responsáveis | Acesso externo para famílias acompanharem informações sobre o atendimento. | Futuro |
 
 *Fonte: elaborado pelos autores com base em informações da AMA Itajaí (2026).*
 

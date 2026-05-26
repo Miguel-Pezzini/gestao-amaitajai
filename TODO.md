@@ -134,7 +134,7 @@ Estes pontos foram acrescentados pela equipe (benchmark, MVP técnico ou detalha
 
 1. **Reunião de validação** com a AMA Itajaí para fechar itens marcados ⚠️ e ❌.
 2. **Atualizar REQUISITOS.md** após validação (novos RFs para grupo, reposição, intercorrências; ajuste de prioridades RF22/RF23; correção RNF01).
-3. **Manter este TODO.md** como checklist de implementação, migrando itens confirmados para issues/tarefas de desenvolvimento.
+3. **Manter este TODO.md** como checklist de lacunas com a ONG; o status de implementação do código fica em `REQUISITOS.md` (seção 3.3).
 
 ---
 
