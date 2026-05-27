@@ -20,8 +20,8 @@ function hasRoleAccess(moduleConfig, userRole) {
 export function getNavigationBySession(user) {
   const userRole = getUserRole(user);
 
-  const visibleModules = APP_MODULES.filter((moduleConfig) =>
-    hasRoleAccess(moduleConfig, userRole),
+  const visibleModules = APP_MODULES.filter(
+    (moduleConfig) => moduleConfig.enabled && hasRoleAccess(moduleConfig, userRole),
   ).sort((a, b) => a.order - b.order);
 
   return {

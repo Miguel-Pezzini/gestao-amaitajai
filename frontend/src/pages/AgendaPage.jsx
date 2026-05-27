@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useSession } from "@/contexts/session-context";
 import { AgendaCalendarView } from "@/features/agenda/components/AgendaCalendarView";
-import { AgendaFiltersCard } from "@/features/agenda/components/AgendaFiltersCard";
 import { CancelSessionDialog } from "@/features/agenda/components/CancelSessionDialog";
 import { CreateSessionDialog } from "@/features/agenda/components/CreateSessionDialog";
 import { useAgendaPage } from "@/hooks/useAgendaPage";
@@ -34,31 +33,13 @@ export function AgendaPage() {
         </p>
       ) : null}
 
-      <AgendaFiltersCard
-        scheduledCount={agenda.scheduledCount}
-        totalSessions={agenda.sessions.length}
-        canCreateSession={agenda.canCreateSession}
-        onOpenCreate={() => agenda.setCreateDialogOpen(true)}
-        statusFilter={agenda.statusFilter}
-        setStatusFilter={agenda.setStatusFilter}
-        startFilter={agenda.startFilter}
-        setStartFilter={agenda.setStartFilter}
-        endFilter={agenda.endFilter}
-        setEndFilter={agenda.setEndFilter}
-        professionalFilter={agenda.professionalFilter}
-        setProfessionalFilter={agenda.setProfessionalFilter}
-        isAdmin={agenda.isAdmin}
-        onApplyFilters={agenda.loadSessions}
-        loading={agenda.loading}
-      />
-
       <AgendaCalendarView
         sessions={agenda.sessions}
         currentMonth={currentMonth}
         setCurrentMonth={setCurrentMonth}
         onCompleteSession={agenda.handleCompleteSession}
         onCancelSession={agenda.openCancelDialog}
-        onOpenCreate={() => agenda.setCreateDialogOpen(true)}
+        onOpenCreate={agenda.openCreateDialog}
         isAdmin={agenda.isAdmin}
       />
 

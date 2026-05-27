@@ -1,7 +1,8 @@
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Dialog } from "@/components/ui/dialog";
 import {
   formatDateTime,
@@ -65,13 +66,19 @@ function WeekdayCell({ date, items, onOpenDay }) {
     <button
       type="button"
       onClick={() => onOpenDay(date)}
-      className="min-h-28 rounded-md border border-ama-cyan/25 bg-white p-2 text-left transition hover:border-ama-cyan hover:bg-ama-light/40"
+      className="flex min-h-14 flex-col rounded-md border border-ama-cyan/25 bg-white p-1 text-left transition hover:border-ama-cyan hover:bg-ama-light/40 sm:min-h-20 sm:p-1.5 lg:min-h-28 lg:p-2"
     >
-      <p className="mb-2 text-sm font-semibold text-ama-blue-dark">{formatDayNumber(date)}</p>
-      {items.length === 0 ? <p className="text-xs text-muted-foreground">Sem sessões</p> : null}
+      <p className="text-[11px] font-semibold leading-none text-ama-blue-dark sm:text-sm">
+        {formatDayNumber(date)}
+      </p>
       {items.length > 0 ? (
-        <p className="text-xs font-medium text-ama-blue">{items.length} sessão(ões)</p>
-      ) : null}
+        <p className="mt-auto truncate text-[10px] font-medium text-ama-blue sm:text-xs">
+          <span className="lg:hidden">{items.length}</span>
+          <span className="hidden lg:inline">{items.length} sessão(ões)</span>
+        </p>
+      ) : (
+        <span className="mt-auto hidden text-xs text-muted-foreground lg:inline">Sem sessões</span>
+      )}
     </button>
   );
 }
@@ -79,16 +86,20 @@ function WeekdayCell({ date, items, onOpenDay }) {
 function WeekendCell({ date }) {
   return (
     <div
-      className="min-h-28 rounded-md border border-dashed border-muted-foreground/20 bg-muted/30 p-2"
+      className="flex min-h-14 flex-col rounded-md border border-dashed border-muted-foreground/20 bg-muted/30 p-1 sm:min-h-20 sm:p-1.5 lg:min-h-28 lg:p-2"
       aria-hidden
     >
-      <p className="text-sm font-medium text-muted-foreground/70">{formatDayNumber(date)}</p>
+      <p className="text-[11px] font-medium text-muted-foreground/70 sm:text-sm">
+        {formatDayNumber(date)}
+      </p>
     </div>
   );
 }
 
 function EmptyLeadingCell() {
-  return <div className="min-h-28 rounded-md border border-dashed border-transparent" />;
+  return (
+    <div className="min-h-14 rounded-md border border-dashed border-transparent sm:min-h-20 lg:min-h-28" />
+  );
 }
 
 export function AgendaCalendarView({
@@ -121,33 +132,33 @@ export function AgendaCalendarView({
   return (
     <Card className="border-ama-cyan/30">
       <CardHeader className="space-y-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <CardTitle className="text-lg text-ama-blue-dark">Calendário</CardTitle>
-            <CardDescription>
-              Segunda a sexta em destaque. Fins de semana permanecem fechados.
-            </CardDescription>
-          </div>
-          <div className="flex items-center justify-center gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setCurrentMonth((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1))}
-            >
-              Mês anterior
-            </Button>
-            <p className="min-w-44 text-center text-sm font-medium capitalize">{monthLabel(currentMonth)}</p>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setCurrentMonth((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1))}
-            >
-              Próximo mês
-            </Button>
-          </div>
+        <div className="flex items-center justify-center gap-2">
+          <Button
+            type="button"
+            size="icon"
+            variant="outline"
+            className="shrink-0"
+            onClick={() => setCurrentMonth((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1))}
+            aria-label="Mês anterior"
+          >
+            <ChevronLeft className="size-4" aria-hidden="true" />
+          </Button>
+          <p className="min-w-[10rem] text-center text-sm font-medium capitalize sm:min-w-[12rem] sm:text-base">
+            {monthLabel(currentMonth)}
+          </p>
+          <Button
+            type="button"
+            size="icon"
+            variant="outline"
+            className="shrink-0"
+            onClick={() => setCurrentMonth((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1))}
+            aria-label="Próximo mês"
+          >
+            <ChevronRight className="size-4" aria-hidden="true" />
+          </Button>
         </div>
 
-        <div className="hidden grid-cols-7 gap-2 text-center text-xs font-semibold uppercase lg:grid">
+        <div className="grid grid-cols-7 gap-0.5 text-center text-[10px] font-semibold uppercase sm:gap-1 sm:text-xs">
           {WEEKDAY_HEADERS.map((label, index) => (
             <span
               key={label}
@@ -163,7 +174,7 @@ export function AgendaCalendarView({
         </div>
       </CardHeader>
 
-      <CardContent className="hidden gap-2 p-4 lg:grid lg:grid-cols-7">
+      <CardContent className="grid grid-cols-7 gap-0.5 p-2 sm:gap-1 sm:p-4">
         {emptyCells.map((key) => (
           <EmptyLeadingCell key={key} />
         ))}
@@ -184,26 +195,6 @@ export function AgendaCalendarView({
         })}
       </CardContent>
 
-      <CardContent className="space-y-3 p-4 lg:hidden">
-        {days
-          .filter((date) => !isWeekend(date))
-          .map((date) => {
-            const key = toCalendarKey(date);
-            const items = grouped[key] ?? [];
-            return (
-              <WeekdayCell
-                key={key}
-                date={date}
-                items={items}
-                onOpenDay={openDayDialog}
-              />
-            );
-          })}
-        {days.filter((date) => !isWeekend(date)).length === 0 ? (
-          <p className="text-sm text-muted-foreground">Nenhum dia útil neste mês.</p>
-        ) : null}
-      </CardContent>
-
       <Dialog
         open={dayDialogOpen}
         onOpenChange={setDayDialogOpen}
@@ -222,7 +213,7 @@ export function AgendaCalendarView({
                 className="bg-ama-blue text-white hover:bg-ama-blue-dark"
                 onClick={() => {
                   setDayDialogOpen(false);
-                  onOpenCreate();
+                  onOpenCreate(selectedDay);
                 }}
               >
                 Criar sessão

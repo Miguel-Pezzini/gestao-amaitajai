@@ -56,10 +56,10 @@ export function AppLayout() {
   }
 
   return (
-    <main className="flex min-h-screen w-full overflow-x-hidden bg-ama-light">
+    <main className="min-h-screen w-full bg-ama-light">
       <aside
         className={cn(
-          "hidden shrink-0 flex-col border-r border-ama-cyan/30 bg-ama-blue-dark py-6 text-white transition-[width,padding] duration-300 ease-in-out lg:flex",
+          "fixed inset-y-0 left-0 z-30 hidden flex-col overflow-y-auto border-r border-ama-cyan/30 bg-ama-blue-dark py-6 text-white transition-[width,padding] duration-300 ease-in-out lg:flex",
           sidebarExpanded ? "w-72 px-5" : "w-[4.75rem] px-3",
         )}
       >
@@ -165,45 +165,52 @@ export function AppLayout() {
         </Button>
       </aside>
 
-      <section className="flex min-h-screen min-w-0 flex-1 flex-col overflow-x-hidden">
-        <header className="flex items-center justify-between gap-3 border-b border-ama-cyan/20 bg-white/80 px-4 py-3 backdrop-blur sm:px-6 sm:py-4 lg:hidden">
-          <div>
-            <Badge variant="secondary" className="bg-ama-light text-ama-blue-dark">
-              Gestão interna
-            </Badge>
-            <p className="mt-2 text-sm font-medium text-ama-text">AMA Itajaí</p>
-          </div>
-          <Button
-            onClick={logout}
-            className="bg-ama-blue text-white hover:bg-ama-blue-dark"
-            disabled={leaving}
-          >
-            {leaving ? "Saindo..." : "Sair"}
-          </Button>
-        </header>
+      <section
+        className={cn(
+          "flex min-h-screen min-w-0 flex-col overflow-x-hidden transition-[margin] duration-300 ease-in-out max-lg:pt-36",
+          sidebarExpanded ? "lg:ml-72" : "lg:ml-[4.75rem]",
+        )}
+      >
+        <div className="fixed inset-x-0 top-0 z-40 lg:hidden">
+          <header className="flex items-center justify-between gap-3 border-b border-ama-cyan/20 bg-white/95 px-4 py-3 backdrop-blur sm:px-6 sm:py-4">
+            <div>
+              <Badge variant="secondary" className="bg-ama-light text-ama-blue-dark">
+                Gestão interna
+              </Badge>
+              <p className="mt-2 text-sm font-medium text-ama-text">AMA Itajaí</p>
+            </div>
+            <Button
+              onClick={logout}
+              className="bg-ama-blue text-white hover:bg-ama-blue-dark"
+              disabled={leaving}
+            >
+              {leaving ? "Saindo..." : "Sair"}
+            </Button>
+          </header>
 
-        <nav className="flex gap-2 overflow-x-auto border-b border-ama-cyan/20 bg-ama-blue-dark px-4 py-3 lg:hidden">
-          {sidebarItems.map((item) => {
-            const active = isActiveRoute(location.pathname, item.route);
-            const Icon = item.icon;
-            return (
-              <Button
-                key={item.id}
-                size="sm"
-                variant="ghost"
-                className={`shrink-0 gap-2 ${
-                  active
-                    ? "bg-white/15 text-white"
-                    : "text-white/80 hover:bg-white/10 hover:text-white"
-                }`}
-                onClick={() => navigate(item.route)}
-              >
-                {Icon ? <Icon className="size-4 shrink-0" aria-hidden="true" /> : null}
-                {item.label}
-              </Button>
-            );
-          })}
-        </nav>
+          <nav className="flex gap-2 overflow-x-auto border-b border-ama-cyan/20 bg-ama-blue-dark px-4 py-3">
+            {sidebarItems.map((item) => {
+              const active = isActiveRoute(location.pathname, item.route);
+              const Icon = item.icon;
+              return (
+                <Button
+                  key={item.id}
+                  size="sm"
+                  variant="ghost"
+                  className={`shrink-0 gap-2 ${
+                    active
+                      ? "bg-white/15 text-white"
+                      : "text-white/80 hover:bg-white/10 hover:text-white"
+                  }`}
+                  onClick={() => navigate(item.route)}
+                >
+                  {Icon ? <Icon className="size-4 shrink-0" aria-hidden="true" /> : null}
+                  {item.label}
+                </Button>
+              );
+            })}
+          </nav>
+        </div>
 
         {error ? (
           <p className="mx-4 mt-4 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive sm:mx-6 md:mx-8">

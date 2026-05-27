@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   cancelSession,
   completeSession,
@@ -24,11 +24,6 @@ export function useAgendaPage(user) {
   const [rooms, setRooms] = useState([]);
   const [sessionTypes, setSessionTypes] = useState([]);
 
-  const [statusFilter, setStatusFilter] = useState("");
-  const [startFilter, setStartFilter] = useState("");
-  const [endFilter, setEndFilter] = useState("");
-  const [professionalFilter, setProfessionalFilter] = useState("");
-
   const [form, setForm] = useState(EMPTY_FORM);
   const [fieldError, setFieldError] = useState("");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -44,11 +39,6 @@ export function useAgendaPage(user) {
   const [professionalOptions, setProfessionalOptions] = useState([]);
   const [loadingProfessionals, setLoadingProfessionals] = useState(false);
 
-  const scheduledCount = useMemo(
-    () => sessions.filter((item) => item.status === "agendada").length,
-    [sessions],
-  );
-
   async function loadDependencies() {
     const [roomsResponse, typesResponse] = await Promise.all([
       listRooms(),
@@ -63,12 +53,7 @@ export function useAgendaPage(user) {
     setError("");
     setSuccess("");
     try {
-      const response = await listSessions({
-        status: statusFilter || undefined,
-        startAt: startFilter || undefined,
-        endAt: endFilter || undefined,
-        professionalId: professionalFilter || undefined,
-      });
+      const response = await listSessions();
       setSessions(response.items ?? []);
     } catch (err) {
       setError(
@@ -175,6 +160,27 @@ export function useAgendaPage(user) {
   function closeCreateDialog() {
     setCreateDialogOpen(false);
     resetCreateForm();
+  }
+
+  function toDatetimeLocalValue(date) {
+    const local = new Date(date);
+    local.setHours(9, 0, 0, 0);
+    local.setMinutes(local.getMinutes() - local.getTimezoneOffset());
+    return local.toISOString().slice(0, 16);
+  }
+
+  function openCreateDialog(day) {
+    if (day) {
+      setForm({ ...EMPTY_FORM, startAt: toDatetimeLocalValue(day) });
+      setPatientTerm("");
+      setProfessionalTerm("");
+      setPatientOptions([]);
+      setProfessionalOptions([]);
+      setFieldError("");
+    } else {
+      resetCreateForm();
+    }
+    setCreateDialogOpen(true);
   }
 
   function openCancelDialog(sessionId) {
@@ -319,7 +325,6 @@ export function useAgendaPage(user) {
   return {
     role,
     isAdmin,
-    canCreateSession: isAdmin,
     loading,
     saving,
     error,
@@ -327,15 +332,6 @@ export function useAgendaPage(user) {
     sessions,
     rooms,
     sessionTypes,
-    scheduledCount,
-    statusFilter,
-    setStatusFilter,
-    startFilter,
-    setStartFilter,
-    endFilter,
-    setEndFilter,
-    professionalFilter,
-    setProfessionalFilter,
     form,
     fieldError,
     createDialogOpen,
@@ -354,6 +350,7 @@ export function useAgendaPage(user) {
     loadingProfessionals,
     loadSessions,
     handleFormChange,
+    openCreateDialog,
     closeCreateDialog,
     openCancelDialog,
     closeCancelDialog,
