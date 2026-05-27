@@ -3,7 +3,7 @@ import { connectDatabase, disconnectDatabase } from "./config/database.js";
 import { env } from "./config/env.js";
 import { ensureInitialAdminUser } from "./services/auth.service.js";
 
-async function start() {
+async function start(): Promise<void> {
   await connectDatabase();
   await ensureInitialAdminUser();
 
@@ -11,18 +11,22 @@ async function start() {
     console.log(`API em http://localhost:${env.port}`);
   });
 
-  const shutdown = async (signal) => {
+  const shutdown = async (signal: string): Promise<void> => {
     console.log(`Encerrando (${signal})...`);
     server.close();
     await disconnectDatabase();
     process.exit(0);
   };
 
-  process.on("SIGINT", () => shutdown("SIGINT"));
-  process.on("SIGTERM", () => shutdown("SIGTERM"));
+  process.on("SIGINT", () => {
+    void shutdown("SIGINT");
+  });
+  process.on("SIGTERM", () => {
+    void shutdown("SIGTERM");
+  });
 }
 
-start().catch((error) => {
+start().catch((error: unknown) => {
   console.error("Falha ao iniciar o servidor:", error);
   process.exit(1);
 });

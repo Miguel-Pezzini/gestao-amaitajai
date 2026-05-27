@@ -1,35 +1,65 @@
-import { Router } from "express";
+import { Router, type Request, type Response } from "express";
 import mongoose from "mongoose";
 import { requireAuth } from "../middlewares/auth.middleware.js";
-import { FUNDING_SOURCES, Patient } from "../models/patient.model.js";
+import {
+  FUNDING_SOURCES,
+  Patient,
+  type FundingSource,
+} from "../models/patient.model.js";
 
 const router = Router();
 
-function normalizeText(value) {
+function getRouteId(param: string | string[]): string {
+  return Array.isArray(param) ? (param[0] ?? "") : param;
+}
+
+interface PatientPayload {
+  fullName?: unknown;
+  birthDate?: unknown;
+  guardianName?: unknown;
+  phone?: unknown;
+  fundingSource?: unknown;
+}
+
+interface PatientUpdateFields {
+  fullName?: string;
+  birthDate?: Date;
+  guardianName?: string;
+  phone?: string;
+  fundingSource?: FundingSource;
+}
+
+interface ValidationResult {
+  valid: boolean;
+  errors: string[];
+  update: PatientUpdateFields;
+}
+
+function normalizeText(value: unknown): string {
   return String(value ?? "").trim();
 }
 
-function parsePositiveInt(value, fallback) {
-  const parsed = Number.parseInt(value, 10);
+function parsePositiveInt(value: unknown, fallback: number): number {
+  const parsed = Number.parseInt(String(value), 10);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
-function parseBirthDate(value) {
-  const date = new Date(value);
+function parseBirthDate(value: unknown): Date | null {
+  const date = new Date(String(value));
   if (Number.isNaN(date.getTime())) {
     return null;
   }
   return date;
 }
 
-function isValidAgeRange(birthDate) {
+function isValidAgeRange(birthDate: Date): boolean {
   const now = new Date();
   const maxPastDate = new Date();
   maxPastDate.setFullYear(now.getFullYear() - 120);
   return birthDate <= now && birthDate >= maxPastDate;
 }
 
-function normalizePhone(value) {
+function normalizePhone(value: unknown): string | null {
   const digits = normalizeText(value).replace(/\D/g, "");
   if (digits.length < 10 || digits.length > 11) {
     return null;
@@ -42,7 +72,7 @@ function normalizePhone(value) {
   return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
 }
 
-function normalizeFundingSource(value) {
+function normalizeFundingSource(value: unknown): FundingSource | null {
   const raw = normalizeText(value);
   const found = FUNDING_SOURCES.find(
     (item) => item.toLowerCase() === raw.toLowerCase(),
@@ -50,9 +80,12 @@ function normalizeFundingSource(value) {
   return found ?? null;
 }
 
-function validatePatientPayload(payload, { partial = false } = {}) {
-  const errors = [];
-  const update = {};
+function validatePatientPayload(
+  payload: PatientPayload,
+  { partial = false }: { partial?: boolean } = {},
+): ValidationResult {
+  const errors: string[] = [];
+  const update: PatientUpdateFields = {};
 
   if (!partial || payload.fullName !== undefined) {
     const fullName = normalizeText(payload.fullName);
@@ -112,8 +145,8 @@ function validatePatientPayload(payload, { partial = false } = {}) {
   };
 }
 
-function buildFilters(queryParams) {
-  const filters = {};
+function buildFilters(queryParams: Request["query"]): Record<string, unknown> {
+  const filters: Record<string, unknown> = {};
   const search = normalizeText(queryParams.search);
 
   if (search) {
@@ -140,7 +173,7 @@ function buildFilters(queryParams) {
 
 router.use("/patients", requireAuth);
 
-router.get("/patients", async (req, res) => {
+router.get("/patients", async (req: Request, res: Response) => {
   const page = parsePositiveInt(req.query.page, 1);
   const limit = Math.min(parsePositiveInt(req.query.limit, 20), 100);
   const skip = (page - 1) * limit;
@@ -151,7 +184,7 @@ router.get("/patients", async (req, res) => {
     Patient.countDocuments(filters),
   ]);
 
-  return res.status(200).json({
+  res.status(200).json({
     items,
     pagination: {
       page,
@@ -162,81 +195,98 @@ router.get("/patients", async (req, res) => {
   });
 });
 
-router.post("/patients", async (req, res) => {
-  const { valid, errors, update } = validatePatientPayload(req.body ?? {});
+router.post("/patients", async (req: Request, res: Response) => {
+  const { valid, errors, update } = validatePatientPayload(
+    (req.body ?? {}) as PatientPayload,
+  );
 
   if (!valid) {
-    return res.status(400).json({ message: errors[0], errors });
+    res.status(400).json({ message: errors[0], errors });
+    return;
   }
 
   const created = await Patient.create(update);
-  return res.status(201).json({ patient: created });
+  res.status(201).json({ patient: created });
 });
 
-router.get("/patients/:id", async (req, res) => {
-  if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
-    return res.status(400).json({ message: "Identificador de paciente inválido." });
+router.get("/patients/:id", async (req: Request, res: Response) => {
+  const id = getRouteId(req.params.id);
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    res.status(400).json({ message: "Identificador de paciente inválido." });
+    return;
   }
 
-  const patient = await Patient.findById(req.params.id).lean();
+  const patient = await Patient.findById(id).lean();
   if (!patient) {
-    return res.status(404).json({ message: "Paciente não encontrado." });
+    res.status(404).json({ message: "Paciente não encontrado." });
+    return;
   }
 
-  return res.status(200).json({ patient });
+  res.status(200).json({ patient });
 });
 
-router.patch("/patients/:id", async (req, res) => {
-  if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
-    return res.status(400).json({ message: "Identificador de paciente inválido." });
+router.patch("/patients/:id", async (req: Request, res: Response) => {
+  const id = getRouteId(req.params.id);
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    res.status(400).json({ message: "Identificador de paciente inválido." });
+    return;
   }
 
-  const { valid, errors, update } = validatePatientPayload(req.body ?? {}, {
-    partial: true,
-  });
+  const { valid, errors, update } = validatePatientPayload(
+    (req.body ?? {}) as PatientPayload,
+    { partial: true },
+  );
   if (!valid) {
-    return res.status(400).json({ message: errors[0], errors });
+    res.status(400).json({ message: errors[0], errors });
+    return;
   }
 
   if (Object.keys(update).length === 0) {
-    return res.status(400).json({ message: "Nenhum campo para atualização foi enviado." });
+    res.status(400).json({ message: "Nenhum campo para atualização foi enviado." });
+    return;
   }
 
-  const patient = await Patient.findByIdAndUpdate(req.params.id, update, {
+  const patient = await Patient.findByIdAndUpdate(id, update, {
     new: true,
     runValidators: true,
   }).lean();
 
   if (!patient) {
-    return res.status(404).json({ message: "Paciente não encontrado." });
+    res.status(404).json({ message: "Paciente não encontrado." });
+    return;
   }
 
-  return res.status(200).json({ patient });
+  res.status(200).json({ patient });
 });
 
-router.patch("/patients/:id/status", async (req, res) => {
-  if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
-    return res.status(400).json({ message: "Identificador de paciente inválido." });
+router.patch("/patients/:id/status", async (req: Request, res: Response) => {
+  const id = getRouteId(req.params.id);
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    res.status(400).json({ message: "Identificador de paciente inválido." });
+    return;
   }
 
-  const isActive = req.body?.isActive;
+  const isActive = (req.body as { isActive?: unknown })?.isActive;
   if (typeof isActive !== "boolean") {
-    return res
-      .status(400)
-      .json({ message: "O campo isActive deve ser booleano." });
+    res.status(400).json({ message: "O campo isActive deve ser booleano." });
+    return;
   }
 
   const patient = await Patient.findByIdAndUpdate(
-    req.params.id,
+    id,
     { isActive },
     { new: true, runValidators: true },
   ).lean();
 
   if (!patient) {
-    return res.status(404).json({ message: "Paciente não encontrado." });
+    res.status(404).json({ message: "Paciente não encontrado." });
+    return;
   }
 
-  return res.status(200).json({ patient });
+  res.status(200).json({ patient });
 });
 
 export default router;

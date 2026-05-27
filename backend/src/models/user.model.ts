@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+import mongoose, { type HydratedDocument, type InferSchemaType } from "mongoose";
 
 const userSchema = new mongoose.Schema(
   {
@@ -26,5 +26,7 @@ const userSchema = new mongoose.Schema(
 );
 
 userSchema.index({ email: 1 }, { unique: true });
+
+export type UserDocument = HydratedDocument<InferSchemaType<typeof userSchema>>;
 
 export const User = mongoose.model("User", userSchema);

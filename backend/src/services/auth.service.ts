@@ -1,11 +1,16 @@
 import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
+import jwt, { type SignOptions } from "jsonwebtoken";
+import type { CookieOptions } from "express";
 import { env } from "../config/env.js";
 import { User } from "../models/user.model.js";
 
 const SALT_ROUNDS = 12;
 
-export async function ensureInitialAdminUser() {
+interface AccessTokenPayload {
+  sub: string;
+}
+
+export async function ensureInitialAdminUser(): Promise<void> {
   const adminEmail = env.adminEmail.toLowerCase().trim();
   const existingUser = await User.findOne({ email: adminEmail }).lean();
 
@@ -24,7 +29,7 @@ export async function ensureInitialAdminUser() {
   console.log(`Usuário admin inicial criado: ${adminEmail}`);
 }
 
-export async function validateCredentials(email, password) {
+export async function validateCredentials(email: string, password: string) {
   const normalizedEmail = email.toLowerCase().trim();
   const user = await User.findOne({ email: normalizedEmail });
 
@@ -40,17 +45,24 @@ export async function validateCredentials(email, password) {
   return user;
 }
 
-export function generateAccessToken(userId) {
-  return jwt.sign({ sub: userId }, env.jwtSecret, {
-    expiresIn: env.jwtExpiresIn,
-  });
+export function generateAccessToken(userId: string): string {
+  const options: SignOptions = {
+    expiresIn: env.jwtExpiresIn as SignOptions["expiresIn"],
+  };
+  return jwt.sign({ sub: userId } satisfies AccessTokenPayload, env.jwtSecret, options);
 }
 
-export function verifyAccessToken(token) {
-  return jwt.verify(token, env.jwtSecret);
+export function verifyAccessToken(token: string): AccessTokenPayload {
+  const payload = jwt.verify(token, env.jwtSecret);
+
+  if (typeof payload === "string" || !payload.sub) {
+    throw new Error("Token inválido.");
+  }
+
+  return { sub: String(payload.sub) };
 }
 
-export function buildAuthCookieOptions() {
+export function buildAuthCookieOptions(): CookieOptions {
   return {
     httpOnly: true,
     secure: env.isProduction,

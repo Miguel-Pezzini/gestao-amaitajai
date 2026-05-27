@@ -1,6 +1,6 @@
 # Backend
 
-API Express.js com MongoDB (Mongoose).
+API Express com MongoDB (Mongoose), escrita em **TypeScript**.
 
 ## Pré-requisitos
 
@@ -24,17 +24,28 @@ npm run dev
 
 API em `http://localhost:3000` · health check: `GET /api/health`
 
+## Scripts
+
+| Comando | Descrição |
+|---|---|
+| `npm run dev` | Servidor com hot reload (`tsx watch`) |
+| `npm run build` | Compila para `dist/` |
+| `npm start` | Executa build de produção |
+| `npm run typecheck` | Verifica tipos sem gerar arquivos |
+
 ## Estrutura
 
 ```
 src/
   config/        # variáveis de ambiente e conexão MongoDB
-  controllers/   # (reservado)
-  middleware/    # (reservado)
-  models/        # (reservado)
+  middlewares/   # autenticação
+  models/        # schemas Mongoose
   routes/        # rotas HTTP
-  app.js         # Express
-  index.js       # entrada
+  services/      # regras de negócio
+  types/         # declarações TypeScript (ex.: Express Request)
+  app.ts         # Express
+  index.ts       # entrada
+dist/            # saída do `tsc` (gerado)
 ```
 
 ## MongoDB local (Docker)
