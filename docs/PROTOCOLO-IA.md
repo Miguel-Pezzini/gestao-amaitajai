@@ -44,3 +44,9 @@ Objetivo: manter consistência técnica e documentação viva durante o desenvol
    - Priorizar testes de integração com banco real e aplicação real (fluxo HTTP completo), evitando depender apenas de mocks.
    - Só considerar tarefa concluída após rodar testes da mudança e manter o backend compilando.
 
+7. **Frontend componentizado (obrigatório)**
+   - Evitar arquivos de página/view muito longos (referência: até ~250 linhas por arquivo de página).
+   - Extrair lógica para hooks (`src/hooks`) e blocos de UI para componentes por feature (`src/features/<feature>/components`).
+   - Para telas complexas (ex.: agenda/calendário), manter composição no page file e mover widgets (calendário, filtros, modais) para componentes dedicados.
+   - Rodar build/lint do frontend após refatorações estruturais.
+

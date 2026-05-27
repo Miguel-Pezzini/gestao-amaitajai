@@ -17,7 +17,7 @@ export const APP_MODULES = [
     showInSidebar: true,
     showInQuickAccess: false,
     enabled: true,
-    requiredRoles: ["admin", "therapist"],
+    requiredRoles: ["administrador", "tecnico"],
     order: 0,
   },
   {
@@ -29,7 +29,7 @@ export const APP_MODULES = [
     showInSidebar: true,
     showInQuickAccess: true,
     enabled: true,
-    requiredRoles: ["admin"],
+    requiredRoles: ["administrador"],
     order: 1,
   },
   {
@@ -40,8 +40,8 @@ export const APP_MODULES = [
     route: "/agenda",
     showInSidebar: true,
     showInQuickAccess: true,
-    enabled: false,
-    requiredRoles: ["admin", "therapist"],
+    enabled: true,
+    requiredRoles: ["administrador", "tecnico"],
     order: 2,
   },
   {
@@ -53,7 +53,7 @@ export const APP_MODULES = [
     showInSidebar: true,
     showInQuickAccess: true,
     enabled: false,
-    requiredRoles: ["admin"],
+    requiredRoles: ["administrador"],
     order: 3,
   },
   {
@@ -65,7 +65,7 @@ export const APP_MODULES = [
     showInSidebar: true,
     showInQuickAccess: true,
     enabled: false,
-    requiredRoles: ["admin", "therapist"],
+    requiredRoles: ["administrador", "tecnico"],
     order: 4,
   },
   {
@@ -77,7 +77,7 @@ export const APP_MODULES = [
     showInSidebar: true,
     showInQuickAccess: true,
     enabled: false,
-    requiredRoles: ["admin"],
+    requiredRoles: ["administrador"],
     order: 5,
   },
 ];

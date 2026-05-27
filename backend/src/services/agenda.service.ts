@@ -40,6 +40,18 @@ function isObjectId(value: string): boolean {
   return mongoose.Types.ObjectId.isValid(value);
 }
 
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function parseLimit(value: unknown, fallback = 10, max = 30): number {
+  const parsed = Number.parseInt(String(value), 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return fallback;
+  }
+  return Math.min(parsed, max);
+}
+
 type SessionPayload = {
   sessionTypeId?: unknown;
   modality?: unknown;
@@ -52,6 +64,47 @@ type SessionPayload = {
 };
 
 export class AgendaService {
+  async searchPatients(query: { q?: unknown; limit?: unknown }) {
+    const term = normalizeText(query.q);
+    if (!term) {
+      return { items: [] };
+    }
+
+    const limit = parseLimit(query.limit);
+    const matcher = new RegExp(escapeRegex(term), "i");
+    const items = await Patient.find({
+      isActive: true,
+      $or: [{ fullName: matcher }, { guardianName: matcher }],
+    })
+      .sort({ fullName: 1 })
+      .limit(limit)
+      .select("_id fullName guardianName fundingSource")
+      .lean();
+
+    return { items };
+  }
+
+  async searchProfessionals(query: { q?: unknown; limit?: unknown }) {
+    const term = normalizeText(query.q);
+    if (!term) {
+      return { items: [] };
+    }
+
+    const limit = parseLimit(query.limit);
+    const matcher = new RegExp(escapeRegex(term), "i");
+    const items = await User.find({
+      isActive: true,
+      role: { $in: USER_ROLES as unknown as UserRole[] },
+      $or: [{ name: matcher }, { email: matcher }],
+    })
+      .sort({ name: 1 })
+      .limit(limit)
+      .select("_id name email role")
+      .lean();
+
+    return { items };
+  }
+
   async listRooms() {
     const items = await Room.find().sort({ name: 1 }).lean();
     return { items };

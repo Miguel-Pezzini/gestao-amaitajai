@@ -1,6 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { SessionProvider } from "@/contexts/session-context";
 import { AppLayout } from "@/layouts/AppLayout";
+import { AgendaPage } from "@/pages/AgendaPage";
 import { HomePage } from "@/pages/HomePage";
 import { LoginPage } from "@/pages/LoginPage";
 import { ModuleComingSoonPage } from "@/pages/ModuleComingSoonPage";
@@ -20,7 +21,7 @@ export function AppRoutes() {
         >
           <Route path="/" element={<HomePage />} />
           <Route path="/patients" element={<PatientsPage />} />
-          <Route path="/agenda" element={<ModuleComingSoonPage />} />
+          <Route path="/agenda" element={<AgendaPage />} />
           <Route path="/attendance" element={<ModuleComingSoonPage />} />
           <Route path="/check-in" element={<ModuleComingSoonPage />} />
           <Route path="/waitlist" element={<ModuleComingSoonPage />} />

@@ -21,6 +21,24 @@ function handleServiceError(res: Response, error: unknown): void {
 
 router.use("/agenda", requireAuth);
 
+router.get("/agenda/lookups/patients", async (req: Request, res: Response) => {
+  try {
+    const result = await agendaService.searchPatients(req.query as { q?: unknown; limit?: unknown });
+    res.status(200).json(result);
+  } catch (error) {
+    handleServiceError(res, error);
+  }
+});
+
+router.get("/agenda/lookups/professionals", async (req: Request, res: Response) => {
+  try {
+    const result = await agendaService.searchProfessionals(req.query as { q?: unknown; limit?: unknown });
+    res.status(200).json(result);
+  } catch (error) {
+    handleServiceError(res, error);
+  }
+});
+
 router.get("/agenda/rooms", async (_req: Request, res: Response) => {
   try {
     const result = await agendaService.listRooms();

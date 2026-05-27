@@ -1,7 +1,16 @@
 import { APP_MODULES } from "@/config/modules";
 
 function getUserRole(user) {
-  return String(user?.role ?? "admin").toLowerCase();
+  const normalizedRole = String(user?.role ?? "").trim().toLowerCase();
+
+  if (normalizedRole === "admin") {
+    return "administrador";
+  }
+  if (normalizedRole === "therapist") {
+    return "tecnico";
+  }
+
+  return normalizedRole || "tecnico";
 }
 
 function hasRoleAccess(moduleConfig, userRole) {

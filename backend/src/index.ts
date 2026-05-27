@@ -9,6 +9,7 @@ async function start(): Promise<void> {
 
   const server = app.listen(env.port, () => {
     console.log(`API em http://localhost:${env.port}`);
+    console.log(`MongoDB em ${env.mongodbUri}`);
   });
 
   const shutdown = async (signal: string): Promise<void> => {
