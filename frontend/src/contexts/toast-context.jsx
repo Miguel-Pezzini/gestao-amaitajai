@@ -8,8 +8,8 @@ const ToastContext = createContext(null);
 const TOAST_DURATION_MS = 5000;
 
 const VARIANT_STYLES = {
-  error: "border-destructive/40 bg-destructive/10 text-destructive",
-  success: "border-ama-cyan/50 bg-ama-light text-ama-blue-dark",
+  error: "border-destructive bg-white text-red-800",
+  success: "border-ama-blue bg-ama-light text-ama-blue-dark",
 };
 
 function Toaster({ toasts, onDismiss }) {
@@ -28,14 +28,14 @@ function Toaster({ toasts, onDismiss }) {
           key={toast.id}
           role="alert"
           className={cn(
-            "pointer-events-auto flex items-start gap-2 rounded-lg border px-3 py-2.5 text-sm shadow-lg",
+            "pointer-events-auto flex items-start gap-2 rounded-lg border-2 px-3 py-2.5 text-sm font-medium shadow-xl",
             VARIANT_STYLES[toast.variant],
           )}
         >
           <p className="min-w-0 flex-1 leading-snug">{toast.message}</p>
           <button
             type="button"
-            className="shrink-0 rounded p-0.5 opacity-70 transition hover:opacity-100"
+            className="shrink-0 rounded p-0.5 text-current opacity-80 transition hover:opacity-100"
             onClick={() => onDismiss(toast.id)}
             aria-label="Fechar aviso"
           >

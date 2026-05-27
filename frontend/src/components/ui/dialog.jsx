@@ -1,7 +1,16 @@
 import { useEffect } from "react";
 import { cn } from "@/lib/utils";
 
-function Dialog({ open, onOpenChange, title, description, children, className }) {
+function Dialog({
+  open,
+  onOpenChange,
+  title,
+  description,
+  headerAction,
+  children,
+  className,
+  nested = false,
+}) {
   useEffect(() => {
     if (!open) {
       return undefined;
@@ -29,7 +38,12 @@ function Dialog({ open, onOpenChange, title, description, children, className })
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-4">
+    <div
+      className={cn(
+        "fixed inset-0 flex items-end justify-center p-0 sm:items-center sm:p-4",
+        nested ? "z-[60]" : "z-50",
+      )}
+    >
       <button
         type="button"
         className="absolute inset-0 bg-black/50"
@@ -46,13 +60,19 @@ function Dialog({ open, onOpenChange, title, description, children, className })
         )}
       >
         <div className="overflow-y-auto p-4 sm:p-6">
-          {title || description ? (
-            <div className="mb-4 space-y-1">
-              {title ? (
-                <h2 id="dialog-title" className="text-lg font-semibold text-ama-blue-dark">
-                  {title}
-                </h2>
-              ) : null}
+          {title || description || headerAction ? (
+            <div className="mb-4 space-y-2">
+              <div className="flex items-start justify-between gap-3">
+                {title ? (
+                  <h2
+                    id="dialog-title"
+                    className="min-w-0 flex-1 text-lg font-semibold capitalize leading-snug text-ama-blue-dark"
+                  >
+                    {title}
+                  </h2>
+                ) : null}
+                {headerAction ? <div className="shrink-0">{headerAction}</div> : null}
+              </div>
               {description ? (
                 <p className="text-sm text-muted-foreground">{description}</p>
               ) : null}

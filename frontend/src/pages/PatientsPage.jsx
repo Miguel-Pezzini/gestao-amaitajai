@@ -83,11 +83,9 @@ function formatBirthDatePtBr(value) {
   if (Number.isNaN(parsed.getTime())) {
     return "-";
   }
-  return new Intl.DateTimeFormat("pt-BR", {
+  return new Intl.DateTimeFormat(undefined, {
     timeZone: "UTC",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
+    dateStyle: "short",
   }).format(parsed);
 }
 
@@ -165,6 +163,7 @@ function PatientForm({
           onChange={(event) => onFormChange("birthDate", event.target.value)}
           max={new Date().toISOString().slice(0, 10)}
           disabled={saving}
+          aria-invalid={Boolean(fieldErrors.birthDate)}
         />
         {fieldErrors.birthDate ? (
           <p className="text-sm text-destructive">{fieldErrors.birthDate}</p>

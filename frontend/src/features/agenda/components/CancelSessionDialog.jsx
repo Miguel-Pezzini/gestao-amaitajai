@@ -2,13 +2,15 @@ import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { FieldError } from "@/features/agenda/components/FieldError";
 
 export function CancelSessionDialog({
   open,
   setOpen,
   saving,
   cancelReason,
-  setCancelReason,
+  cancelReasonError,
+  onCancelReasonChange,
   onSubmit,
   onClose,
 }) {
@@ -31,16 +33,18 @@ export function CancelSessionDialog({
           <Input
             id="cancelReason"
             value={cancelReason}
-            onChange={(event) => setCancelReason(event.target.value)}
+            onChange={(event) => onCancelReasonChange(event.target.value)}
             placeholder="Ex.: paciente ausente"
             disabled={saving}
+            aria-invalid={Boolean(cancelReasonError)}
           />
+          <FieldError message={cancelReasonError} />
         </div>
         <div className="flex gap-2">
           <Button
             type="submit"
             className="bg-destructive text-white hover:bg-destructive/90"
-            disabled={saving || !cancelReason.trim()}
+            disabled={saving}
           >
             Confirmar cancelamento
           </Button>

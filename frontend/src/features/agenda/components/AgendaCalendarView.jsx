@@ -1,16 +1,20 @@
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Plus, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Dialog } from "@/components/ui/dialog";
 import { CalendarDaySessions } from "@/features/agenda/components/CalendarDaySessions";
+import { SessionDetailDialog } from "@/features/agenda/components/SessionDetailDialog";
+import { SessionParticipantsPreview } from "@/features/agenda/components/SessionParticipants";
 import {
-  formatDateTime,
+  formatDayFull,
   formatDayNumber,
+  formatSessionTime,
   groupSessionsByDay,
   isWeekend,
   monthLabel,
+  getSessionStatusLabel,
   sessionSummary,
   sortSessionsByStart,
   statusBadgeClass,
@@ -34,32 +38,73 @@ function buildMonthGrid(referenceDate) {
   return { days, emptyCells };
 }
 
-function SessionCard({ session, onCompleteSession, onCancelSession, isAdmin }) {
+function SessionCard({ session, onOpenSession, onCompleteSession, onCancelSession, isAdmin }) {
+  const canComplete = session.status === "agendada";
+  const canCancel = isAdmin && session.status !== "cancelada";
+  const hasActions = canComplete || canCancel;
+
   return (
-    <div className="rounded border border-ama-cyan/20 p-2">
-      <p className="text-xs font-semibold text-ama-blue-dark">{sessionSummary(session)}</p>
-      <p className="text-xs text-muted-foreground">{formatDateTime(session.startAt)}</p>
-      <Badge variant="outline" className={`mt-1 ${statusBadgeClass(session.status)}`}>
-        {session.status}
-      </Badge>
-      <div className="mt-2 flex flex-col gap-1">
-        {session.status === "agendada" ? (
-          <Button size="sm" variant="outline" onClick={() => onCompleteSession(session._id)}>
-            Concluir
-          </Button>
-        ) : null}
-        {isAdmin && session.status !== "cancelada" ? (
-          <Button
-            size="sm"
-            variant="outline"
-            className="border-destructive/30 text-destructive hover:bg-destructive/10"
-            onClick={() => onCancelSession(session._id)}
-          >
-            Cancelar
-          </Button>
-        ) : null}
-      </div>
-    </div>
+    <li className="flex items-start gap-2 px-2 py-2 sm:gap-3 sm:px-3 sm:py-2.5">
+      <button
+        type="button"
+        onClick={() => onOpenSession(session)}
+        className="flex min-w-0 flex-1 items-start gap-3 rounded-md px-1 py-1 text-left transition hover:bg-ama-light/50 sm:gap-4"
+      >
+        <time
+          dateTime={session.startAt}
+          className="w-12 shrink-0 pt-0.5 text-sm font-semibold tabular-nums text-ama-blue-dark sm:w-14"
+        >
+          {formatSessionTime(session.startAt)}
+        </time>
+
+        <div className="min-w-0 flex-1 space-y-1">
+          <p className="text-sm font-medium text-ama-blue-dark">{sessionSummary(session)}</p>
+          <Badge variant="outline" className={`text-[10px] ${statusBadgeClass(session.status)}`}>
+            {getSessionStatusLabel(session.status)}
+          </Badge>
+          <SessionParticipantsPreview session={session} />
+          <p className="text-[10px] text-muted-foreground">Clique para ver detalhes</p>
+        </div>
+
+        <ChevronRight
+          className="mt-1 size-4 shrink-0 text-muted-foreground/60"
+          aria-hidden="true"
+        />
+      </button>
+
+      {hasActions ? (
+        <div className="flex shrink-0 flex-col items-stretch gap-0.5 pt-1">
+          {canComplete ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="h-8 px-2 text-ama-blue-dark hover:bg-ama-light hover:text-ama-blue-dark"
+              onClick={() => onCompleteSession(session._id)}
+              aria-label="Concluir sessão"
+              title="Concluir"
+            >
+              <Check className="size-4" aria-hidden="true" />
+              <span className="hidden sm:inline">Concluir</span>
+            </Button>
+          ) : null}
+          {canCancel ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="h-8 px-2 text-destructive hover:bg-destructive/10 hover:text-destructive"
+              onClick={() => onCancelSession(session._id)}
+              aria-label="Cancelar sessão"
+              title="Cancelar"
+            >
+              <X className="size-4" aria-hidden="true" />
+              <span className="hidden sm:inline">Cancelar</span>
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
+    </li>
   );
 }
 
@@ -110,6 +155,8 @@ export function AgendaCalendarView({
   const { days, emptyCells } = buildMonthGrid(currentMonth);
   const [selectedDay, setSelectedDay] = useState(null);
   const [dayDialogOpen, setDayDialogOpen] = useState(false);
+  const [selectedSession, setSelectedSession] = useState(null);
+  const [sessionDetailOpen, setSessionDetailOpen] = useState(false);
 
   const selectedDayItems = useMemo(() => {
     if (!selectedDay) {
@@ -122,6 +169,16 @@ export function AgendaCalendarView({
   function openDayDialog(date) {
     setSelectedDay(date);
     setDayDialogOpen(true);
+  }
+
+  function openSessionDetail(session) {
+    setSelectedSession(session);
+    setSessionDetailOpen(true);
+  }
+
+  function closeSessionDetail() {
+    setSessionDetailOpen(false);
+    setSelectedSession(null);
   }
 
   return (
@@ -193,46 +250,81 @@ export function AgendaCalendarView({
       <Dialog
         open={dayDialogOpen}
         onOpenChange={setDayDialogOpen}
-        title={
-          selectedDay
-            ? `Sessões do dia ${new Intl.DateTimeFormat("pt-BR", { dateStyle: "full" }).format(selectedDay)}`
-            : "Sessões do dia"
+        title={selectedDay ? formatDayFull(selectedDay) : "Sessões do dia"}
+        description={
+          selectedDayItems.length > 0
+            ? `${selectedDayItems.length} sessão(ões) neste dia. Clique em uma sessão para ver todos os detalhes.`
+            : "Nenhuma sessão agendada para este dia."
         }
-        description="Clique em uma ação para concluir ou cancelar, e use o botão para criar nova sessão."
+        headerAction={
+          isAdmin ? (
+            <Button
+              type="button"
+              size="sm"
+              className="bg-ama-blue text-white hover:bg-ama-blue-dark"
+              onClick={() => {
+                setDayDialogOpen(false);
+                onOpenCreate(selectedDay);
+              }}
+            >
+              <Plus className="size-4" aria-hidden="true" />
+              Nova sessão
+            </Button>
+          ) : null
+        }
         className="sm:max-w-2xl"
       >
-        <div className="space-y-3">
-          <div className="flex justify-end">
-            {isAdmin ? (
+        {selectedDayItems.length === 0 ? (
+          isAdmin ? (
+            <div className="rounded-lg border border-dashed border-ama-cyan/30 bg-ama-light/30 px-4 py-8 text-center">
+              <p className="text-sm text-muted-foreground">Nenhuma sessão neste dia.</p>
               <Button
-                className="bg-ama-blue text-white hover:bg-ama-blue-dark"
+                type="button"
+                size="sm"
+                variant="outline"
+                className="mt-3 border-ama-cyan/40"
                 onClick={() => {
                   setDayDialogOpen(false);
                   onOpenCreate(selectedDay);
                 }}
               >
-                Criar sessão
+                <Plus className="size-4" aria-hidden="true" />
+                Agendar sessão
               </Button>
-            ) : null}
-          </div>
-
-          {selectedDayItems.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Sem sessões neste dia.</p>
-          ) : (
-            <div className="space-y-2">
-              {selectedDayItems.map((session) => (
-                <SessionCard
-                  key={session._id}
-                  session={session}
-                  onCompleteSession={onCompleteSession}
-                  onCancelSession={onCancelSession}
-                  isAdmin={isAdmin}
-                />
-              ))}
             </div>
-          )}
-        </div>
+          ) : (
+            <p className="py-4 text-center text-sm text-muted-foreground">Nenhuma sessão neste dia.</p>
+          )
+        ) : (
+          <ul className="divide-y divide-ama-cyan/15 overflow-hidden rounded-lg border border-ama-cyan/20 bg-white">
+            {selectedDayItems.map((session) => (
+              <SessionCard
+                key={session._id}
+                session={session}
+                onOpenSession={openSessionDetail}
+                onCompleteSession={onCompleteSession}
+                onCancelSession={onCancelSession}
+                isAdmin={isAdmin}
+              />
+            ))}
+          </ul>
+        )}
       </Dialog>
+
+      <SessionDetailDialog
+        open={sessionDetailOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            closeSessionDetail();
+            return;
+          }
+          setSessionDetailOpen(true);
+        }}
+        session={selectedSession}
+        isAdmin={isAdmin}
+        onCompleteSession={onCompleteSession}
+        onCancelSession={onCancelSession}
+      />
     </Card>
   );
 }

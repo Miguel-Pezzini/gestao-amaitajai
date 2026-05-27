@@ -37,6 +37,7 @@ export function AgendaPage() {
         setOpen={agenda.setCreateDialogOpen}
         saving={agenda.saving}
         form={agenda.form}
+        fieldErrors={agenda.fieldErrors}
         sessionTypes={agenda.sessionTypes}
         rooms={agenda.rooms}
         onFormChange={agenda.handleFormChange}
@@ -61,7 +62,8 @@ export function AgendaPage() {
         setOpen={agenda.setCancelDialogOpen}
         saving={agenda.saving}
         cancelReason={agenda.cancelReason}
-        setCancelReason={agenda.setCancelReason}
+        cancelReasonError={agenda.cancelReasonError}
+        onCancelReasonChange={agenda.handleCancelReasonChange}
         onSubmit={agenda.handleCancelSession}
         onClose={agenda.closeCancelDialog}
       />

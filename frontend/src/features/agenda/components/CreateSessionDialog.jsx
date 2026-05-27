@@ -2,12 +2,12 @@ import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { FieldError } from "@/features/agenda/components/FieldError";
 import {
   getParticipantCountLabels,
   getSessionFormatHint,
   SESSION_FORMAT_LABELS,
   SESSION_FORMAT_OPTIONS,
-  validateSessionParticipants,
 } from "@/features/agenda/constants";
 import { SelectedItems } from "./SelectedItems";
 
@@ -16,6 +16,7 @@ export function CreateSessionDialog({
   setOpen,
   saving,
   form,
+  fieldErrors,
   sessionTypes,
   rooms,
   onFormChange,
@@ -34,11 +35,6 @@ export function CreateSessionDialog({
   onAddProfessional,
   onRemoveProfessional,
 }) {
-  const participantError = validateSessionParticipants(
-    form.modality,
-    form.selectedPatients.length,
-    form.selectedProfessionals.length,
-  );
   const participantCounts = getParticipantCountLabels(
     form.modality,
     form.selectedPatients.length,
@@ -67,14 +63,15 @@ export function CreateSessionDialog({
             value={form.sessionTypeId}
             onChange={(event) => onFormChange("sessionTypeId", event.target.value)}
             disabled={saving}
+            aria-invalid={Boolean(fieldErrors.sessionTypeId)}
           >
-            <option value="">Selecione</option>
             {sessionTypes.map((type) => (
               <option key={type._id} value={type._id}>
                 {type.name}
               </option>
             ))}
           </select>
+          <FieldError message={fieldErrors.sessionTypeId} />
         </div>
 
         <div className="space-y-2">
@@ -103,25 +100,49 @@ export function CreateSessionDialog({
             value={form.roomId}
             onChange={(event) => onFormChange("roomId", event.target.value)}
             disabled={saving}
+            aria-invalid={Boolean(fieldErrors.roomId)}
           >
-            <option value="">Selecione</option>
             {rooms.map((room) => (
               <option key={room._id} value={room._id}>
                 {room.name}
               </option>
             ))}
           </select>
+          <FieldError message={fieldErrors.roomId} />
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="startAt">Início</Label>
-          <Input
-            id="startAt"
-            type="datetime-local"
-            value={form.startAt}
-            onChange={(event) => onFormChange("startAt", event.target.value)}
-            disabled={saving}
-          />
+          <Label>Início</Label>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="space-y-1">
+              <label htmlFor="startDate" className="text-xs text-muted-foreground">
+                Data
+              </label>
+              <Input
+                id="startDate"
+                type="date"
+                value={form.startDate}
+                onChange={(event) => onFormChange("startDate", event.target.value)}
+                disabled={saving}
+                aria-invalid={Boolean(fieldErrors.startAt)}
+              />
+            </div>
+            <div className="space-y-1">
+              <label htmlFor="startTime" className="text-xs text-muted-foreground">
+                Hora
+              </label>
+              <Input
+                id="startTime"
+                type="time"
+                step="60"
+                value={form.startTime}
+                onChange={(event) => onFormChange("startTime", event.target.value)}
+                disabled={saving}
+                aria-invalid={Boolean(fieldErrors.startAt)}
+              />
+            </div>
+          </div>
+          <FieldError message={fieldErrors.startAt} />
         </div>
 
         <div className="space-y-2">
@@ -133,18 +154,16 @@ export function CreateSessionDialog({
             value={form.durationMinutes}
             onChange={(event) => onFormChange("durationMinutes", event.target.value)}
             disabled={saving}
+            aria-invalid={Boolean(fieldErrors.durationMinutes)}
           />
+          <FieldError message={fieldErrors.durationMinutes} />
         </div>
 
         <div className="space-y-2">
           <div className="flex items-baseline justify-between gap-2">
             <Label htmlFor="patientSearch">Pacientes</Label>
             {participantCounts.patients ? (
-              <span
-                className={`text-xs ${participantError ? "text-destructive" : "text-muted-foreground"}`}
-              >
-                {participantCounts.patients}
-              </span>
+              <span className="text-xs text-muted-foreground">{participantCounts.patients}</span>
             ) : null}
           </div>
           <Input
@@ -153,6 +172,7 @@ export function CreateSessionDialog({
             onChange={(event) => setPatientTerm(event.target.value)}
             placeholder="Digite nome do paciente"
             disabled={saving}
+            aria-invalid={Boolean(fieldErrors.patients)}
           />
           {loadingPatients ? <p className="text-xs text-muted-foreground">Buscando pacientes...</p> : null}
           {!loadingPatients && patientOptions.length > 0 ? (
@@ -170,17 +190,14 @@ export function CreateSessionDialog({
             </div>
           ) : null}
           <SelectedItems items={form.selectedPatients} onRemove={onRemovePatient} />
+          <FieldError message={fieldErrors.patients} />
         </div>
 
         <div className="space-y-2">
           <div className="flex items-baseline justify-between gap-2">
             <Label htmlFor="professionalSearch">Profissionais</Label>
             {participantCounts.professionals ? (
-              <span
-                className={`text-xs ${participantError ? "text-destructive" : "text-muted-foreground"}`}
-              >
-                {participantCounts.professionals}
-              </span>
+              <span className="text-xs text-muted-foreground">{participantCounts.professionals}</span>
             ) : null}
           </div>
           <Input
@@ -189,6 +206,7 @@ export function CreateSessionDialog({
             onChange={(event) => setProfessionalTerm(event.target.value)}
             placeholder="Digite nome ou e-mail"
             disabled={saving}
+            aria-invalid={Boolean(fieldErrors.professionals)}
           />
           {loadingProfessionals ? (
             <p className="text-xs text-muted-foreground">Buscando profissionais...</p>
@@ -208,6 +226,7 @@ export function CreateSessionDialog({
             </div>
           ) : null}
           <SelectedItems items={form.selectedProfessionals} onRemove={onRemoveProfessional} />
+          <FieldError message={fieldErrors.professionals} />
         </div>
 
         <div className="space-y-2">
@@ -219,10 +238,6 @@ export function CreateSessionDialog({
             disabled={saving}
           />
         </div>
-
-        {participantError ? (
-          <p className="text-xs text-destructive">{participantError}</p>
-        ) : null}
 
         <div className="flex flex-col gap-2 pt-2 sm:flex-row">
           <Button

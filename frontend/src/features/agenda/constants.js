@@ -69,49 +69,21 @@ export function getParticipantCountLabels(modality, patientCount, professionalCo
   return { patients, professionals };
 }
 
-export function validateSessionForm(form) {
-  if (!form.sessionTypeId) {
-    return "Selecione a modalidade de atendimento.";
-  }
-  if (!form.roomId) {
-    return "Selecione a sala.";
-  }
-  if (!form.startAt) {
-    return "Informe data e hora de início.";
-  }
-
-  const durationMinutes = Number.parseInt(form.durationMinutes, 10);
-  if (!Number.isFinite(durationMinutes) || durationMinutes <= 0) {
-    return "Informe uma duração válida em minutos.";
-  }
-
-  if (form.selectedPatients.length === 0) {
-    return "Adicione ao menos um paciente.";
-  }
-  if (form.selectedProfessionals.length === 0) {
-    return "Adicione ao menos um profissional.";
-  }
-
-  return validateSessionParticipants(
-    form.modality,
-    form.selectedPatients.length,
-    form.selectedProfessionals.length,
-  );
-}
-
-export function validateSessionParticipants(modality, patientCount, professionalCount) {
+export function getParticipantFieldErrors(modality, patientCount, professionalCount) {
   const limits = SESSION_FORMAT_LIMITS[modality];
+  const errors = {};
   if (!limits) {
-    return null;
+    return errors;
   }
 
   const label = SESSION_FORMAT_LABELS[modality] ?? modality;
 
   if (patientCount < limits.minPatients || patientCount > limits.maxPatients) {
     if (limits.minPatients === limits.maxPatients) {
-      return `Para tipo de sessão ${label}, selecione exatamente ${limits.minPatients} paciente(s).`;
+      errors.patients = `Para tipo de sessão ${label}, selecione exatamente ${limits.minPatients} paciente(s).`;
+    } else {
+      errors.patients = `Para tipo de sessão ${label}, selecione entre ${limits.minPatients} e ${limits.maxPatients} pacientes.`;
     }
-    return `Para tipo de sessão ${label}, selecione entre ${limits.minPatients} e ${limits.maxPatients} pacientes.`;
   }
 
   if (
@@ -119,21 +91,72 @@ export function validateSessionParticipants(modality, patientCount, professional
     professionalCount > limits.maxProfessionals
   ) {
     if (limits.minProfessionals === limits.maxProfessionals) {
-      return `Para tipo de sessão ${label}, selecione exatamente ${limits.minProfessionals} profissional(is).`;
+      errors.professionals = `Para tipo de sessão ${label}, selecione exatamente ${limits.minProfessionals} profissional(is).`;
+    } else {
+      errors.professionals = `Para tipo de sessão ${label}, selecione entre ${limits.minProfessionals} e ${limits.maxProfessionals} profissionais.`;
     }
-    return `Para tipo de sessão ${label}, selecione entre ${limits.minProfessionals} e ${limits.maxProfessionals} profissionais.`;
   }
 
-  return null;
+  return errors;
+}
+
+export function getSessionFormFieldErrors(form) {
+  const errors = {};
+
+  if (!form.sessionTypeId) {
+    errors.sessionTypeId = "Selecione a modalidade de atendimento.";
+  }
+  if (!form.roomId) {
+    errors.roomId = "Selecione a sala.";
+  }
+  if (!form.startDate || !form.startTime) {
+    errors.startAt = "Informe data e hora de início.";
+  }
+
+  const durationMinutes = Number.parseInt(form.durationMinutes, 10);
+  if (!Number.isFinite(durationMinutes) || durationMinutes <= 0) {
+    errors.durationMinutes = "Informe uma duração válida em minutos.";
+  }
+
+  const participantErrors = getParticipantFieldErrors(
+    form.modality,
+    form.selectedPatients.length,
+    form.selectedProfessionals.length,
+  );
+
+  if (form.selectedPatients.length === 0 && !participantErrors.patients) {
+    errors.patients = "Adicione ao menos um paciente.";
+  }
+  if (form.selectedProfessionals.length === 0 && !participantErrors.professionals) {
+    errors.professionals = "Adicione ao menos um profissional.";
+  }
+
+  return { ...errors, ...participantErrors };
 }
 
 export const EMPTY_FORM = {
   sessionTypeId: "",
   modality: "individual",
   roomId: "",
-  startAt: "",
+  startDate: "",
+  startTime: "",
   durationMinutes: "60",
   notes: "",
   selectedPatients: [],
   selectedProfessionals: [],
 };
+
+export function pickDefaultCatalogId(items) {
+  const active = items.find((item) => item.isActive !== false);
+  return active?._id ?? items[0]?._id ?? "";
+}
+
+/** Preenche modalidade e sala com o primeiro item ativo (evita select “preenchido” com state vazio). */
+export function buildInitialSessionForm(sessionTypes = [], rooms = [], overrides = {}) {
+  return {
+    ...EMPTY_FORM,
+    sessionTypeId: pickDefaultCatalogId(sessionTypes),
+    roomId: pickDefaultCatalogId(rooms),
+    ...overrides,
+  };
+}
