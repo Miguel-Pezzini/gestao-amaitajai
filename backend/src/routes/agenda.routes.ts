@@ -1,4 +1,5 @@
 import { Router, type Request, type Response } from "express";
+import mongoose from "mongoose";
 import { AppError } from "../errors/app-error.js";
 import { requireAuth } from "../middlewares/auth.middleware.js";
 import { requireAdmin } from "../middlewares/authz.middleware.js";
@@ -15,8 +16,19 @@ function handleServiceError(res: Response, error: unknown): void {
     res.status(error.statusCode).json({ message: error.message });
     return;
   }
-  console.error("Erro inesperado em agenda:", error);
-  res.status(500).json({ message: "Erro interno ao processar agenda." });
+
+  if (error instanceof mongoose.Error.ValidationError) {
+    const firstMessage = Object.values(error.errors)[0]?.message;
+    res.status(400).json({
+      message: firstMessage ?? "Revise os dados informados para a sessão.",
+    });
+    return;
+  }
+
+  console.error("Falha inesperada na API de sessões:", error);
+  res.status(500).json({
+    message: "Não foi possível completar a solicitação. Tente novamente em instantes.",
+  });
 }
 
 router.use("/agenda", requireAuth);
@@ -50,8 +62,31 @@ router.get("/agenda/rooms", async (_req: Request, res: Response) => {
 
 router.post("/agenda/rooms", requireAdmin, async (req: Request, res: Response) => {
   try {
-    const result = await agendaService.createRoom((req.body ?? {}) as { name?: unknown; code?: unknown });
+    const result = await agendaService.createRoom((req.body ?? {}) as { name?: unknown });
     res.status(201).json(result);
+  } catch (error) {
+    handleServiceError(res, error);
+  }
+});
+
+router.patch("/agenda/rooms/:id", requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const result = await agendaService.updateRoom(getRouteId(req.params.id), req.body ?? {});
+    res.status(200).json(result);
+  } catch (error) {
+    handleServiceError(res, error);
+  }
+});
+
+router.patch("/agenda/rooms/:id/status", requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const isActive = (req.body as { isActive?: unknown })?.isActive;
+    if (typeof isActive !== "boolean") {
+      res.status(400).json({ message: "O campo isActive deve ser booleano." });
+      return;
+    }
+    const result = await agendaService.updateRoomStatus(getRouteId(req.params.id), isActive);
+    res.status(200).json(result);
   } catch (error) {
     handleServiceError(res, error);
   }
@@ -78,6 +113,32 @@ router.post("/agenda/session-types", requireAdmin, async (req: Request, res: Res
       },
     );
     res.status(201).json(result);
+  } catch (error) {
+    handleServiceError(res, error);
+  }
+});
+
+router.patch("/agenda/session-types/:id", requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const result = await agendaService.updateSessionType(getRouteId(req.params.id), req.body ?? {});
+    res.status(200).json(result);
+  } catch (error) {
+    handleServiceError(res, error);
+  }
+});
+
+router.patch("/agenda/session-types/:id/status", requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const isActive = (req.body as { isActive?: unknown })?.isActive;
+    if (typeof isActive !== "boolean") {
+      res.status(400).json({ message: "O campo isActive deve ser booleano." });
+      return;
+    }
+    const result = await agendaService.updateSessionTypeStatus(
+      getRouteId(req.params.id),
+      isActive,
+    );
+    res.status(200).json(result);
   } catch (error) {
     handleServiceError(res, error);
   }

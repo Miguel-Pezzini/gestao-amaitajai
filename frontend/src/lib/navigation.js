@@ -1,3 +1,4 @@
+import { CADASTRO_ITEMS, CADASTROS_GROUP } from "@/config/cadastros";
 import { APP_MODULES } from "@/config/modules";
 
 function getUserRole(user) {
@@ -24,8 +25,22 @@ export function getNavigationBySession(user) {
     (moduleConfig) => moduleConfig.enabled && hasRoleAccess(moduleConfig, userRole),
   ).sort((a, b) => a.order - b.order);
 
+  const sidebarItems = visibleModules.filter((item) => item.showInSidebar);
+  const quickAccessItems = visibleModules.filter((item) => item.showInQuickAccess);
+
+  const showCadastros = hasRoleAccess(CADASTROS_GROUP, userRole);
+  const sidebarGroups = showCadastros
+    ? [
+        {
+          ...CADASTROS_GROUP,
+          items: [...CADASTRO_ITEMS].sort((a, b) => a.order - b.order),
+        },
+      ]
+    : [];
+
   return {
-    sidebarItems: visibleModules.filter((item) => item.showInSidebar),
-    quickAccessItems: visibleModules.filter((item) => item.showInQuickAccess),
+    sidebarItems,
+    sidebarGroups,
+    quickAccessItems,
   };
 }

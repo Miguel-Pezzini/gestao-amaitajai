@@ -20,6 +20,16 @@ export async function createRoom(payload) {
   return data;
 }
 
+export async function updateRoom(roomId, payload) {
+  const { data } = await api.patch(`/agenda/rooms/${roomId}`, payload);
+  return data;
+}
+
+export async function updateRoomStatus(roomId, isActive) {
+  const { data } = await api.patch(`/agenda/rooms/${roomId}/status`, { isActive });
+  return data;
+}
+
 export async function listSessionTypes() {
   const { data } = await api.get("/agenda/session-types");
   return data;
@@ -27,6 +37,18 @@ export async function listSessionTypes() {
 
 export async function createSessionType(payload) {
   const { data } = await api.post("/agenda/session-types", payload);
+  return data;
+}
+
+export async function updateSessionType(sessionTypeId, payload) {
+  const { data } = await api.patch(`/agenda/session-types/${sessionTypeId}`, payload);
+  return data;
+}
+
+export async function updateSessionTypeStatus(sessionTypeId, isActive) {
+  const { data } = await api.patch(`/agenda/session-types/${sessionTypeId}/status`, {
+    isActive,
+  });
   return data;
 }
 

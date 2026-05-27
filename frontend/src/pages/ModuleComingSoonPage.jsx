@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { CADASTRO_ITEMS } from "@/config/cadastros";
 import { APP_MODULES } from "@/config/modules";
 
 export function ModuleComingSoonPage() {
@@ -14,7 +15,10 @@ export function ModuleComingSoonPage() {
     if (moduleId) {
       return APP_MODULES.find((item) => item.id === moduleId);
     }
-    return APP_MODULES.find((item) => item.route === location.pathname);
+    return (
+      APP_MODULES.find((item) => item.route === location.pathname) ??
+      CADASTRO_ITEMS.find((item) => item.route === location.pathname)
+    );
   }, [location.pathname, moduleId]);
 
   return (

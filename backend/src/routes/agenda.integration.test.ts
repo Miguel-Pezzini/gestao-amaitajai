@@ -87,13 +87,13 @@ describe("Agenda integration", () => {
     const forbidden = await request(app)
       .post("/api/agenda/rooms")
       .set("Cookie", tecnicoCookie)
-      .send({ name: "Sala T1", code: "T1" });
+      .send({ name: "Sala T1" });
     expect(forbidden.status).toBe(403);
 
     const created = await request(app)
       .post("/api/agenda/rooms")
       .set("Cookie", adminCookie)
-      .send({ name: "Sala A1", code: "A1" });
+      .send({ name: "Sala A1" });
     expect(created.status).toBe(201);
     expect(created.body.room.name).toBe("Sala A1");
   });
@@ -131,7 +131,7 @@ describe("Agenda integration", () => {
       fundingSource: "Estadual",
       isActive: true,
     });
-    const room = await Room.create({ name: "Sala Conflito", code: "SC", isActive: true });
+    const room = await Room.create({ name: "Sala Conflito", isActive: true });
     const type = await SessionType.create({
       name: "PSICOPED",
       slug: "psicoped",
@@ -171,7 +171,7 @@ describe("Agenda integration", () => {
       });
 
     expect(conflicting.status).toBe(409);
-    expect(conflicting.body.message).toContain("Conflito de agenda");
+    expect(conflicting.body.message).toContain("sala já está ocupada");
   });
 
   it("permite técnico concluir somente sessão própria", async () => {
@@ -206,7 +206,7 @@ describe("Agenda integration", () => {
       fundingSource: "Particular",
       isActive: true,
     });
-    const room = await Room.create({ name: "Sala Sessao", code: "SS", isActive: true });
+    const room = await Room.create({ name: "Sala Sessao", isActive: true });
     const type = await SessionType.create({
       name: "INTENSIVO",
       slug: "intensivo",
@@ -248,5 +248,57 @@ describe("Agenda integration", () => {
       .send();
     expect(completed.status).toBe(200);
     expect(completed.body.session.status).toBe("realizada");
+  });
+
+  it("rejeita sessão dupla sem quantidade correta de participantes", async () => {
+    const adminPassword = "admin123456";
+    const admin = await createUser({
+      name: "Admin Dupla",
+      email: "admin-dupla@agenda.test",
+      password: adminPassword,
+      role: "administrador",
+    });
+    const profissional = await createUser({
+      name: "Prof Dupla",
+      email: "prof-dupla@agenda.test",
+      password: "prof123456",
+      role: "tecnico",
+    });
+    const paciente = await Patient.create({
+      fullName: "Paciente Dupla",
+      birthDate: new Date("2015-01-01"),
+      guardianName: "Responsavel Dupla",
+      phone: "(47) 99999-0099",
+      fundingSource: "Municipal",
+      isActive: true,
+    });
+    const room = await Room.create({ name: "Sala Dupla", isActive: true });
+    const type = await SessionType.create({
+      name: "FONO",
+      slug: "fono-dupla-test",
+      defaultDurationMinutes: 60,
+      isDurationFlexible: false,
+      allowedModalities: ["dupla"],
+      isActive: true,
+    });
+
+    const adminCookie = await loginAndGetCookie(admin.email, adminPassword);
+
+    const response = await request(app)
+      .post("/api/agenda/sessions")
+      .set("Cookie", adminCookie)
+      .send({
+        sessionTypeId: type._id.toString(),
+        modality: "dupla",
+        roomId: room._id.toString(),
+        startAt: "2026-05-06T15:00:00.000Z",
+        durationMinutes: 60,
+        patientIds: [paciente._id.toString()],
+        professionalIds: [profissional._id.toString()],
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toContain("dupla");
+    expect(response.body.message).toContain("2");
   });
 });

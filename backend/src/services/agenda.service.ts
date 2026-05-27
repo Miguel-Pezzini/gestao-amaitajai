@@ -2,12 +2,18 @@ import mongoose from "mongoose";
 import { AppError } from "../errors/app-error.js";
 import { Patient } from "../models/patient.model.js";
 import { Room } from "../models/room.model.js";
-import { Session } from "../models/session.model.js";
+import { SESSION_LIMITS, Session } from "../models/session.model.js";
 import {
   SESSION_MODALITIES,
   SessionType,
   type SessionModality,
 } from "../models/session-type.model.js";
+
+const SESSION_FORMAT_LABELS: Record<SessionModality, string> = {
+  individual: "Individual",
+  dupla: "Dupla",
+  grupo: "Grupo",
+};
 import { USER_ROLES, type UserRole, User } from "../models/user.model.js";
 import type { Types } from "mongoose";
 
@@ -18,6 +24,32 @@ type AuthenticatedUser = {
 
 function normalizeText(value: unknown): string {
   return String(value ?? "").trim();
+}
+
+function slugify(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function isMongoDuplicateKeyError(error: unknown): error is { code: number; keyPattern?: Record<string, unknown> } {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code: number }).code === 11000
+  );
+}
+
+function duplicateRoomMessage(error: { keyPattern?: Record<string, unknown> }): string {
+  if (error.keyPattern?.name) {
+    return "Já existe uma sala com este nome.";
+  }
+  return "Sala já cadastrada.";
 }
 
 function parseDate(value: unknown): Date | null {
@@ -110,15 +142,63 @@ export class AgendaService {
     return { items };
   }
 
-  async createRoom(payload: { name?: unknown; code?: unknown }) {
+  async createRoom(payload: { name?: unknown }) {
     const name = normalizeText(payload.name);
-    const code = normalizeText(payload.code);
 
     if (!name) {
       throw new AppError(400, "Nome da sala é obrigatório.");
     }
 
-    const room = await Room.create({ name, code: code || null });
+    try {
+      const room = await Room.create({ name });
+      return { room };
+    } catch (error) {
+      if (isMongoDuplicateKeyError(error)) {
+        throw new AppError(409, duplicateRoomMessage(error));
+      }
+      throw error;
+    }
+  }
+
+  async updateRoom(roomId: string, payload: { name?: unknown }) {
+    if (!isObjectId(roomId)) {
+      throw new AppError(400, "Identificador de sala inválido.");
+    }
+
+    const room = await Room.findById(roomId);
+    if (!room) {
+      throw new AppError(404, "Sala não encontrada.");
+    }
+
+    if (payload.name !== undefined) {
+      const name = normalizeText(payload.name);
+      if (!name) {
+        throw new AppError(400, "Nome da sala é obrigatório.");
+      }
+      room.name = name;
+    }
+
+    try {
+      await room.save();
+      return { room };
+    } catch (error) {
+      if (isMongoDuplicateKeyError(error)) {
+        throw new AppError(409, duplicateRoomMessage(error));
+      }
+      throw error;
+    }
+  }
+
+  async updateRoomStatus(roomId: string, isActive: boolean) {
+    if (!isObjectId(roomId)) {
+      throw new AppError(400, "Identificador de sala inválido.");
+    }
+
+    const room = await Room.findByIdAndUpdate(roomId, { isActive }, { new: true }).lean();
+    if (!room) {
+      throw new AppError(404, "Sala não encontrada.");
+    }
+
     return { room };
   }
 
@@ -135,7 +215,7 @@ export class AgendaService {
     allowedModalities?: unknown;
   }) {
     const name = normalizeText(payload.name);
-    const slug = normalizeText(payload.slug).toLowerCase();
+    const slug = slugify(name);
     const defaultDurationMinutes = Number.parseInt(String(payload.defaultDurationMinutes), 10);
     const isDurationFlexible = Boolean(payload.isDurationFlexible);
     const allowedModalities = parseUniqueIdArray(payload.allowedModalities).filter((item) =>
@@ -159,6 +239,83 @@ export class AgendaService {
       isDurationFlexible,
       allowedModalities,
     });
+
+    return { sessionType };
+  }
+
+  async updateSessionType(
+    sessionTypeId: string,
+    payload: {
+      name?: unknown;
+      slug?: unknown;
+      defaultDurationMinutes?: unknown;
+      isDurationFlexible?: unknown;
+      allowedModalities?: unknown;
+    },
+  ) {
+    if (!isObjectId(sessionTypeId)) {
+      throw new AppError(400, "Identificador de tipo de sessão inválido.");
+    }
+
+    const sessionType = await SessionType.findById(sessionTypeId);
+    if (!sessionType) {
+      throw new AppError(404, "Tipo de sessão não encontrado.");
+    }
+
+    if (payload.name !== undefined) {
+      const name = normalizeText(payload.name);
+      if (!name) {
+        throw new AppError(400, "Nome é obrigatório.");
+      }
+      sessionType.name = name;
+    }
+
+    if (payload.defaultDurationMinutes !== undefined) {
+      const defaultDurationMinutes = Number.parseInt(String(payload.defaultDurationMinutes), 10);
+      if (!Number.isFinite(defaultDurationMinutes) || defaultDurationMinutes <= 0) {
+        throw new AppError(400, "Duração padrão inválida.");
+      }
+      sessionType.defaultDurationMinutes = defaultDurationMinutes;
+    }
+
+    if (payload.isDurationFlexible !== undefined) {
+      sessionType.isDurationFlexible = Boolean(payload.isDurationFlexible);
+    }
+
+    if (payload.allowedModalities !== undefined) {
+      const allowedModalities = parseUniqueIdArray(payload.allowedModalities).filter((item) =>
+        SESSION_MODALITIES.includes(item as SessionModality),
+      ) as SessionModality[];
+
+      if (allowedModalities.length === 0) {
+        throw new AppError(400, "Informe ao menos uma modalidade permitida.");
+      }
+      sessionType.allowedModalities = allowedModalities;
+    }
+
+    const slug = sessionType.slug;
+    if (slug === "tea-14-plus" && sessionType.allowedModalities.some((item) => item !== "grupo")) {
+      throw new AppError(400, "Tipo tea-14-plus permite apenas modalidade grupo.");
+    }
+
+    await sessionType.save();
+    return { sessionType };
+  }
+
+  async updateSessionTypeStatus(sessionTypeId: string, isActive: boolean) {
+    if (!isObjectId(sessionTypeId)) {
+      throw new AppError(400, "Identificador de tipo de sessão inválido.");
+    }
+
+    const sessionType = await SessionType.findByIdAndUpdate(
+      sessionTypeId,
+      { isActive },
+      { new: true },
+    ).lean();
+
+    if (!sessionType) {
+      throw new AppError(404, "Tipo de sessão não encontrado.");
+    }
 
     return { sessionType };
   }
@@ -189,7 +346,7 @@ export class AgendaService {
     const items = await Session.find(filter)
       .sort({ startAt: 1 })
       .populate("sessionTypeId", "name slug")
-      .populate("roomId", "name code")
+      .populate("roomId", "name")
       .populate("patientIds", "fullName fundingSource")
       .populate("professionalIds", "name email role")
       .lean();
@@ -382,25 +539,75 @@ export class AgendaService {
   }
 
   private validateSessionInput(input: ReturnType<AgendaService["normalizeSessionInput"]>) {
-    if (
-      !isObjectId(input.sessionTypeId) ||
-      !SESSION_MODALITIES.includes(input.modality) ||
-      !isObjectId(input.roomId) ||
-      !input.startAt ||
-      !Number.isFinite(input.durationMinutes) ||
-      input.durationMinutes <= 0 ||
-      input.patientIds.length === 0 ||
-      input.professionalIds.length === 0
-    ) {
-      throw new AppError(400, "Dados obrigatórios da sessão estão inválidos.");
+    if (!isObjectId(input.sessionTypeId)) {
+      throw new AppError(400, "Selecione uma modalidade de atendimento.");
+    }
+    if (!SESSION_MODALITIES.includes(input.modality)) {
+      throw new AppError(400, "Selecione um tipo de sessão válido (individual, dupla ou grupo).");
+    }
+    if (!isObjectId(input.roomId)) {
+      throw new AppError(400, "Selecione uma sala.");
+    }
+    if (!input.startAt) {
+      throw new AppError(400, "Informe data e hora de início.");
+    }
+    if (!Number.isFinite(input.durationMinutes) || input.durationMinutes <= 0) {
+      throw new AppError(400, "Informe uma duração válida em minutos.");
+    }
+    if (input.patientIds.length === 0) {
+      throw new AppError(400, "Adicione ao menos um paciente à sessão.");
+    }
+    if (input.professionalIds.length === 0) {
+      throw new AppError(400, "Adicione ao menos um profissional à sessão.");
     }
 
     if (
       !input.patientIds.every((id) => isObjectId(id)) ||
       !input.professionalIds.every((id) => isObjectId(id))
     ) {
-      throw new AppError(400, "IDs de paciente/profissional inválidos.");
+      throw new AppError(400, "Paciente ou profissional selecionado é inválido.");
     }
+
+    const countError = this.validateSessionCountsByModality(
+      input.modality,
+      input.patientIds.length,
+      input.professionalIds.length,
+    );
+    if (countError) {
+      throw new AppError(400, countError);
+    }
+  }
+
+  private validateSessionCountsByModality(
+    modality: SessionModality,
+    patientCount: number,
+    professionalCount: number,
+  ): string | null {
+    const limits = SESSION_LIMITS[modality];
+    if (!limits) {
+      return null;
+    }
+
+    const formatLabel = SESSION_FORMAT_LABELS[modality] ?? modality;
+
+    if (patientCount < limits.minPatients || patientCount > limits.maxPatients) {
+      if (limits.minPatients === limits.maxPatients) {
+        return `Para tipo de sessão ${formatLabel}, selecione exatamente ${limits.minPatients} paciente(s).`;
+      }
+      return `Para tipo de sessão ${formatLabel}, selecione entre ${limits.minPatients} e ${limits.maxPatients} pacientes.`;
+    }
+
+    if (
+      professionalCount < limits.minProfessionals ||
+      professionalCount > limits.maxProfessionals
+    ) {
+      if (limits.minProfessionals === limits.maxProfessionals) {
+        return `Para tipo de sessão ${formatLabel}, selecione exatamente ${limits.minProfessionals} profissional(is).`;
+      }
+      return `Para tipo de sessão ${formatLabel}, selecione entre ${limits.minProfessionals} e ${limits.maxProfessionals} profissionais.`;
+    }
+
+    return null;
   }
 
   private async validateReferences(input: ReturnType<AgendaService["normalizeSessionInput"]>) {
@@ -416,16 +623,19 @@ export class AgendaService {
     ]);
 
     if (!sessionType || !sessionType.isActive) {
-      throw new AppError(400, "Tipo de sessão inválido ou inativo.");
+      throw new AppError(400, "A modalidade selecionada não existe ou está inativa.");
     }
     if (!room || !room.isActive) {
-      throw new AppError(400, "Sala inválida ou inativa.");
+      throw new AppError(400, "A sala selecionada não existe ou está inativa.");
     }
     if (patientsCount !== input.patientIds.length) {
-      throw new AppError(400, "Um ou mais pacientes não existem ou estão inativos.");
+      throw new AppError(400, "Um ou mais pacientes selecionados não existem ou estão inativos.");
     }
     if (professionalsCount !== input.professionalIds.length) {
-      throw new AppError(400, "Um ou mais profissionais não existem ou estão inativos.");
+      throw new AppError(
+        400,
+        "Um ou mais profissionais selecionados não existem ou estão inativos.",
+      );
     }
 
     return { sessionType, room };
@@ -436,7 +646,11 @@ export class AgendaService {
     modality: SessionModality,
   ) {
     if (!allowedModalities.includes(modality)) {
-      throw new AppError(400, "Modalidade não permitida para este tipo de sessão.");
+      const formatLabel = SESSION_FORMAT_LABELS[modality] ?? modality;
+      throw new AppError(
+        400,
+        `A modalidade selecionada não permite tipo de sessão ${formatLabel}.`,
+      );
     }
   }
 
@@ -464,13 +678,16 @@ export class AgendaService {
     ]);
 
     if (roomConflict) {
-      throw new AppError(409, "Conflito de agenda: sala já ocupada no período.");
+      throw new AppError(409, "A sala já está ocupada nesse horário. Escolha outro horário ou sala.");
     }
     if (professionalConflict) {
-      throw new AppError(409, "Conflito de agenda: profissional com sobreposição no período.");
+      throw new AppError(
+        409,
+        "Um dos profissionais já possui sessão nesse horário.",
+      );
     }
     if (patientConflict) {
-      throw new AppError(409, "Conflito de agenda: paciente com sobreposição no período.");
+      throw new AppError(409, "Um dos pacientes já possui sessão nesse horário.");
     }
   }
 }

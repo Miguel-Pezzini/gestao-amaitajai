@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Dialog } from "@/components/ui/dialog";
+import { CalendarDaySessions } from "@/features/agenda/components/CalendarDaySessions";
 import {
   formatDateTime,
   formatDayNumber,
@@ -11,6 +12,7 @@ import {
   isWeekend,
   monthLabel,
   sessionSummary,
+  sortSessionsByStart,
   statusBadgeClass,
   toCalendarKey,
   WEEKDAY_HEADERS,
@@ -66,19 +68,12 @@ function WeekdayCell({ date, items, onOpenDay }) {
     <button
       type="button"
       onClick={() => onOpenDay(date)}
-      className="flex min-h-14 flex-col rounded-md border border-ama-cyan/25 bg-white p-1 text-left transition hover:border-ama-cyan hover:bg-ama-light/40 sm:min-h-20 sm:p-1.5 lg:min-h-28 lg:p-2"
+      className="flex min-h-16 flex-col gap-0.5 rounded-md border border-ama-cyan/25 bg-white p-1 text-left transition hover:border-ama-cyan hover:bg-ama-light/40 sm:min-h-24 sm:gap-1 sm:p-1.5 lg:min-h-32 lg:p-2"
     >
-      <p className="text-[11px] font-semibold leading-none text-ama-blue-dark sm:text-sm">
+      <p className="shrink-0 text-[11px] font-semibold leading-none text-ama-blue-dark sm:text-sm">
         {formatDayNumber(date)}
       </p>
-      {items.length > 0 ? (
-        <p className="mt-auto truncate text-[10px] font-medium text-ama-blue sm:text-xs">
-          <span className="lg:hidden">{items.length}</span>
-          <span className="hidden lg:inline">{items.length} sessão(ões)</span>
-        </p>
-      ) : (
-        <span className="mt-auto hidden text-xs text-muted-foreground lg:inline">Sem sessões</span>
-      )}
+      <CalendarDaySessions sessions={items} />
     </button>
   );
 }
@@ -86,7 +81,7 @@ function WeekdayCell({ date, items, onOpenDay }) {
 function WeekendCell({ date }) {
   return (
     <div
-      className="flex min-h-14 flex-col rounded-md border border-dashed border-muted-foreground/20 bg-muted/30 p-1 sm:min-h-20 sm:p-1.5 lg:min-h-28 lg:p-2"
+      className="flex min-h-16 flex-col rounded-md border border-dashed border-muted-foreground/20 bg-muted/30 p-1 sm:min-h-24 sm:p-1.5 lg:min-h-32 lg:p-2"
       aria-hidden
     >
       <p className="text-[11px] font-medium text-muted-foreground/70 sm:text-sm">
@@ -98,7 +93,7 @@ function WeekendCell({ date }) {
 
 function EmptyLeadingCell() {
   return (
-    <div className="min-h-14 rounded-md border border-dashed border-transparent sm:min-h-20 lg:min-h-28" />
+    <div className="min-h-16 rounded-md border border-dashed border-transparent sm:min-h-24 lg:min-h-32" />
   );
 }
 
@@ -121,7 +116,7 @@ export function AgendaCalendarView({
       return [];
     }
     const key = toCalendarKey(selectedDay);
-    return grouped[key] ?? [];
+    return sortSessionsByStart(grouped[key] ?? []);
   }, [grouped, selectedDay]);
 
   function openDayDialog(date) {

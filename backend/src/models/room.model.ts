@@ -7,11 +7,6 @@ const roomSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
-    code: {
-      type: String,
-      trim: true,
-      default: null,
-    },
     isActive: {
       type: Boolean,
       default: true,
@@ -25,7 +20,6 @@ const roomSchema = new mongoose.Schema(
 );
 
 roomSchema.index({ name: 1 }, { unique: true });
-roomSchema.index({ code: 1 }, { unique: true, sparse: true });
 
 export type RoomDocument = HydratedDocument<InferSchemaType<typeof roomSchema>>;
 

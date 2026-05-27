@@ -9,23 +9,29 @@ import {
   searchAgendaPatients,
   searchAgendaProfessionals,
 } from "@/services/agenda";
-import { EMPTY_FORM } from "@/features/agenda/constants";
+import { useToast } from "@/contexts/toast-context";
+import {
+  canAddSessionPatient,
+  canAddSessionProfessional,
+  EMPTY_FORM,
+  validateSessionForm,
+  validateSessionParticipants,
+} from "@/features/agenda/constants";
+import { getApiErrorMessage } from "@/lib/api-error";
 import { normalizeRole } from "@/features/agenda/utils";
 
 export function useAgendaPage(user) {
+  const toast = useToast();
   const role = normalizeRole(user?.role);
   const isAdmin = role === "administrador";
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
   const [sessions, setSessions] = useState([]);
   const [rooms, setRooms] = useState([]);
   const [sessionTypes, setSessionTypes] = useState([]);
 
   const [form, setForm] = useState(EMPTY_FORM);
-  const [fieldError, setFieldError] = useState("");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [cancelSessionId, setCancelSessionId] = useState("");
@@ -50,15 +56,12 @@ export function useAgendaPage(user) {
 
   async function loadSessions() {
     setLoading(true);
-    setError("");
-    setSuccess("");
     try {
       const response = await listSessions();
       setSessions(response.items ?? []);
     } catch (err) {
-      setError(
-        err.response?.data?.message ??
-          "Não foi possível carregar a agenda. Tente novamente.",
+      toast.error(
+        getApiErrorMessage(err, "Não foi possível carregar as sessões. Tente novamente."),
       );
     } finally {
       setLoading(false);
@@ -69,8 +72,6 @@ export function useAgendaPage(user) {
     let mounted = true;
     async function bootstrap() {
       setLoading(true);
-      setError("");
-      setSuccess("");
       try {
         await loadDependencies();
         const response = await listSessions();
@@ -80,9 +81,11 @@ export function useAgendaPage(user) {
         setSessions(response.items ?? []);
       } catch (err) {
         if (mounted) {
-          setError(
-            err.response?.data?.message ??
-              "Não foi possível carregar os dados da agenda no momento.",
+          toast.error(
+            getApiErrorMessage(
+              err,
+              "Não foi possível carregar os dados da agenda. Tente novamente.",
+            ),
           );
         }
       } finally {
@@ -144,7 +147,6 @@ export function useAgendaPage(user) {
   }, [professionalTerm, createDialogOpen]);
 
   function handleFormChange(field, value) {
-    setFieldError("");
     setForm((current) => ({ ...current, [field]: value }));
   }
 
@@ -154,7 +156,6 @@ export function useAgendaPage(user) {
     setProfessionalTerm("");
     setPatientOptions([]);
     setProfessionalOptions([]);
-    setFieldError("");
   }
 
   function closeCreateDialog() {
@@ -176,7 +177,6 @@ export function useAgendaPage(user) {
       setProfessionalTerm("");
       setPatientOptions([]);
       setProfessionalOptions([]);
-      setFieldError("");
     } else {
       resetCreateForm();
     }
@@ -196,6 +196,16 @@ export function useAgendaPage(user) {
   }
 
   function addPatient(option) {
+    if (!canAddSessionPatient(form.modality, form.selectedPatients.length)) {
+      const message = validateSessionParticipants(
+        form.modality,
+        form.selectedPatients.length + 1,
+        form.selectedProfessionals.length,
+      );
+      toast.error(message ?? "Limite de pacientes atingido para este tipo de sessão.");
+      return;
+    }
+
     setForm((current) => {
       if (current.selectedPatients.some((item) => item.id === option._id)) {
         return current;
@@ -217,6 +227,16 @@ export function useAgendaPage(user) {
   }
 
   function addProfessional(option) {
+    if (!canAddSessionProfessional(form.modality, form.selectedProfessionals.length)) {
+      const message = validateSessionParticipants(
+        form.modality,
+        form.selectedPatients.length,
+        form.selectedProfessionals.length + 1,
+      );
+      toast.error(message ?? "Limite de profissionais atingido para este tipo de sessão.");
+      return;
+    }
+
     setForm((current) => {
       if (current.selectedProfessionals.some((item) => item.id === option._id)) {
         return current;
@@ -243,41 +263,36 @@ export function useAgendaPage(user) {
   async function handleCreateSession(event) {
     event.preventDefault();
     setSaving(true);
-    setError("");
-    setSuccess("");
-    setFieldError("");
+
+    const formError = validateSessionForm(form);
+    if (formError) {
+      toast.error(formError);
+      setSaving(false);
+      return;
+    }
+
     const payload = {
       sessionTypeId: form.sessionTypeId,
       modality: form.modality,
       roomId: form.roomId,
-      startAt: form.startAt ? new Date(form.startAt).toISOString() : "",
+      startAt: new Date(form.startAt).toISOString(),
       durationMinutes: Number.parseInt(form.durationMinutes, 10),
       patientIds: form.selectedPatients.map((item) => item.id),
       professionalIds: form.selectedProfessionals.map((item) => item.id),
       notes: form.notes.trim(),
     };
-    if (
-      !payload.sessionTypeId ||
-      !payload.roomId ||
-      !payload.startAt ||
-      !Number.isFinite(payload.durationMinutes) ||
-      payload.durationMinutes <= 0 ||
-      payload.patientIds.length === 0 ||
-      payload.professionalIds.length === 0
-    ) {
-      setFieldError("Preencha tipo, sala, início, duração, pacientes e profissionais antes de salvar.");
-      setSaving(false);
-      return;
-    }
+
     try {
       await createSession(payload);
       closeCreateDialog();
-      setSuccess("Sessão criada com sucesso.");
+      toast.success("Sessão criada com sucesso.");
       await loadSessions();
     } catch (err) {
-      setError(
-        err.response?.data?.message ??
+      toast.error(
+        getApiErrorMessage(
+          err,
           "Não foi possível criar a sessão. Verifique os dados e tente novamente.",
+        ),
       );
     } finally {
       setSaving(false);
@@ -285,16 +300,13 @@ export function useAgendaPage(user) {
   }
 
   async function handleCompleteSession(sessionId) {
-    setError("");
-    setSuccess("");
     try {
       await completeSession(sessionId);
-      setSuccess("Sessão marcada como realizada.");
+      toast.success("Sessão marcada como realizada.");
       await loadSessions();
     } catch (err) {
-      setError(
-        err.response?.data?.message ??
-          "Não foi possível concluir a sessão selecionada.",
+      toast.error(
+        getApiErrorMessage(err, "Não foi possível concluir a sessão selecionada."),
       );
     }
   }
@@ -302,20 +314,18 @@ export function useAgendaPage(user) {
   async function handleCancelSession(event) {
     event.preventDefault();
     if (!cancelSessionId || !cancelReason.trim()) {
+      toast.error("Informe o motivo do cancelamento.");
       return;
     }
     setSaving(true);
-    setError("");
-    setSuccess("");
     try {
       await cancelSession(cancelSessionId, cancelReason.trim());
       closeCancelDialog();
-      setSuccess("Sessão cancelada com sucesso.");
+      toast.success("Sessão cancelada com sucesso.");
       await loadSessions();
     } catch (err) {
-      setError(
-        err.response?.data?.message ??
-          "Não foi possível cancelar a sessão selecionada.",
+      toast.error(
+        getApiErrorMessage(err, "Não foi possível cancelar a sessão selecionada."),
       );
     } finally {
       setSaving(false);
@@ -327,13 +337,10 @@ export function useAgendaPage(user) {
     isAdmin,
     loading,
     saving,
-    error,
-    success,
     sessions,
     rooms,
     sessionTypes,
     form,
-    fieldError,
     createDialogOpen,
     setCreateDialogOpen,
     cancelDialogOpen,

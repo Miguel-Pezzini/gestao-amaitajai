@@ -25,7 +25,7 @@ export async function requireAuth(
     }
 
     if (user.isActive === false) {
-      res.status(403).json({ message: "Usuário inativo." });
+      res.status(403).json({ message: "Conta inativa." });
       return;
     }
 

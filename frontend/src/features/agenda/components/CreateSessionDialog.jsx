@@ -2,7 +2,13 @@ import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { MODALITY_OPTIONS } from "@/features/agenda/constants";
+import {
+  getParticipantCountLabels,
+  getSessionFormatHint,
+  SESSION_FORMAT_LABELS,
+  SESSION_FORMAT_OPTIONS,
+  validateSessionParticipants,
+} from "@/features/agenda/constants";
 import { SelectedItems } from "./SelectedItems";
 
 export function CreateSessionDialog({
@@ -27,8 +33,18 @@ export function CreateSessionDialog({
   loadingProfessionals,
   onAddProfessional,
   onRemoveProfessional,
-  fieldError,
 }) {
+  const participantError = validateSessionParticipants(
+    form.modality,
+    form.selectedPatients.length,
+    form.selectedProfessionals.length,
+  );
+  const participantCounts = getParticipantCountLabels(
+    form.modality,
+    form.selectedPatients.length,
+    form.selectedProfessionals.length,
+  );
+
   return (
     <Dialog
       open={open}
@@ -44,7 +60,7 @@ export function CreateSessionDialog({
     >
       <form onSubmit={onSubmit} className="space-y-3">
         <div className="space-y-2">
-          <Label htmlFor="sessionTypeId">Tipo de sessão</Label>
+          <Label htmlFor="sessionTypeId">Modalidade</Label>
           <select
             id="sessionTypeId"
             className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -62,7 +78,7 @@ export function CreateSessionDialog({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="modality">Modalidade</Label>
+          <Label htmlFor="modality">Tipo de sessão</Label>
           <select
             id="modality"
             className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -70,12 +86,13 @@ export function CreateSessionDialog({
             onChange={(event) => onFormChange("modality", event.target.value)}
             disabled={saving}
           >
-            {MODALITY_OPTIONS.map((item) => (
+            {SESSION_FORMAT_OPTIONS.map((item) => (
               <option key={item} value={item}>
-                {item}
+                {SESSION_FORMAT_LABELS[item]}
               </option>
             ))}
           </select>
+          <p className="text-xs text-muted-foreground">{getSessionFormatHint(form.modality)}</p>
         </div>
 
         <div className="space-y-2">
@@ -120,7 +137,16 @@ export function CreateSessionDialog({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="patientSearch">Pacientes</Label>
+          <div className="flex items-baseline justify-between gap-2">
+            <Label htmlFor="patientSearch">Pacientes</Label>
+            {participantCounts.patients ? (
+              <span
+                className={`text-xs ${participantError ? "text-destructive" : "text-muted-foreground"}`}
+              >
+                {participantCounts.patients}
+              </span>
+            ) : null}
+          </div>
           <Input
             id="patientSearch"
             value={patientTerm}
@@ -147,7 +173,16 @@ export function CreateSessionDialog({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="professionalSearch">Profissionais</Label>
+          <div className="flex items-baseline justify-between gap-2">
+            <Label htmlFor="professionalSearch">Profissionais</Label>
+            {participantCounts.professionals ? (
+              <span
+                className={`text-xs ${participantError ? "text-destructive" : "text-muted-foreground"}`}
+              >
+                {participantCounts.professionals}
+              </span>
+            ) : null}
+          </div>
           <Input
             id="professionalSearch"
             value={professionalTerm}
@@ -185,7 +220,9 @@ export function CreateSessionDialog({
           />
         </div>
 
-        {fieldError ? <p className="text-xs text-destructive">{fieldError}</p> : null}
+        {participantError ? (
+          <p className="text-xs text-destructive">{participantError}</p>
+        ) : null}
 
         <div className="flex flex-col gap-2 pt-2 sm:flex-row">
           <Button

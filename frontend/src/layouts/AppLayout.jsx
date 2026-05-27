@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { LogOut, PanelLeftClose, PanelLeftOpen } from "lucide-react";
-import { Outlet, useLocation, useNavigate } from "react-router-dom";
+import { Outlet } from "react-router-dom";
+import { AppMobileNav, AppSidebarNav } from "@/components/layout/AppSidebarNav";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,18 +27,10 @@ function readSidebarExpanded() {
   }
 }
 
-function isActiveRoute(currentPath, itemRoute) {
-  if (itemRoute === "/") {
-    return currentPath === "/";
-  }
-  return currentPath === itemRoute || currentPath.startsWith(`${itemRoute}/`);
-}
-
 export function AppLayout() {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const { loading, leaving, error, sidebarItems, logout } = useSession();
+  const { loading, leaving, error, sidebarItems, sidebarGroups, logout } = useSession();
   const [sidebarExpanded, setSidebarExpanded] = useState(readSidebarExpanded);
+  const [mobileCadastrosOpen, setMobileCadastrosOpen] = useState(false);
 
   useEffect(() => {
     try {
@@ -107,44 +100,12 @@ export function AppLayout() {
         </div>
 
         <nav className={cn("mt-8 flex-1 space-y-2", !sidebarExpanded && "mt-6")}>
-          {sidebarItems.map((item) => {
-            const active = isActiveRoute(location.pathname, item.route);
-            const Icon = item.icon;
-            return (
-              <Button
-                key={item.id}
-                variant="ghost"
-                title={item.label}
-                aria-label={item.label}
-                className={cn(
-                  "h-10 w-full text-sm transition-colors",
-                  sidebarExpanded
-                    ? "justify-start gap-3 text-left"
-                    : "justify-center px-0",
-                  active
-                    ? "bg-white/15 text-white"
-                    : "text-white/80 hover:bg-white/10 hover:text-white",
-                )}
-                onClick={() => navigate(item.route)}
-              >
-                {Icon ? (
-                  <span
-                    className={cn(
-                      "flex size-8 shrink-0 items-center justify-center rounded-md",
-                      active
-                        ? "bg-ama-cyan/25 text-ama-cyan"
-                        : "bg-white/10 text-white/90",
-                    )}
-                  >
-                    <Icon className="size-4" aria-hidden="true" />
-                  </span>
-                ) : null}
-                {sidebarExpanded ? (
-                  <span className="truncate">{item.label}</span>
-                ) : null}
-              </Button>
-            );
-          })}
+          <AppSidebarNav
+            sidebarItems={sidebarItems}
+            sidebarGroups={sidebarGroups}
+            sidebarExpanded={sidebarExpanded}
+            onExpandSidebar={() => setSidebarExpanded(true)}
+          />
         </nav>
 
         <Button
@@ -188,27 +149,13 @@ export function AppLayout() {
             </Button>
           </header>
 
-          <nav className="flex gap-2 overflow-x-auto border-b border-ama-cyan/20 bg-ama-blue-dark px-4 py-3">
-            {sidebarItems.map((item) => {
-              const active = isActiveRoute(location.pathname, item.route);
-              const Icon = item.icon;
-              return (
-                <Button
-                  key={item.id}
-                  size="sm"
-                  variant="ghost"
-                  className={`shrink-0 gap-2 ${
-                    active
-                      ? "bg-white/15 text-white"
-                      : "text-white/80 hover:bg-white/10 hover:text-white"
-                  }`}
-                  onClick={() => navigate(item.route)}
-                >
-                  {Icon ? <Icon className="size-4 shrink-0" aria-hidden="true" /> : null}
-                  {item.label}
-                </Button>
-              );
-            })}
+          <nav className="border-b border-ama-cyan/20 bg-ama-blue-dark px-4 py-3">
+            <AppMobileNav
+              sidebarItems={sidebarItems}
+              sidebarGroups={sidebarGroups}
+              cadastroItemsExpanded={mobileCadastrosOpen}
+              onCadastroItemsExpandedChange={setMobileCadastrosOpen}
+            />
           </nav>
         </div>
 

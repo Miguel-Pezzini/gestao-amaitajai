@@ -11,7 +11,7 @@ type SessionValidationLimits = {
   maxProfessionals: number;
 };
 
-const SESSION_LIMITS: Record<string, SessionValidationLimits> = {
+export const SESSION_LIMITS: Record<string, SessionValidationLimits> = {
   individual: { minPatients: 1, maxPatients: 1, minProfessionals: 1, maxProfessionals: 1 },
   dupla: { minPatients: 2, maxPatients: 2, minProfessionals: 2, maxProfessionals: 2 },
   grupo: { minPatients: 1, maxPatients: 15, minProfessionals: 2, maxProfessionals: 4 },

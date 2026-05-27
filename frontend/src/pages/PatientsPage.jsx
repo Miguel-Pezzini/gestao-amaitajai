@@ -8,6 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { CreateFab } from "@/components/cadastros/CreateFab";
 import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -139,30 +140,26 @@ function PatientForm({
   onCancel,
   onFormChange,
   onPhoneChange,
-  showCancel = false,
-  idPrefix = "",
 }) {
-  const fieldId = (name) => `${idPrefix}${name}`;
-
   return (
     <form onSubmit={onSubmit} className="space-y-4" noValidate>
       <div className="space-y-2">
-        <Label htmlFor={fieldId("fullName")}>Nome completo</Label>
+        <Label htmlFor="patient-fullName">Nome completo</Label>
         <Input
-          id={fieldId("fullName")}
+          id="patient-fullName"
           value={form.fullName}
           onChange={(event) => onFormChange("fullName", event.target.value)}
           disabled={saving}
         />
         {fieldErrors.fullName ? (
-          <p className="text-xs text-destructive">{fieldErrors.fullName}</p>
+          <p className="text-sm text-destructive">{fieldErrors.fullName}</p>
         ) : null}
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor={fieldId("birthDate")}>Data de nascimento</Label>
+        <Label htmlFor="patient-birthDate">Data de nascimento</Label>
         <Input
-          id={fieldId("birthDate")}
+          id="patient-birthDate"
           type="date"
           value={form.birthDate}
           onChange={(event) => onFormChange("birthDate", event.target.value)}
@@ -170,42 +167,41 @@ function PatientForm({
           disabled={saving}
         />
         {fieldErrors.birthDate ? (
-          <p className="text-xs text-destructive">{fieldErrors.birthDate}</p>
+          <p className="text-sm text-destructive">{fieldErrors.birthDate}</p>
         ) : null}
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor={fieldId("guardianName")}>Responsável</Label>
+        <Label htmlFor="patient-guardianName">Responsável</Label>
         <Input
-          id={fieldId("guardianName")}
+          id="patient-guardianName"
           value={form.guardianName}
           onChange={(event) => onFormChange("guardianName", event.target.value)}
           disabled={saving}
         />
         {fieldErrors.guardianName ? (
-          <p className="text-xs text-destructive">{fieldErrors.guardianName}</p>
+          <p className="text-sm text-destructive">{fieldErrors.guardianName}</p>
         ) : null}
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor={fieldId("phone")}>Telefone</Label>
+        <Label htmlFor="patient-phone">Telefone</Label>
         <Input
-          id={fieldId("phone")}
+          id="patient-phone"
           value={form.phone}
           onChange={(event) => onPhoneChange(event.target.value)}
-          placeholder="(47) 99999-9999"
           inputMode="numeric"
           disabled={saving}
         />
         {fieldErrors.phone ? (
-          <p className="text-xs text-destructive">{fieldErrors.phone}</p>
+          <p className="text-sm text-destructive">{fieldErrors.phone}</p>
         ) : null}
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor={fieldId("fundingSource")}>Fonte de custeio</Label>
+        <Label htmlFor="patient-fundingSource">Fonte de custeio</Label>
         <select
-          id={fieldId("fundingSource")}
+          id="patient-fundingSource"
           className="h-10 w-full min-w-0 rounded-md border border-input bg-background px-3 py-2 text-sm"
           value={form.fundingSource}
           onChange={(event) => onFormChange("fundingSource", event.target.value)}
@@ -218,29 +214,21 @@ function PatientForm({
           ))}
         </select>
         {fieldErrors.fundingSource ? (
-          <p className="text-xs text-destructive">{fieldErrors.fundingSource}</p>
+          <p className="text-sm text-destructive">{fieldErrors.fundingSource}</p>
         ) : null}
       </div>
 
-      <div className="flex flex-col gap-2 pt-2 sm:flex-row">
+      <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+        <Button type="button" variant="outline" onClick={onCancel} disabled={saving}>
+          Cancelar
+        </Button>
         <Button
           type="submit"
-          className="w-full bg-ama-blue text-white hover:bg-ama-blue-dark sm:flex-1"
+          className="bg-ama-cyan text-ama-blue-dark hover:bg-ama-cyan/90"
           disabled={saving}
         >
-          {saving ? "Salvando..." : isEditing ? "Salvar edição" : "Cadastrar"}
+          {saving ? "Salvando..." : isEditing ? "Salvar" : "Cadastrar"}
         </Button>
-        {showCancel ? (
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full sm:w-auto"
-            onClick={onCancel}
-            disabled={saving}
-          >
-            Cancelar
-          </Button>
-        ) : null}
       </div>
     </form>
   );
@@ -248,7 +236,7 @@ function PatientForm({
 
 export function PatientsPage() {
   const { userName } = useSession();
-  const [loadingPatients, setLoadingPatients] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
@@ -263,7 +251,7 @@ export function PatientsPage() {
   const isEditing = Boolean(editingId);
 
   async function loadPatients() {
-    setLoadingPatients(true);
+    setLoading(true);
     setError("");
     try {
       const response = await listPatients({
@@ -278,7 +266,7 @@ export function PatientsPage() {
           "Não foi possível carregar os pacientes. Tente novamente.",
       );
     } finally {
-      setLoadingPatients(false);
+      setLoading(false);
     }
   }
 
@@ -308,16 +296,7 @@ export function PatientsPage() {
     setFormDialogOpen(true);
   }
 
-  function handleFormChange(field, value) {
-    setForm((current) => ({ ...current, [field]: value }));
-    setFieldErrors((current) => ({ ...current, [field]: "" }));
-  }
-
-  function handlePhoneChange(value) {
-    handleFormChange("phone", formatPhone(value));
-  }
-
-  function startEdit(patient) {
+  function openEditDialog(patient) {
     setEditingId(patient._id);
     setFieldErrors({});
     setForm({
@@ -327,10 +306,16 @@ export function PatientsPage() {
       phone: formatPhone(patient.phone ?? ""),
       fundingSource: patient.fundingSource ?? "Municipal",
     });
+    setFormDialogOpen(true);
+  }
 
-    if (window.matchMedia("(max-width: 1023px)").matches) {
-      setFormDialogOpen(true);
-    }
+  function handleFormChange(field, value) {
+    setForm((current) => ({ ...current, [field]: value }));
+    setFieldErrors((current) => ({ ...current, [field]: "" }));
+  }
+
+  function handlePhoneChange(value) {
+    handleFormChange("phone", formatPhone(value));
   }
 
   async function handleSubmit(event) {
@@ -354,8 +339,7 @@ export function PatientsPage() {
       } else {
         await createPatient(payload);
       }
-      resetForm();
-      setFormDialogOpen(false);
+      closeFormDialog();
       await loadPatients();
     } catch (err) {
       setError(
@@ -381,7 +365,7 @@ export function PatientsPage() {
   }
 
   return (
-    <div className="min-w-0 space-y-4 sm:space-y-6">
+    <div className="relative min-w-0 space-y-4 pb-24 sm:space-y-6">
       <Card className="overflow-hidden border-ama-cyan/30">
         <CardHeader className="gap-2 p-4 sm:gap-4 sm:p-6">
           <CardTitle className="text-lg tracking-tight text-ama-text sm:text-xl">
@@ -400,32 +384,19 @@ export function PatientsPage() {
         </p>
       ) : null}
 
-      <Button
-        type="button"
-        className="w-full bg-ama-blue text-white hover:bg-ama-blue-dark lg:hidden"
-        onClick={openCreateDialog}
-      >
-        Novo paciente
-      </Button>
-
       <Dialog
         open={formDialogOpen}
         onOpenChange={(open) => {
-          if (!open) {
-            closeFormDialog();
-            return;
-          }
-          setFormDialogOpen(true);
+          if (!open) closeFormDialog();
         }}
         title={isEditing ? "Editar paciente" : "Novo paciente"}
         description={
           isEditing
-            ? "Atualize os dados cadastrais selecionados."
+            ? "Atualize os dados cadastrais do paciente."
             : "Preencha os dados mínimos do cadastro."
         }
       >
         <PatientForm
-          idPrefix="dialog-"
           form={form}
           fieldErrors={fieldErrors}
           saving={saving}
@@ -434,166 +405,140 @@ export function PatientsPage() {
           onCancel={closeFormDialog}
           onFormChange={handleFormChange}
           onPhoneChange={handlePhoneChange}
-          showCancel
         />
       </Dialog>
 
-      <div className="grid min-w-0 gap-4 lg:grid-cols-3 lg:gap-6">
-        <Card className="hidden min-w-0 overflow-hidden border-ama-cyan/30 lg:col-span-1 lg:block">
-          <CardHeader className="p-4 sm:p-6">
+      {!formDialogOpen ? (
+        <CreateFab onClick={openCreateDialog} label="Novo paciente" />
+      ) : null}
+
+      <Card className="min-w-0 overflow-hidden border-ama-cyan/30">
+        <CardHeader className="space-y-4 p-4 sm:p-6">
+          <div className="min-w-0">
             <CardTitle className="text-base text-ama-blue-dark">
-              {isEditing ? "Editar paciente" : "Novo paciente"}
+              Pacientes cadastrados
             </CardTitle>
-            <CardDescription>
-              {isEditing
-                ? "Atualize os dados cadastrais selecionados."
-                : "Preencha os dados mínimos do cadastro."}
+            <CardDescription className="break-words">
+              {activeCount} ativos em {patients.length} carregado(s).
             </CardDescription>
-          </CardHeader>
-          <CardContent className="p-4 pt-0 sm:p-6">
-            <PatientForm
-              form={form}
-              fieldErrors={fieldErrors}
-              saving={saving}
-              isEditing={isEditing}
-              onSubmit={handleSubmit}
-              onCancel={resetForm}
-              onFormChange={handleFormChange}
-              onPhoneChange={handlePhoneChange}
-              showCancel={isEditing}
-            />
-          </CardContent>
-        </Card>
+          </div>
 
-        <Card className="min-w-0 overflow-hidden border-ama-cyan/30 lg:col-span-2">
-            <CardHeader className="space-y-4 p-4 sm:p-6">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="min-w-0">
-                  <CardTitle className="text-base text-ama-blue-dark">
-                    Listagem de pacientes
-                  </CardTitle>
-                  <CardDescription className="break-words">
-                    {activeCount} ativos em {patients.length} registro(s) carregados.
-                  </CardDescription>
-                </div>
-                <Button
-                  variant="outline"
-                  className="w-full border-ama-cyan text-ama-blue hover:bg-ama-light sm:w-auto"
-                  onClick={loadPatients}
-                  disabled={loadingPatients}
-                >
-                  Atualizar
-                </Button>
-              </div>
-
-              <div className="grid min-w-0 gap-3">
-                <Input
-                  className="min-w-0"
-                  placeholder="Buscar por nome ou responsável"
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                />
-                <select
-                  className="h-10 w-full min-w-0 rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  value={fundingFilter}
-                  onChange={(event) => setFundingFilter(event.target.value)}
-                >
-                  <option value="">Todas as fontes</option>
-                  {FUNDING_OPTIONS.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  className="h-10 w-full min-w-0 rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  value={statusFilter}
-                  onChange={(event) => setStatusFilter(event.target.value)}
-                >
-                  <option value="active">Apenas ativos</option>
-                  <option value="inactive">Apenas inativos</option>
-                  <option value="all">Todos</option>
-                </select>
-              </div>
-
-              <Button
-                className="w-full bg-ama-cyan text-ama-blue-dark hover:bg-ama-cyan/90 sm:w-auto"
-                onClick={loadPatients}
-                disabled={loadingPatients}
+          <div className="grid min-w-0 gap-3 sm:grid-cols-2">
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="patient-search">Nome ou responsável</Label>
+              <Input
+                id="patient-search"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="patient-funding-filter">Fonte de custeio</Label>
+              <select
+                id="patient-funding-filter"
+                className="h-10 w-full min-w-0 rounded-md border border-input bg-background px-3 py-2 text-sm"
+                value={fundingFilter}
+                onChange={(event) => setFundingFilter(event.target.value)}
               >
-                Aplicar filtros
-              </Button>
-            </CardHeader>
-            <CardContent className="p-4 pt-0 sm:p-6">
-              {loadingPatients ? (
-                <p className="text-sm text-muted-foreground">Carregando pacientes...</p>
-              ) : patients.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  Nenhum paciente encontrado para os filtros informados.
-                </p>
-              ) : (
-                <div className="space-y-3">
-                  {patients.map((patient) => (
-                    <Card key={patient._id} className="min-w-0 overflow-hidden border-ama-cyan/20">
-                      <CardHeader className="flex flex-col gap-3 p-4 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-                        <div className="min-w-0 space-y-2">
-                          <CardTitle className="text-base break-words text-ama-blue-dark">
-                            {patient.fullName}
-                          </CardTitle>
-                          <CardDescription className="break-words">
-                            <span className="block sm:inline">
-                              Responsável: {patient.guardianName}
-                            </span>
-                            <span className="hidden sm:inline"> | </span>
-                            <span className="block sm:inline">Telefone: {patient.phone}</span>
-                          </CardDescription>
-                        </div>
-                        <div className="flex flex-row flex-wrap gap-2 sm:flex-col sm:items-end">
-                          <Badge variant="outline" className="border-ama-cyan text-ama-blue">
-                            {patient.fundingSource}
-                          </Badge>
-                          <Badge
-                            variant={patient.isActive ? "secondary" : "outline"}
-                            className={
-                              patient.isActive
-                                ? "bg-ama-light text-ama-blue-dark"
-                                : "border-muted-foreground/30 text-muted-foreground"
-                            }
-                          >
-                            {patient.isActive ? "Ativo" : "Inativo"}
-                          </Badge>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="flex flex-col gap-3 p-4 pt-0 sm:flex-row sm:items-center sm:justify-between">
-                        <p className="text-xs break-words text-muted-foreground">
-                          Nascimento: {formatBirthDatePtBr(patient.birthDate)}
-                        </p>
-                        <div className="flex flex-col gap-2 sm:flex-row">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="w-full sm:w-auto"
-                            onClick={() => startEdit(patient)}
-                          >
-                            Editar
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="w-full sm:w-auto"
-                            onClick={() => handleToggleStatus(patient)}
-                          >
-                            {patient.isActive ? "Inativar" : "Reativar"}
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+                <option value="">Todas as fontes</option>
+                {FUNDING_OPTIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="patient-status-filter">Status</Label>
+              <select
+                id="patient-status-filter"
+                className="h-10 w-full min-w-0 rounded-md border border-input bg-background px-3 py-2 text-sm"
+                value={statusFilter}
+                onChange={(event) => setStatusFilter(event.target.value)}
+              >
+                <option value="active">Apenas ativos</option>
+                <option value="inactive">Apenas inativos</option>
+                <option value="all">Todos</option>
+              </select>
+            </div>
+            <Button
+              className="w-full bg-ama-cyan text-ama-blue-dark hover:bg-ama-cyan/90 sm:col-span-2 sm:w-auto"
+              onClick={loadPatients}
+              disabled={loading}
+            >
+              Buscar
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="p-4 pt-0 sm:p-6">
+          {loading ? (
+            <p className="text-sm text-muted-foreground">Carregando pacientes...</p>
+          ) : patients.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Nenhum paciente encontrado para os filtros informados.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {patients.map((patient) => (
+                <Card key={patient._id} className="min-w-0 overflow-hidden border-ama-cyan/20">
+                  <CardHeader className="flex flex-col gap-3 p-4 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+                    <div className="min-w-0 space-y-2">
+                      <CardTitle className="text-base break-words text-ama-blue-dark">
+                        {patient.fullName}
+                      </CardTitle>
+                      <CardDescription className="break-words">
+                        <span className="block sm:inline">
+                          Responsável: {patient.guardianName}
+                        </span>
+                        <span className="hidden sm:inline"> · </span>
+                        <span className="block sm:inline">Telefone: {patient.phone}</span>
+                      </CardDescription>
+                    </div>
+                    <div className="flex flex-row flex-wrap gap-2 sm:flex-col sm:items-end">
+                      <Badge variant="outline" className="border-ama-cyan text-ama-blue">
+                        {patient.fundingSource}
+                      </Badge>
+                      <Badge
+                        variant={patient.isActive ? "secondary" : "outline"}
+                        className={
+                          patient.isActive
+                            ? "bg-ama-light text-ama-blue-dark"
+                            : "border-muted-foreground/30 text-muted-foreground"
+                        }
+                      >
+                        {patient.isActive ? "Ativo" : "Inativo"}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="flex flex-col gap-3 p-4 pt-0 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="text-xs break-words text-muted-foreground">
+                      Nascimento: {formatBirthDatePtBr(patient.birthDate)}
+                    </p>
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="w-full sm:w-auto"
+                        onClick={() => openEditDialog(patient)}
+                      >
+                        Editar
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="w-full sm:w-auto"
+                        onClick={() => handleToggleStatus(patient)}
+                      >
+                        {patient.isActive ? "Inativar" : "Reativar"}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

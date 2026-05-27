@@ -69,6 +69,7 @@ export function SessionProvider({ children }) {
     error,
     setError,
     sidebarItems: navigation.sidebarItems,
+    sidebarGroups: navigation.sidebarGroups,
     quickAccessItems: navigation.quickAccessItems,
     logout: handleLogout,
   };

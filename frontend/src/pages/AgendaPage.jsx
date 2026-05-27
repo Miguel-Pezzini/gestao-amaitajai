@@ -22,17 +22,6 @@ export function AgendaPage() {
         </CardHeader>
       </Card>
 
-      {agenda.error ? (
-        <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          {agenda.error}
-        </p>
-      ) : null}
-      {agenda.success ? (
-        <p className="rounded-md border border-ama-cyan/40 bg-ama-light px-3 py-2 text-sm text-ama-blue-dark">
-          {agenda.success}
-        </p>
-      ) : null}
-
       <AgendaCalendarView
         sessions={agenda.sessions}
         currentMonth={currentMonth}
@@ -65,7 +54,6 @@ export function AgendaPage() {
         loadingProfessionals={agenda.loadingProfessionals}
         onAddProfessional={agenda.addProfessional}
         onRemoveProfessional={agenda.removeProfessional}
-        fieldError={agenda.fieldError}
       />
 
       <CancelSessionDialog
