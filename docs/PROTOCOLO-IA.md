@@ -39,3 +39,8 @@ Objetivo: manter consistência técnica e documentação viva durante o desenvol
      - `REGRAS-NEGOCIO-AGENDA.md`
      - `MODELAGEM-DADOS-AGENDA.md`
 
+6. **Testes são obrigatórios em toda entrega**
+   - Toda feature nova, correção ou refatoração deve incluir criação ou ajuste de testes.
+   - Priorizar testes de integração com banco real e aplicação real (fluxo HTTP completo), evitando depender apenas de mocks.
+   - Só considerar tarefa concluída após rodar testes da mudança e manter o backend compilando.
+

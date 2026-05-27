@@ -1,7 +1,7 @@
 services:
   mongodb:
     image: mongo:7
-    container_name: gestao-amaitajai-mongo
+    container_name: ${MONGO_CONTAINER_NAME}
     restart: unless-stopped
     ports:
       - "${MONGO_PORT:-27017}:27017"

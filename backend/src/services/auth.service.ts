@@ -4,7 +4,7 @@ import type { CookieOptions } from "express";
 import { env } from "../config/env.js";
 import { User } from "../models/user.model.js";
 
-const SALT_ROUNDS = 12;
+const SALT_ROUNDS = env.bcryptSaltRounds;
 
 interface AccessTokenPayload {
   sub: string;
@@ -24,6 +24,8 @@ export async function ensureInitialAdminUser(): Promise<void> {
     name: env.adminName,
     email: adminEmail,
     passwordHash,
+    role: "administrador",
+    isActive: true,
   });
 
   console.log(`Usuário admin inicial criado: ${adminEmail}`);

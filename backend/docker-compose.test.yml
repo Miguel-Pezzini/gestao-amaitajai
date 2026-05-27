@@ -1,0 +1,29 @@
+services:
+  mongodb_test:
+    image: mongo:7
+    container_name: ${MONGO_TEST_CONTAINER_NAME}
+    restart: unless-stopped
+    ports:
+      - "${MONGO_TEST_PORT:-27018}:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_TEST_INITDB_ROOT_USERNAME:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_TEST_INITDB_ROOT_PASSWORD:-changeme}
+      MONGO_INITDB_DATABASE: ${MONGO_TEST_INITDB_DATABASE:-gestao_amaitajai_test}
+    volumes:
+      - mongodb_test_data:/data/db
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "mongosh",
+          "--quiet",
+          "--eval",
+          "db.adminCommand('ping').ok",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+volumes:
+  mongodb_test_data:

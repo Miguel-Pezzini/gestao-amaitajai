@@ -37,6 +37,8 @@ router.post("/auth/login", async (req: Request, res: Response) => {
       id: user._id,
       name: user.name,
       email: user.email,
+      role: user.role,
+      isActive: user.isActive,
     },
   });
 });

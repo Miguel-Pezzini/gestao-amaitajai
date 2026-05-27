@@ -24,6 +24,11 @@ export async function requireAuth(
       return;
     }
 
+    if (user.isActive === false) {
+      res.status(403).json({ message: "Usuário inativo." });
+      return;
+    }
+
     req.user = user;
     next();
   } catch {

@@ -27,4 +27,5 @@ export const env = {
   adminName: process.env.ADMIN_NAME ?? "Administrador",
   adminEmail: process.env.ADMIN_EMAIL as string,
   adminPassword: process.env.ADMIN_PASSWORD as string,
+  bcryptSaltRounds: Number(process.env.BCRYPT_SALT_ROUNDS ?? 12),
 };
