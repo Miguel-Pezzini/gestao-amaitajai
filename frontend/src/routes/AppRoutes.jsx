@@ -5,6 +5,7 @@ import { AppLayout } from "@/layouts/AppLayout";
 import { AgendaPage } from "@/pages/AgendaPage";
 import { ModalidadesPage } from "@/pages/cadastros/ModalidadesPage";
 import { SalasPage } from "@/pages/cadastros/SalasPage";
+import { TiposSessaoPage } from "@/pages/cadastros/TiposSessaoPage";
 import { UsuariosPage } from "@/pages/cadastros/UsuariosPage";
 import { HomePage } from "@/pages/HomePage";
 import { LoginPage } from "@/pages/LoginPage";
@@ -50,6 +51,14 @@ export function AppRoutes() {
             element={
               <RequireAdminRoute>
                 <UsuariosPage />
+              </RequireAdminRoute>
+            }
+          />
+          <Route
+            path="/cadastros/tipos-sessao"
+            element={
+              <RequireAdminRoute>
+                <TiposSessaoPage />
               </RequireAdminRoute>
             }
           />

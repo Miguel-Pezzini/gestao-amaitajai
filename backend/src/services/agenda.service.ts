@@ -7,6 +7,7 @@ import {
 } from "../errors/http-errors.js";
 import { Patient } from "../models/patient.model.js";
 import { Room } from "../models/room.model.js";
+import { SessionModalitySetting } from "../models/session-modality-setting.model.js";
 import { Session } from "../models/session.model.js";
 import { SessionType, type SessionModality } from "../models/session-type.model.js";
 import { USER_ROLES, type UserRole, User } from "../models/user.model.js";
@@ -28,6 +29,7 @@ import {
   validateSessionTypeId,
   validateUpdateSessionType,
 } from "../validators/agenda/session-type.validator.js";
+import { validateSessionModalitySettingUpdate } from "../validators/agenda/session-modality-setting.validator.js";
 import {
   normalizeSessionInput,
   type SessionPayload,
@@ -42,6 +44,25 @@ import type { Types } from "mongoose";
 type AuthenticatedUser = {
   _id: Types.ObjectId;
   role: UserRole;
+};
+
+type SessionValidationLimits = {
+  minPatients: number;
+  maxPatients: number;
+  minProfessionals: number;
+  maxProfessionals: number;
+};
+
+const DEFAULT_SESSION_MODALITY_SETTINGS: Record<SessionModality, SessionValidationLimits> = {
+  individual: { minPatients: 1, maxPatients: 1, minProfessionals: 1, maxProfessionals: 1 },
+  dupla: { minPatients: 2, maxPatients: 2, minProfessionals: 2, maxProfessionals: 2 },
+  grupo: { minPatients: 1, maxPatients: 15, minProfessionals: 2, maxProfessionals: 4 },
+};
+
+const SESSION_FORMAT_LABELS: Record<SessionModality, string> = {
+  individual: "Individual",
+  dupla: "Dupla",
+  grupo: "Grupo",
 };
 
 export class AgendaService {
@@ -178,6 +199,11 @@ export class AgendaService {
   async createSession(payload: SessionPayload, currentUser: AuthenticatedUser) {
     const normalized = normalizeSessionInput(payload);
     validateSession(normalized);
+    await this.validateSessionParticipantsByModality(
+      normalized.modality,
+      normalized.patientIds.length,
+      normalized.professionalIds.length,
+    );
     const startAt = normalized.startAt as Date;
 
     const references = await this.loadSessionReferences(normalized);
@@ -229,6 +255,11 @@ export class AgendaService {
       notes: existing.notes,
     });
     validateSession(normalized);
+    await this.validateSessionParticipantsByModality(
+      normalized.modality,
+      normalized.patientIds.length,
+      normalized.professionalIds.length,
+    );
     const startAt = normalized.startAt as Date;
 
     const references = await this.loadSessionReferences(normalized);
@@ -284,6 +315,41 @@ export class AgendaService {
     await session.save();
 
     return { session };
+  }
+
+  async listSessionModalitySettings() {
+    await this.ensureSessionModalitySettings();
+    const items = await SessionModalitySetting.find().sort({ modality: 1 }).lean();
+    return { items };
+  }
+
+  async updateSessionModalitySetting(
+    modality: string,
+    payload: {
+      minPatients?: unknown;
+      maxPatients?: unknown;
+      minProfessionals?: unknown;
+      maxProfessionals?: unknown;
+      isActive?: unknown;
+    },
+  ) {
+    await this.ensureSessionModalitySettings();
+    const input = validateSessionModalitySettingUpdate(modality, payload);
+    const setting = await SessionModalitySetting.findOne({ modality: input.modality });
+    if (!setting) {
+      throw new NotFoundError("Tipo de sessão não encontrado.");
+    }
+
+    setting.minPatients = input.minPatients;
+    setting.maxPatients = input.maxPatients;
+    setting.minProfessionals = input.minProfessionals;
+    setting.maxProfessionals = input.maxProfessionals;
+    if (input.isActive !== undefined) {
+      setting.isActive = input.isActive;
+    }
+    await setting.save();
+
+    return { setting };
   }
 
   private buildSessionListFilter(
@@ -365,6 +431,73 @@ export class AgendaService {
       throw new NotFoundError("Sessão não encontrada.");
     }
     return session;
+  }
+
+  private async ensureSessionModalitySettings() {
+    const operations = (Object.keys(DEFAULT_SESSION_MODALITY_SETTINGS) as SessionModality[]).map(
+      (modality) => ({
+        updateOne: {
+          filter: { modality },
+          update: {
+            $setOnInsert: {
+              modality,
+              ...DEFAULT_SESSION_MODALITY_SETTINGS[modality],
+              isActive: true,
+            },
+          },
+          upsert: true,
+        },
+      }),
+    );
+    await SessionModalitySetting.bulkWrite(operations);
+  }
+
+  private async getSessionModalityLimits(modality: SessionModality): Promise<SessionValidationLimits> {
+    await this.ensureSessionModalitySettings();
+    const setting = await SessionModalitySetting.findOne({ modality }).lean();
+    if (setting) {
+      return {
+        minPatients: setting.minPatients,
+        maxPatients: setting.maxPatients,
+        minProfessionals: setting.minProfessionals,
+        maxProfessionals: setting.maxProfessionals,
+      };
+    }
+    return DEFAULT_SESSION_MODALITY_SETTINGS[modality];
+  }
+
+  private async validateSessionParticipantsByModality(
+    modality: SessionModality,
+    patientCount: number,
+    professionalCount: number,
+  ) {
+    const limits = await this.getSessionModalityLimits(modality);
+    const formatLabel = SESSION_FORMAT_LABELS[modality] ?? modality;
+
+    if (patientCount < limits.minPatients || patientCount > limits.maxPatients) {
+      if (limits.minPatients === limits.maxPatients) {
+        throw new ValidationError(
+          `Para tipo de sessão ${formatLabel}, selecione exatamente ${limits.minPatients} paciente(s).`,
+        );
+      }
+      throw new ValidationError(
+        `Para tipo de sessão ${formatLabel}, selecione entre ${limits.minPatients} e ${limits.maxPatients} pacientes.`,
+      );
+    }
+
+    if (
+      professionalCount < limits.minProfessionals ||
+      professionalCount > limits.maxProfessionals
+    ) {
+      if (limits.minProfessionals === limits.maxProfessionals) {
+        throw new ValidationError(
+          `Para tipo de sessão ${formatLabel}, selecione exatamente ${limits.minProfessionals} profissional(is).`,
+        );
+      }
+      throw new ValidationError(
+        `Para tipo de sessão ${formatLabel}, selecione entre ${limits.minProfessionals} e ${limits.maxProfessionals} profissionais.`,
+      );
+    }
   }
 
   private async loadSessionReferences(input: ReturnType<typeof normalizeSessionInput>) {

@@ -1,4 +1,4 @@
-import { DoorOpen, Layers3, UserCog } from "lucide-react";
+import { DoorOpen, Layers3, SlidersHorizontal, UserCog } from "lucide-react";
 
 export const CADASTROS_GROUP = {
   id: "cadastros",
@@ -26,11 +26,19 @@ export const CADASTRO_ITEMS = [
     order: 1,
   },
   {
+    id: "tipos-sessao",
+    label: "Tipos de Sessão",
+    description: "Configure limites mínimos e máximos por tipo de sessão.",
+    icon: SlidersHorizontal,
+    route: "/cadastros/tipos-sessao",
+    order: 2,
+  },
+  {
     id: "funcionarios",
     label: "Funcionários",
     description: "Cadastre funcionários e permissões de acesso ao sistema.",
     icon: UserCog,
     route: "/cadastros/funcionarios",
-    order: 2,
+    order: 3,
   },
 ];

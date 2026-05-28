@@ -16,8 +16,26 @@ export const SESSION_FORMAT_LIMITS = {
   grupo: { minPatients: 1, maxPatients: 15, minProfessionals: 2, maxProfessionals: 4 },
 };
 
-export function getSessionFormatHint(modality) {
-  const limits = SESSION_FORMAT_LIMITS[modality];
+export function buildSessionLimitsMap(settings = []) {
+  if (!Array.isArray(settings) || settings.length === 0) {
+    return SESSION_FORMAT_LIMITS;
+  }
+
+  const dynamic = {};
+  settings.forEach((item) => {
+    if (!item?.modality) return;
+    dynamic[item.modality] = {
+      minPatients: Number(item.minPatients),
+      maxPatients: Number(item.maxPatients),
+      minProfessionals: Number(item.minProfessionals),
+      maxProfessionals: Number(item.maxProfessionals),
+    };
+  });
+  return { ...SESSION_FORMAT_LIMITS, ...dynamic };
+}
+
+export function getSessionFormatHint(modality, limitsByModality = SESSION_FORMAT_LIMITS) {
+  const limits = limitsByModality[modality];
   if (!limits) {
     return "";
   }
@@ -35,24 +53,29 @@ export function getSessionFormatHint(modality) {
   return `${label}: ${patients} e ${professionals}.`;
 }
 
-export function canAddSessionPatient(modality, currentCount) {
-  const limits = SESSION_FORMAT_LIMITS[modality];
+export function canAddSessionPatient(modality, currentCount, limitsByModality = SESSION_FORMAT_LIMITS) {
+  const limits = limitsByModality[modality];
   if (!limits) {
     return true;
   }
   return currentCount < limits.maxPatients;
 }
 
-export function canAddSessionProfessional(modality, currentCount) {
-  const limits = SESSION_FORMAT_LIMITS[modality];
+export function canAddSessionProfessional(modality, currentCount, limitsByModality = SESSION_FORMAT_LIMITS) {
+  const limits = limitsByModality[modality];
   if (!limits) {
     return true;
   }
   return currentCount < limits.maxProfessionals;
 }
 
-export function getParticipantCountLabels(modality, patientCount, professionalCount) {
-  const limits = SESSION_FORMAT_LIMITS[modality];
+export function getParticipantCountLabels(
+  modality,
+  patientCount,
+  professionalCount,
+  limitsByModality = SESSION_FORMAT_LIMITS,
+) {
+  const limits = limitsByModality[modality];
   if (!limits) {
     return { patients: "", professionals: "" };
   }
@@ -69,8 +92,13 @@ export function getParticipantCountLabels(modality, patientCount, professionalCo
   return { patients, professionals };
 }
 
-export function getParticipantFieldErrors(modality, patientCount, professionalCount) {
-  const limits = SESSION_FORMAT_LIMITS[modality];
+export function getParticipantFieldErrors(
+  modality,
+  patientCount,
+  professionalCount,
+  limitsByModality = SESSION_FORMAT_LIMITS,
+) {
+  const limits = limitsByModality[modality];
   const errors = {};
   if (!limits) {
     return errors;
@@ -100,7 +128,7 @@ export function getParticipantFieldErrors(modality, patientCount, professionalCo
   return errors;
 }
 
-export function getSessionFormFieldErrors(form) {
+export function getSessionFormFieldErrors(form, limitsByModality = SESSION_FORMAT_LIMITS) {
   const errors = {};
 
   if (!form.sessionTypeId) {
@@ -122,6 +150,7 @@ export function getSessionFormFieldErrors(form) {
     form.modality,
     form.selectedPatients.length,
     form.selectedProfessionals.length,
+    limitsByModality,
   );
 
   if (form.selectedPatients.length === 0 && !participantErrors.patients) {

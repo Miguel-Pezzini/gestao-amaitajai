@@ -7,7 +7,6 @@ import {
   getParticipantCountLabels,
   getSessionFormatHint,
   SESSION_FORMAT_LABELS,
-  SESSION_FORMAT_OPTIONS,
 } from "@/features/agenda/constants";
 import { SelectedItems } from "./SelectedItems";
 
@@ -19,6 +18,8 @@ export function CreateSessionDialog({
   fieldErrors,
   sessionTypes,
   rooms,
+  modalityOptions,
+  sessionLimits,
   onFormChange,
   onSubmit,
   onClose,
@@ -39,6 +40,7 @@ export function CreateSessionDialog({
     form.modality,
     form.selectedPatients.length,
     form.selectedProfessionals.length,
+    sessionLimits,
   );
 
   return (
@@ -83,13 +85,15 @@ export function CreateSessionDialog({
             onChange={(event) => onFormChange("modality", event.target.value)}
             disabled={saving}
           >
-            {SESSION_FORMAT_OPTIONS.map((item) => (
+            {modalityOptions.map((item) => (
               <option key={item} value={item}>
                 {SESSION_FORMAT_LABELS[item]}
               </option>
             ))}
           </select>
-          <p className="text-xs text-muted-foreground">{getSessionFormatHint(form.modality)}</p>
+          <p className="text-xs text-muted-foreground">
+            {getSessionFormatHint(form.modality, sessionLimits)}
+          </p>
         </div>
 
         <div className="space-y-2">

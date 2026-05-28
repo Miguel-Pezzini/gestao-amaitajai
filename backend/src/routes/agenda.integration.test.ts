@@ -204,6 +204,31 @@ describe("Agenda integration", () => {
     });
   });
 
+  describe("tipos de sessão (cadastros gerais)", () => {
+    it("lista e atualiza limites por tipo de sessão", async () => {
+      const { adminCookie } = await seedAgendaBase();
+
+      const list = await request(app).get("/api/agenda/session-modalities").set("Cookie", adminCookie);
+      expect(list.status).toBe(200);
+      expect(list.body.items).toHaveLength(3);
+      expect(list.body.items.some((item: { modality: string }) => item.modality === "grupo")).toBe(true);
+
+      const updated = await request(app)
+        .patch("/api/agenda/session-modalities/grupo")
+        .set("Cookie", adminCookie)
+        .send({
+          minPatients: 1,
+          maxPatients: 2,
+          minProfessionals: 1,
+          maxProfessionals: 2,
+          isActive: true,
+        });
+      expect(updated.status).toBe(200);
+      expect(updated.body.setting.maxPatients).toBe(2);
+      expect(updated.body.setting.maxProfessionals).toBe(2);
+    });
+  });
+
   describe("lookups", () => {
     it("busca pacientes e profissionais por termo", async () => {
       const { adminCookie, paciente, profissional } = await seedAgendaBase();
@@ -358,6 +383,76 @@ describe("Agenda integration", () => {
       expect(response.status).toBe(400);
       expect(response.body.message).toContain("Dupla");
       expect(response.body.message).toContain("2");
+    });
+
+    it("aplica limites configurados no cadastro geral de tipos de sessão", async () => {
+      const { adminCookie, paciente, room } = await seedAgendaBase();
+      const paciente2 = await Patient.create({
+        fullName: "Paciente Limites 2",
+        birthDate: new Date("2017-02-02"),
+        guardianName: "Responsavel 2",
+        phone: "(47) 99999-0002",
+        fundingSource: "Estadual",
+        isActive: true,
+      });
+      const paciente3 = await Patient.create({
+        fullName: "Paciente Limites 3",
+        birthDate: new Date("2017-03-03"),
+        guardianName: "Responsavel 3",
+        phone: "(47) 99999-0003",
+        fundingSource: "Estadual",
+        isActive: true,
+      });
+      const profissional1 = await createUser({
+        name: "Prof Limites 1",
+        email: `prof-limites-1-${Date.now()}@agenda.test`,
+        password: "prof123456",
+        role: "tecnico",
+      });
+      const profissional2 = await createUser({
+        name: "Prof Limites 2",
+        email: `prof-limites-2-${Date.now()}@agenda.test`,
+        password: "prof123456",
+        role: "tecnico",
+      });
+
+      await request(app)
+        .patch("/api/agenda/session-modalities/grupo")
+        .set("Cookie", adminCookie)
+        .send({
+          minPatients: 1,
+          maxPatients: 2,
+          minProfessionals: 1,
+          maxProfessionals: 2,
+          isActive: true,
+        });
+
+      const groupType = await SessionType.create({
+        name: "Grupo Terapêutico",
+        slug: `grupo-limites-${Date.now()}`,
+        defaultDurationMinutes: 60,
+        isDurationFlexible: false,
+        allowedModalities: ["grupo"],
+        isActive: true,
+      });
+
+      const response = await request(app)
+        .post("/api/agenda/sessions")
+        .set("Cookie", adminCookie)
+        .send(
+          buildSessionPayload({
+            sessionTypeId: groupType._id.toString(),
+            roomId: room._id.toString(),
+            patientIds: [paciente._id.toString(), paciente2._id.toString(), paciente3._id.toString()],
+            professionalIds: [profissional1._id.toString(), profissional2._id.toString()],
+            modality: "grupo",
+            durationMinutes: 60,
+            startAt: "2026-06-10T13:00:00.000Z",
+          }),
+        );
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain("entre 1 e 2 pacientes");
     });
 
     it("rejeita modalidade não permitida pelo tipo de sessão", async () => {

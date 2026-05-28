@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useSession } from "@/contexts/session-context";
+import { buildSessionLimitsMap } from "@/features/agenda/constants";
 import { AgendaCalendarView } from "@/features/agenda/components/AgendaCalendarView";
 import { CancelSessionDialog } from "@/features/agenda/components/CancelSessionDialog";
 import { CreateSessionDialog } from "@/features/agenda/components/CreateSessionDialog";
@@ -10,6 +11,10 @@ export function AgendaPage() {
   const { userName, user } = useSession();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const agenda = useAgendaPage(user);
+  const selectedSessionType = agenda.sessionTypes.find((item) => item._id === agenda.form.sessionTypeId);
+  const modalityOptions =
+    selectedSessionType?.allowedModalities?.length ? selectedSessionType.allowedModalities : ["individual"];
+  const sessionLimits = buildSessionLimitsMap(agenda.sessionModalitySettings);
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -40,6 +45,8 @@ export function AgendaPage() {
         fieldErrors={agenda.fieldErrors}
         sessionTypes={agenda.sessionTypes}
         rooms={agenda.rooms}
+        modalityOptions={modalityOptions}
+        sessionLimits={sessionLimits}
         onFormChange={agenda.handleFormChange}
         onSubmit={agenda.handleCreateSession}
         onClose={agenda.closeCreateDialog}

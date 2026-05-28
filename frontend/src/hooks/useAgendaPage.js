@@ -5,6 +5,7 @@ import {
   createSession,
   listRooms,
   listSessions,
+  listSessionModalities,
   listSessionTypes,
   searchAgendaPatients,
   searchAgendaProfessionals,
@@ -12,6 +13,7 @@ import {
 import { useToast } from "@/contexts/toast-context";
 import {
   buildInitialSessionForm,
+  buildSessionLimitsMap,
   canAddSessionPatient,
   canAddSessionProfessional,
   getParticipantFieldErrors,
@@ -33,6 +35,7 @@ export function useAgendaPage(user) {
   const [sessions, setSessions] = useState([]);
   const [rooms, setRooms] = useState([]);
   const [sessionTypes, setSessionTypes] = useState([]);
+  const [sessionModalitySettings, setSessionModalitySettings] = useState([]);
 
   const [form, setForm] = useState(() => buildInitialSessionForm());
   const [fieldErrors, setFieldErrors] = useState(EMPTY_FIELD_ERRORS);
@@ -50,13 +53,23 @@ export function useAgendaPage(user) {
   const [professionalOptions, setProfessionalOptions] = useState([]);
   const [loadingProfessionals, setLoadingProfessionals] = useState(false);
 
+  const sessionLimits = buildSessionLimitsMap(sessionModalitySettings);
+
+  function getAllowedModalitiesBySessionType(sessionTypeId) {
+    const selected = sessionTypes.find((item) => item._id === sessionTypeId);
+    const allowed = selected?.allowedModalities?.length ? selected.allowedModalities : [];
+    return allowed;
+  }
+
   async function loadDependencies() {
-    const [roomsResponse, typesResponse] = await Promise.all([
+    const [roomsResponse, typesResponse, modalitySettingsResponse] = await Promise.all([
       listRooms(),
       listSessionTypes(),
+      listSessionModalities(),
     ]);
     setRooms(roomsResponse.items ?? []);
     setSessionTypes(typesResponse.items ?? []);
+    setSessionModalitySettings(modalitySettingsResponse.items ?? []);
   }
 
   async function loadSessions() {
@@ -164,6 +177,15 @@ export function useAgendaPage(user) {
 
   function handleFormChange(field, value) {
     clearFieldError(field);
+    if (field === "sessionTypeId") {
+      const allowed = getAllowedModalitiesBySessionType(value);
+      setForm((current) => {
+        const nextModality = allowed.includes(current.modality) ? current.modality : allowed[0] ?? current.modality;
+        return { ...current, sessionTypeId: value, modality: nextModality };
+      });
+      clearFieldError("modality");
+      return;
+    }
     if (field === "modality") {
       setFieldErrors((current) => {
         const next = { ...current };
@@ -219,10 +241,16 @@ export function useAgendaPage(user) {
     setForm((current) => {
       const sessionTypeId = current.sessionTypeId || pickDefaultCatalogId(sessionTypes);
       const roomId = current.roomId || pickDefaultCatalogId(rooms);
-      if (sessionTypeId === current.sessionTypeId && roomId === current.roomId) {
+      const allowed = getAllowedModalitiesBySessionType(sessionTypeId);
+      const modality = allowed.includes(current.modality) ? current.modality : allowed[0] ?? current.modality;
+      if (
+        sessionTypeId === current.sessionTypeId &&
+        roomId === current.roomId &&
+        modality === current.modality
+      ) {
         return current;
       }
-      return { ...current, sessionTypeId, roomId };
+      return { ...current, sessionTypeId, roomId, modality };
     });
   }, [createDialogOpen, sessionTypes, rooms]);
 
@@ -249,11 +277,12 @@ export function useAgendaPage(user) {
 
   function addPatient(option) {
     const nextPatientCount = form.selectedPatients.length + 1;
-    if (!canAddSessionPatient(form.modality, form.selectedPatients.length)) {
+    if (!canAddSessionPatient(form.modality, form.selectedPatients.length, sessionLimits)) {
       const errors = getParticipantFieldErrors(
         form.modality,
         nextPatientCount,
         form.selectedProfessionals.length,
+        sessionLimits,
       );
       setFieldErrors((current) => ({
         ...current,
@@ -286,11 +315,12 @@ export function useAgendaPage(user) {
 
   function addProfessional(option) {
     const nextProfessionalCount = form.selectedProfessionals.length + 1;
-    if (!canAddSessionProfessional(form.modality, form.selectedProfessionals.length)) {
+    if (!canAddSessionProfessional(form.modality, form.selectedProfessionals.length, sessionLimits)) {
       const errors = getParticipantFieldErrors(
         form.modality,
         form.selectedPatients.length,
         nextProfessionalCount,
+        sessionLimits,
       );
       setFieldErrors((current) => ({
         ...current,
@@ -329,7 +359,7 @@ export function useAgendaPage(user) {
     event.preventDefault();
     setSaving(true);
 
-    const errors = getSessionFormFieldErrors(form);
+    const errors = getSessionFormFieldErrors(form, sessionLimits);
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
       setSaving(false);
@@ -408,6 +438,7 @@ export function useAgendaPage(user) {
     sessions,
     rooms,
     sessionTypes,
+    sessionModalitySettings,
     form,
     fieldErrors,
     createDialogOpen,

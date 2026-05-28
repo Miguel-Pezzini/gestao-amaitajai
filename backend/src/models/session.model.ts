@@ -4,19 +4,6 @@ import { SESSION_MODALITIES } from "./session-type.model.js";
 export const SESSION_STATUSES = ["agendada", "realizada", "cancelada"] as const;
 export type SessionStatus = (typeof SESSION_STATUSES)[number];
 
-type SessionValidationLimits = {
-  minPatients: number;
-  maxPatients: number;
-  minProfessionals: number;
-  maxProfessionals: number;
-};
-
-export const SESSION_LIMITS: Record<string, SessionValidationLimits> = {
-  individual: { minPatients: 1, maxPatients: 1, minProfessionals: 1, maxProfessionals: 1 },
-  dupla: { minPatients: 2, maxPatients: 2, minProfessionals: 2, maxProfessionals: 2 },
-  grupo: { minPatients: 1, maxPatients: 15, minProfessionals: 2, maxProfessionals: 4 },
-};
-
 const sessionSchema = new mongoose.Schema(
   {
     sessionTypeId: {
@@ -111,30 +98,8 @@ const sessionSchema = new mongoose.Schema(
 );
 
 sessionSchema.pre("validate", function validateByModality() {
-  const limits = SESSION_LIMITS[this.modality as string];
-  if (!limits) {
-    return;
-  }
-
   if (this.startAt && this.endAt && this.endAt <= this.startAt) {
     this.invalidate("endAt", "endAt deve ser maior que startAt.");
-  }
-
-  if (this.patientIds.length < limits.minPatients || this.patientIds.length > limits.maxPatients) {
-    this.invalidate(
-      "patientIds",
-      `Quantidade de pacientes inválida para modalidade ${this.modality}.`,
-    );
-  }
-
-  if (
-    this.professionalIds.length < limits.minProfessionals ||
-    this.professionalIds.length > limits.maxProfessionals
-  ) {
-    this.invalidate(
-      "professionalIds",
-      `Quantidade de profissionais inválida para modalidade ${this.modality}.`,
-    );
   }
 
   if (this.status === "cancelada" && !this.cancelReason?.trim()) {

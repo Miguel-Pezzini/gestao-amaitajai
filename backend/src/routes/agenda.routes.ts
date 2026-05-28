@@ -137,6 +137,27 @@ router.patch("/agenda/session-types/:id/status", requireAdmin, async (req: Reque
   }
 });
 
+router.get("/agenda/session-modalities", async (_req: Request, res: Response) => {
+  try {
+    const result = await agendaService.listSessionModalitySettings();
+    res.status(200).json(result);
+  } catch (error) {
+    handleServiceError(res, error);
+  }
+});
+
+router.patch("/agenda/session-modalities/:modality", requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const result = await agendaService.updateSessionModalitySetting(
+      getRouteId(req.params.modality),
+      (req.body ?? {}) as Record<string, unknown>,
+    );
+    res.status(200).json(result);
+  } catch (error) {
+    handleServiceError(res, error);
+  }
+});
+
 router.get("/agenda/sessions", async (req: Request, res: Response) => {
   try {
     const result = await agendaService.listSessions(

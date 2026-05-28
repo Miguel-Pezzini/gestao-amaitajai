@@ -1,5 +1,4 @@
 import { ValidationError } from "../../errors/http-errors.js";
-import { SESSION_LIMITS } from "../../models/session.model.js";
 import {
   SESSION_MODALITIES,
   type SessionModality,
@@ -100,36 +99,6 @@ export function validateSession(input: NormalizedSessionInput): void {
     throw new ValidationError("Paciente ou profissional selecionado é inválido.");
   }
 
-  const limits = SESSION_LIMITS[input.modality];
-  if (limits) {
-    const formatLabel = SESSION_FORMAT_LABELS[input.modality] ?? input.modality;
-    const { patientIds, professionalIds } = input;
-
-    if (patientIds.length < limits.minPatients || patientIds.length > limits.maxPatients) {
-      if (limits.minPatients === limits.maxPatients) {
-        throw new ValidationError(
-          `Para tipo de sessão ${formatLabel}, selecione exatamente ${limits.minPatients} paciente(s).`,
-        );
-      }
-      throw new ValidationError(
-        `Para tipo de sessão ${formatLabel}, selecione entre ${limits.minPatients} e ${limits.maxPatients} pacientes.`,
-      );
-    }
-
-    if (
-      professionalIds.length < limits.minProfessionals ||
-      professionalIds.length > limits.maxProfessionals
-    ) {
-      if (limits.minProfessionals === limits.maxProfessionals) {
-        throw new ValidationError(
-          `Para tipo de sessão ${formatLabel}, selecione exatamente ${limits.minProfessionals} profissional(is).`,
-        );
-      }
-      throw new ValidationError(
-        `Para tipo de sessão ${formatLabel}, selecione entre ${limits.minProfessionals} e ${limits.maxProfessionals} profissionais.`,
-      );
-    }
-  }
 }
 
 export function validateSessionModality(

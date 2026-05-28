@@ -52,6 +52,16 @@ export async function updateSessionTypeStatus(sessionTypeId, isActive) {
   return data;
 }
 
+export async function listSessionModalities() {
+  const { data } = await api.get("/agenda/session-modalities");
+  return data;
+}
+
+export async function updateSessionModality(modality, payload) {
+  const { data } = await api.patch(`/agenda/session-modalities/${modality}`, payload);
+  return data;
+}
+
 export async function listSessions(params = {}) {
   const { data } = await api.get("/agenda/sessions", { params });
   return data;
