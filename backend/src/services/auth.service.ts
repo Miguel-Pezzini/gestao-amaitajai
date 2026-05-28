@@ -65,10 +65,11 @@ export function verifyAccessToken(token: string): AccessTokenPayload {
 }
 
 export function buildAuthCookieOptions(): CookieOptions {
+  const sameSite = env.cookieSameSite;
   return {
     httpOnly: true,
-    secure: env.isProduction,
-    sameSite: "strict",
+    secure: env.isProduction || sameSite === "none",
+    sameSite,
     path: "/api",
     maxAge: env.jwtCookieMaxAgeMs,
   };

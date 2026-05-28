@@ -14,6 +14,15 @@ for (const key of required) {
   }
 }
 
+const cookieSameSiteRaw = (process.env.COOKIE_SAME_SITE ?? "strict").toLowerCase();
+const cookieSameSiteOptions = ["strict", "lax", "none"] as const;
+if (!cookieSameSiteOptions.includes(cookieSameSiteRaw as (typeof cookieSameSiteOptions)[number])) {
+  throw new Error(
+    `COOKIE_SAME_SITE inválido: ${process.env.COOKIE_SAME_SITE}. Use: strict, lax ou none.`,
+  );
+}
+const cookieSameSite = cookieSameSiteRaw as (typeof cookieSameSiteOptions)[number];
+
 export const env = {
   port: Number(process.env.PORT),
   mongodbUri: process.env.MONGODB_URI as string,
@@ -28,4 +37,5 @@ export const env = {
   adminEmail: process.env.ADMIN_EMAIL as string,
   adminPassword: process.env.ADMIN_PASSWORD as string,
   bcryptSaltRounds: Number(process.env.BCRYPT_SALT_ROUNDS ?? 12),
+  cookieSameSite,
 };
