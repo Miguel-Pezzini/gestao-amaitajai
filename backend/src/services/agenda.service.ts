@@ -1,98 +1,47 @@
 import mongoose from "mongoose";
-import { AppError } from "../errors/app-error.js";
+import {
+  ConflictError,
+  ForbiddenError,
+  NotFoundError,
+  ValidationError,
+} from "../errors/http-errors.js";
 import { Patient } from "../models/patient.model.js";
 import { Room } from "../models/room.model.js";
-import { SESSION_LIMITS, Session } from "../models/session.model.js";
-import {
-  SESSION_MODALITIES,
-  SessionType,
-  type SessionModality,
-} from "../models/session-type.model.js";
-
-const SESSION_FORMAT_LABELS: Record<SessionModality, string> = {
-  individual: "Individual",
-  dupla: "Dupla",
-  grupo: "Grupo",
-};
+import { Session } from "../models/session.model.js";
+import { SessionType, type SessionModality } from "../models/session-type.model.js";
 import { USER_ROLES, type UserRole, User } from "../models/user.model.js";
+import {
+  duplicateRoomMessage,
+  escapeRegex,
+  isMongoDuplicateKeyError,
+  normalizeText,
+  parseDate,
+  parseLimit,
+} from "../validators/agenda/agenda.utils.js";
+import {
+  validateCreateRoom,
+  validateRoomId,
+  validateUpdateRoom,
+} from "../validators/agenda/room.validator.js";
+import {
+  validateCreateSessionType,
+  validateSessionTypeId,
+  validateUpdateSessionType,
+} from "../validators/agenda/session-type.validator.js";
+import {
+  normalizeSessionInput,
+  type SessionPayload,
+  validateCancelSession,
+  validateCompleteSession,
+  validateSession,
+  validateSessionModality,
+  validateUpdateSession,
+} from "../validators/agenda/session.validator.js";
 import type { Types } from "mongoose";
 
 type AuthenticatedUser = {
   _id: Types.ObjectId;
   role: UserRole;
-};
-
-function normalizeText(value: unknown): string {
-  return String(value ?? "").trim();
-}
-
-function slugify(value: string): string {
-  return value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
-
-function isMongoDuplicateKeyError(error: unknown): error is { code: number; keyPattern?: Record<string, unknown> } {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    (error as { code: number }).code === 11000
-  );
-}
-
-function duplicateRoomMessage(error: { keyPattern?: Record<string, unknown> }): string {
-  if (error.keyPattern?.name) {
-    return "Já existe uma sala com este nome.";
-  }
-  return "Sala já cadastrada.";
-}
-
-function parseDate(value: unknown): Date | null {
-  const date = new Date(String(value));
-  return Number.isNaN(date.getTime()) ? null : date;
-}
-
-function parseUniqueIdArray(values: unknown): string[] {
-  if (!Array.isArray(values)) {
-    return [];
-  }
-
-  return values
-    .map((value) => normalizeText(value))
-    .filter(Boolean)
-    .filter((value, index, arr) => arr.indexOf(value) === index);
-}
-
-function isObjectId(value: string): boolean {
-  return mongoose.Types.ObjectId.isValid(value);
-}
-
-function escapeRegex(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function parseLimit(value: unknown, fallback = 10, max = 30): number {
-  const parsed = Number.parseInt(String(value), 10);
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    return fallback;
-  }
-  return Math.min(parsed, max);
-}
-
-type SessionPayload = {
-  sessionTypeId?: unknown;
-  modality?: unknown;
-  roomId?: unknown;
-  startAt?: unknown;
-  durationMinutes?: unknown;
-  patientIds?: unknown;
-  professionalIds?: unknown;
-  notes?: unknown;
 };
 
 export class AgendaService {
@@ -143,62 +92,25 @@ export class AgendaService {
   }
 
   async createRoom(payload: { name?: unknown }) {
-    const name = normalizeText(payload.name);
-
-    if (!name) {
-      throw new AppError(400, "Nome da sala é obrigatório.");
-    }
-
-    try {
-      const room = await Room.create({ name });
-      return { room };
-    } catch (error) {
-      if (isMongoDuplicateKeyError(error)) {
-        throw new AppError(409, duplicateRoomMessage(error));
-      }
-      throw error;
-    }
+    const { name } = validateCreateRoom(payload);
+    return this.persistRoomCreate(name);
   }
 
   async updateRoom(roomId: string, payload: { name?: unknown }) {
-    if (!isObjectId(roomId)) {
-      throw new AppError(400, "Identificador de sala inválido.");
+    const updates = validateUpdateRoom(roomId, payload);
+    const room = await this.findRoomOrThrow(roomId);
+    if (updates.name) {
+      room.name = updates.name;
     }
-
-    const room = await Room.findById(roomId);
-    if (!room) {
-      throw new AppError(404, "Sala não encontrada.");
-    }
-
-    if (payload.name !== undefined) {
-      const name = normalizeText(payload.name);
-      if (!name) {
-        throw new AppError(400, "Nome da sala é obrigatório.");
-      }
-      room.name = name;
-    }
-
-    try {
-      await room.save();
-      return { room };
-    } catch (error) {
-      if (isMongoDuplicateKeyError(error)) {
-        throw new AppError(409, duplicateRoomMessage(error));
-      }
-      throw error;
-    }
+    return this.persistRoomSave(room);
   }
 
   async updateRoomStatus(roomId: string, isActive: boolean) {
-    if (!isObjectId(roomId)) {
-      throw new AppError(400, "Identificador de sala inválido.");
-    }
-
+    validateRoomId(roomId);
     const room = await Room.findByIdAndUpdate(roomId, { isActive }, { new: true }).lean();
     if (!room) {
-      throw new AppError(404, "Sala não encontrada.");
+      throw new NotFoundError("Sala não encontrada.");
     }
-
     return { room };
   }
 
@@ -214,32 +126,8 @@ export class AgendaService {
     isDurationFlexible?: unknown;
     allowedModalities?: unknown;
   }) {
-    const name = normalizeText(payload.name);
-    const slug = slugify(name);
-    const defaultDurationMinutes = Number.parseInt(String(payload.defaultDurationMinutes), 10);
-    const isDurationFlexible = Boolean(payload.isDurationFlexible);
-    const allowedModalities = parseUniqueIdArray(payload.allowedModalities).filter((item) =>
-      SESSION_MODALITIES.includes(item as SessionModality),
-    ) as SessionModality[];
-
-    if (!name || !slug || !Number.isFinite(defaultDurationMinutes) || defaultDurationMinutes <= 0) {
-      throw new AppError(400, "Dados inválidos para tipo de sessão.");
-    }
-    if (allowedModalities.length === 0) {
-      throw new AppError(400, "Informe ao menos uma modalidade permitida.");
-    }
-    if (slug === "tea-14-plus" && allowedModalities.some((item) => item !== "grupo")) {
-      throw new AppError(400, "Tipo tea-14-plus permite apenas modalidade grupo.");
-    }
-
-    const sessionType = await SessionType.create({
-      name,
-      slug,
-      defaultDurationMinutes,
-      isDurationFlexible,
-      allowedModalities,
-    });
-
+    const input = validateCreateSessionType(payload);
+    const sessionType = await SessionType.create(input);
     return { sessionType };
   }
 
@@ -253,60 +141,14 @@ export class AgendaService {
       allowedModalities?: unknown;
     },
   ) {
-    if (!isObjectId(sessionTypeId)) {
-      throw new AppError(400, "Identificador de tipo de sessão inválido.");
-    }
-
-    const sessionType = await SessionType.findById(sessionTypeId);
-    if (!sessionType) {
-      throw new AppError(404, "Tipo de sessão não encontrado.");
-    }
-
-    if (payload.name !== undefined) {
-      const name = normalizeText(payload.name);
-      if (!name) {
-        throw new AppError(400, "Nome é obrigatório.");
-      }
-      sessionType.name = name;
-    }
-
-    if (payload.defaultDurationMinutes !== undefined) {
-      const defaultDurationMinutes = Number.parseInt(String(payload.defaultDurationMinutes), 10);
-      if (!Number.isFinite(defaultDurationMinutes) || defaultDurationMinutes <= 0) {
-        throw new AppError(400, "Duração padrão inválida.");
-      }
-      sessionType.defaultDurationMinutes = defaultDurationMinutes;
-    }
-
-    if (payload.isDurationFlexible !== undefined) {
-      sessionType.isDurationFlexible = Boolean(payload.isDurationFlexible);
-    }
-
-    if (payload.allowedModalities !== undefined) {
-      const allowedModalities = parseUniqueIdArray(payload.allowedModalities).filter((item) =>
-        SESSION_MODALITIES.includes(item as SessionModality),
-      ) as SessionModality[];
-
-      if (allowedModalities.length === 0) {
-        throw new AppError(400, "Informe ao menos uma modalidade permitida.");
-      }
-      sessionType.allowedModalities = allowedModalities;
-    }
-
-    const slug = sessionType.slug;
-    if (slug === "tea-14-plus" && sessionType.allowedModalities.some((item) => item !== "grupo")) {
-      throw new AppError(400, "Tipo tea-14-plus permite apenas modalidade grupo.");
-    }
-
+    const sessionType = await this.findSessionTypeOrThrow(sessionTypeId);
+    validateUpdateSessionType(sessionTypeId, payload, sessionType);
     await sessionType.save();
     return { sessionType };
   }
 
   async updateSessionTypeStatus(sessionTypeId: string, isActive: boolean) {
-    if (!isObjectId(sessionTypeId)) {
-      throw new AppError(400, "Identificador de tipo de sessão inválido.");
-    }
-
+    validateSessionTypeId(sessionTypeId);
     const sessionType = await SessionType.findByIdAndUpdate(
       sessionTypeId,
       { isActive },
@@ -314,35 +156,14 @@ export class AgendaService {
     ).lean();
 
     if (!sessionType) {
-      throw new AppError(404, "Tipo de sessão não encontrado.");
+      throw new NotFoundError("Tipo de sessão não encontrado.");
     }
 
     return { sessionType };
   }
 
   async listSessions(query: Record<string, unknown>, currentUser: AuthenticatedUser) {
-    const filter: Record<string, unknown> = {};
-    const status = normalizeText(query.status);
-    if (status && ["agendada", "realizada", "cancelada"].includes(status)) {
-      filter.status = status;
-    }
-
-    const startAt = parseDate(query.startAt);
-    const endAt = parseDate(query.endAt);
-    if (startAt && endAt) {
-      filter.startAt = { $lt: endAt };
-      filter.endAt = { $gt: startAt };
-    }
-
-    const professionalId = normalizeText(query.professionalId);
-    if (professionalId && isObjectId(professionalId) && currentUser.role === "administrador") {
-      filter.professionalIds = professionalId;
-    }
-
-    if (currentUser.role === "tecnico") {
-      filter.professionalIds = currentUser._id;
-    }
-
+    const filter = this.buildSessionListFilter(query, currentUser);
     const items = await Session.find(filter)
       .sort({ startAt: 1 })
       .populate("sessionTypeId", "name slug")
@@ -355,15 +176,15 @@ export class AgendaService {
   }
 
   async createSession(payload: SessionPayload, currentUser: AuthenticatedUser) {
-    const normalized = this.normalizeSessionInput(payload);
-    this.validateSessionInput(normalized);
+    const normalized = normalizeSessionInput(payload);
+    validateSession(normalized);
     const startAt = normalized.startAt as Date;
 
-    const references = await this.validateReferences(normalized);
-    this.ensureSessionTypeSupportsModality(references.sessionType.allowedModalities, normalized.modality);
+    const references = await this.loadSessionReferences(normalized);
+    validateSessionModality(references.sessionType.allowedModalities, normalized.modality);
 
-    const endAt = new Date(startAt.getTime() + normalized.durationMinutes * 60 * 1000);
-    await this.ensureNoConflicts({
+    const endAt = this.computeSessionEndAt(startAt, normalized.durationMinutes);
+    await this.assertNoSchedulingConflicts({
       startAt,
       endAt,
       roomId: normalized.roomId,
@@ -394,19 +215,10 @@ export class AgendaService {
     payload: SessionPayload,
     currentUser: AuthenticatedUser,
   ) {
-    if (!isObjectId(sessionId)) {
-      throw new AppError(400, "Identificador de sessão inválido.");
-    }
+    const existing = await this.findSessionOrThrow(sessionId);
+    validateUpdateSession(sessionId, existing.status);
 
-    const existing = await Session.findById(sessionId);
-    if (!existing) {
-      throw new AppError(404, "Sessão não encontrada.");
-    }
-    if (existing.status === "cancelada") {
-      throw new AppError(400, "Sessão cancelada não pode ser editada.");
-    }
-
-    const normalized = this.normalizeSessionInput(payload, {
+    const normalized = normalizeSessionInput(payload, {
       sessionTypeId: existing.sessionTypeId.toString(),
       modality: existing.modality as SessionModality,
       roomId: existing.roomId.toString(),
@@ -416,14 +228,14 @@ export class AgendaService {
       professionalIds: existing.professionalIds.map((id) => id.toString()),
       notes: existing.notes,
     });
-    this.validateSessionInput(normalized);
+    validateSession(normalized);
     const startAt = normalized.startAt as Date;
 
-    const references = await this.validateReferences(normalized);
-    this.ensureSessionTypeSupportsModality(references.sessionType.allowedModalities, normalized.modality);
+    const references = await this.loadSessionReferences(normalized);
+    validateSessionModality(references.sessionType.allowedModalities, normalized.modality);
 
-    const endAt = new Date(startAt.getTime() + normalized.durationMinutes * 60 * 1000);
-    await this.ensureNoConflicts({
+    const endAt = this.computeSessionEndAt(startAt, normalized.durationMinutes);
+    await this.assertNoSchedulingConflicts({
       startAt,
       endAt,
       roomId: normalized.roomId,
@@ -432,17 +244,7 @@ export class AgendaService {
       excludeSessionId: sessionId,
     });
 
-    existing.sessionTypeId = new mongoose.Types.ObjectId(normalized.sessionTypeId);
-    existing.modality = normalized.modality;
-    existing.roomId = new mongoose.Types.ObjectId(normalized.roomId);
-    existing.startAt = startAt;
-    existing.endAt = endAt;
-    existing.durationMinutes = normalized.durationMinutes;
-    existing.patientIds = normalized.patientIds.map((id) => new mongoose.Types.ObjectId(id));
-    existing.professionalIds = normalized.professionalIds.map((id) => new mongoose.Types.ObjectId(id));
-    existing.notes = normalized.notes;
-    existing.updatedBy = currentUser._id;
-
+    this.applySessionUpdates(existing, normalized, startAt, endAt, currentUser);
     await existing.save();
     return { session: existing };
   }
@@ -452,14 +254,7 @@ export class AgendaService {
     payload: { cancelReason?: unknown },
     currentUser: AuthenticatedUser,
   ) {
-    if (!isObjectId(sessionId)) {
-      throw new AppError(400, "Identificador de sessão inválido.");
-    }
-
-    const cancelReason = normalizeText(payload.cancelReason);
-    if (!cancelReason) {
-      throw new AppError(400, "Motivo do cancelamento é obrigatório.");
-    }
+    const { cancelReason } = validateCancelSession(sessionId, payload);
 
     const session = await Session.findByIdAndUpdate(
       sessionId,
@@ -473,31 +268,16 @@ export class AgendaService {
     ).lean();
 
     if (!session) {
-      throw new AppError(404, "Sessão não encontrada.");
+      throw new NotFoundError("Sessão não encontrada.");
     }
 
     return { session };
   }
 
   async completeSession(sessionId: string, currentUser: AuthenticatedUser) {
-    if (!isObjectId(sessionId)) {
-      throw new AppError(400, "Identificador de sessão inválido.");
-    }
-
-    const session = await Session.findById(sessionId);
-    if (!session) {
-      throw new AppError(404, "Sessão não encontrada.");
-    }
-    if (session.status === "cancelada") {
-      throw new AppError(400, "Sessão cancelada não pode ser marcada como realizada.");
-    }
-
-    const isOwnerProfessional = session.professionalIds.some(
-      (professionalId) => professionalId.toString() === currentUser._id.toString(),
-    );
-    if (currentUser.role === "tecnico" && !isOwnerProfessional) {
-      throw new AppError(403, "Técnico só pode concluir a própria sessão.");
-    }
+    const session = await this.findSessionOrThrow(sessionId);
+    validateCompleteSession(sessionId, session.status);
+    this.assertTechnicianCanComplete(session, currentUser);
 
     session.status = "realizada";
     session.updatedBy = currentUser._id;
@@ -506,111 +286,88 @@ export class AgendaService {
     return { session };
   }
 
-  private normalizeSessionInput(payload: SessionPayload, fallback?: {
-    sessionTypeId: string;
-    modality: SessionModality;
-    roomId: string;
-    startAt: Date;
-    durationMinutes: number;
-    patientIds: string[];
-    professionalIds: string[];
-    notes: string;
-  }) {
-    const sessionTypeId = normalizeText(payload.sessionTypeId) || fallback?.sessionTypeId || "";
-    const modality = (normalizeText(payload.modality) || fallback?.modality || "") as SessionModality;
-    const roomId = normalizeText(payload.roomId) || fallback?.roomId || "";
-    const startAt = parseDate(payload.startAt) ?? fallback?.startAt ?? null;
-    const durationMinutes =
-      Number.parseInt(String(payload.durationMinutes), 10) || fallback?.durationMinutes || 0;
-    const patientIds = parseUniqueIdArray(payload.patientIds);
-    const professionalIds = parseUniqueIdArray(payload.professionalIds);
-    const notes = payload.notes === undefined ? (fallback?.notes ?? "") : normalizeText(payload.notes);
+  private buildSessionListFilter(
+    query: Record<string, unknown>,
+    currentUser: AuthenticatedUser,
+  ): Record<string, unknown> {
+    const filter: Record<string, unknown> = {};
+    const status = normalizeText(query.status);
+    if (status && ["agendada", "realizada", "cancelada"].includes(status)) {
+      filter.status = status;
+    }
 
-    return {
-      sessionTypeId,
-      modality,
-      roomId,
-      startAt,
-      durationMinutes,
-      patientIds: patientIds.length > 0 ? patientIds : (fallback?.patientIds ?? []),
-      professionalIds: professionalIds.length > 0 ? professionalIds : (fallback?.professionalIds ?? []),
-      notes,
-    };
+    const startAt = parseDate(query.startAt);
+    const endAt = parseDate(query.endAt);
+    if (startAt && endAt) {
+      filter.startAt = { $lt: endAt };
+      filter.endAt = { $gt: startAt };
+    }
+
+    const professionalId = normalizeText(query.professionalId);
+    if (professionalId && mongoose.Types.ObjectId.isValid(professionalId) && currentUser.role === "administrador") {
+      filter.professionalIds = professionalId;
+    }
+
+    if (currentUser.role === "tecnico") {
+      filter.professionalIds = currentUser._id;
+    }
+
+    return filter;
   }
 
-  private validateSessionInput(input: ReturnType<AgendaService["normalizeSessionInput"]>) {
-    if (!isObjectId(input.sessionTypeId)) {
-      throw new AppError(400, "Selecione uma modalidade de atendimento.");
-    }
-    if (!SESSION_MODALITIES.includes(input.modality)) {
-      throw new AppError(400, "Selecione um tipo de sessão válido (individual, dupla ou grupo).");
-    }
-    if (!isObjectId(input.roomId)) {
-      throw new AppError(400, "Selecione uma sala.");
-    }
-    if (!input.startAt) {
-      throw new AppError(400, "Informe data e hora de início.");
-    }
-    if (!Number.isFinite(input.durationMinutes) || input.durationMinutes <= 0) {
-      throw new AppError(400, "Informe uma duração válida em minutos.");
-    }
-    if (input.patientIds.length === 0) {
-      throw new AppError(400, "Adicione ao menos um paciente à sessão.");
-    }
-    if (input.professionalIds.length === 0) {
-      throw new AppError(400, "Adicione ao menos um profissional à sessão.");
-    }
-
-    if (
-      !input.patientIds.every((id) => isObjectId(id)) ||
-      !input.professionalIds.every((id) => isObjectId(id))
-    ) {
-      throw new AppError(400, "Paciente ou profissional selecionado é inválido.");
-    }
-
-    const countError = this.validateSessionCountsByModality(
-      input.modality,
-      input.patientIds.length,
-      input.professionalIds.length,
-    );
-    if (countError) {
-      throw new AppError(400, countError);
-    }
+  private computeSessionEndAt(startAt: Date, durationMinutes: number): Date {
+    return new Date(startAt.getTime() + durationMinutes * 60 * 1000);
   }
 
-  private validateSessionCountsByModality(
-    modality: SessionModality,
-    patientCount: number,
-    professionalCount: number,
-  ): string | null {
-    const limits = SESSION_LIMITS[modality];
-    if (!limits) {
-      return null;
-    }
-
-    const formatLabel = SESSION_FORMAT_LABELS[modality] ?? modality;
-
-    if (patientCount < limits.minPatients || patientCount > limits.maxPatients) {
-      if (limits.minPatients === limits.maxPatients) {
-        return `Para tipo de sessão ${formatLabel}, selecione exatamente ${limits.minPatients} paciente(s).`;
+  private async persistRoomCreate(name: string) {
+    try {
+      const room = await Room.create({ name });
+      return { room };
+    } catch (error) {
+      if (isMongoDuplicateKeyError(error)) {
+        throw new ConflictError(duplicateRoomMessage(error));
       }
-      return `Para tipo de sessão ${formatLabel}, selecione entre ${limits.minPatients} e ${limits.maxPatients} pacientes.`;
+      throw error;
     }
-
-    if (
-      professionalCount < limits.minProfessionals ||
-      professionalCount > limits.maxProfessionals
-    ) {
-      if (limits.minProfessionals === limits.maxProfessionals) {
-        return `Para tipo de sessão ${formatLabel}, selecione exatamente ${limits.minProfessionals} profissional(is).`;
-      }
-      return `Para tipo de sessão ${formatLabel}, selecione entre ${limits.minProfessionals} e ${limits.maxProfessionals} profissionais.`;
-    }
-
-    return null;
   }
 
-  private async validateReferences(input: ReturnType<AgendaService["normalizeSessionInput"]>) {
+  private async persistRoomSave(room: InstanceType<typeof Room>) {
+    try {
+      await room.save();
+      return { room };
+    } catch (error) {
+      if (isMongoDuplicateKeyError(error)) {
+        throw new ConflictError(duplicateRoomMessage(error));
+      }
+      throw error;
+    }
+  }
+
+  private async findRoomOrThrow(roomId: string) {
+    const room = await Room.findById(roomId);
+    if (!room) {
+      throw new NotFoundError("Sala não encontrada.");
+    }
+    return room;
+  }
+
+  private async findSessionTypeOrThrow(sessionTypeId: string) {
+    const sessionType = await SessionType.findById(sessionTypeId);
+    if (!sessionType) {
+      throw new NotFoundError("Tipo de sessão não encontrado.");
+    }
+    return sessionType;
+  }
+
+  private async findSessionOrThrow(sessionId: string) {
+    const session = await Session.findById(sessionId);
+    if (!session) {
+      throw new NotFoundError("Sessão não encontrada.");
+    }
+    return session;
+  }
+
+  private async loadSessionReferences(input: ReturnType<typeof normalizeSessionInput>) {
     const [sessionType, room, patientsCount, professionalsCount] = await Promise.all([
       SessionType.findById(input.sessionTypeId).lean(),
       Room.findById(input.roomId).lean(),
@@ -623,17 +380,16 @@ export class AgendaService {
     ]);
 
     if (!sessionType || !sessionType.isActive) {
-      throw new AppError(400, "A modalidade selecionada não existe ou está inativa.");
+      throw new ValidationError("A modalidade selecionada não existe ou está inativa.");
     }
     if (!room || !room.isActive) {
-      throw new AppError(400, "A sala selecionada não existe ou está inativa.");
+      throw new ValidationError("A sala selecionada não existe ou está inativa.");
     }
     if (patientsCount !== input.patientIds.length) {
-      throw new AppError(400, "Um ou mais pacientes selecionados não existem ou estão inativos.");
+      throw new ValidationError("Um ou mais pacientes selecionados não existem ou estão inativos.");
     }
     if (professionalsCount !== input.professionalIds.length) {
-      throw new AppError(
-        400,
+      throw new ValidationError(
         "Um ou mais profissionais selecionados não existem ou estão inativos.",
       );
     }
@@ -641,20 +397,38 @@ export class AgendaService {
     return { sessionType, room };
   }
 
-  private ensureSessionTypeSupportsModality(
-    allowedModalities: SessionModality[],
-    modality: SessionModality,
-  ) {
-    if (!allowedModalities.includes(modality)) {
-      const formatLabel = SESSION_FORMAT_LABELS[modality] ?? modality;
-      throw new AppError(
-        400,
-        `A modalidade selecionada não permite tipo de sessão ${formatLabel}.`,
-      );
+  private applySessionUpdates(
+    existing: InstanceType<typeof Session>,
+    normalized: ReturnType<typeof normalizeSessionInput>,
+    startAt: Date,
+    endAt: Date,
+    currentUser: AuthenticatedUser,
+  ): void {
+    existing.sessionTypeId = new mongoose.Types.ObjectId(normalized.sessionTypeId);
+    existing.modality = normalized.modality;
+    existing.roomId = new mongoose.Types.ObjectId(normalized.roomId);
+    existing.startAt = startAt;
+    existing.endAt = endAt;
+    existing.durationMinutes = normalized.durationMinutes;
+    existing.patientIds = normalized.patientIds.map((id) => new mongoose.Types.ObjectId(id));
+    existing.professionalIds = normalized.professionalIds.map((id) => new mongoose.Types.ObjectId(id));
+    existing.notes = normalized.notes;
+    existing.updatedBy = currentUser._id;
+  }
+
+  private assertTechnicianCanComplete(
+    session: InstanceType<typeof Session>,
+    currentUser: AuthenticatedUser,
+  ): void {
+    const isOwnerProfessional = session.professionalIds.some(
+      (professionalId) => professionalId.toString() === currentUser._id.toString(),
+    );
+    if (currentUser.role === "tecnico" && !isOwnerProfessional) {
+      throw new ForbiddenError("Técnico só pode concluir a própria sessão.");
     }
   }
 
-  private async ensureNoConflicts(params: {
+  private async assertNoSchedulingConflicts(params: {
     startAt: Date;
     endAt: Date;
     roomId: string;
@@ -678,16 +452,13 @@ export class AgendaService {
     ]);
 
     if (roomConflict) {
-      throw new AppError(409, "A sala já está ocupada nesse horário. Escolha outro horário ou sala.");
+      throw new ConflictError("A sala já está ocupada nesse horário. Escolha outro horário ou sala.");
     }
     if (professionalConflict) {
-      throw new AppError(
-        409,
-        "Um dos profissionais já possui sessão nesse horário.",
-      );
+      throw new ConflictError("Um dos profissionais já possui sessão nesse horário.");
     }
     if (patientConflict) {
-      throw new AppError(409, "Um dos pacientes já possui sessão nesse horário.");
+      throw new ConflictError("Um dos pacientes já possui sessão nesse horário.");
     }
   }
 }

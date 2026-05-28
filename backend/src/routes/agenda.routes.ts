@@ -1,6 +1,7 @@
 import { Router, type Request, type Response } from "express";
 import mongoose from "mongoose";
 import { AppError } from "../errors/app-error.js";
+import { validateIsActive } from "../validators/agenda/room.validator.js";
 import { requireAuth } from "../middlewares/auth.middleware.js";
 import { requireAdmin } from "../middlewares/authz.middleware.js";
 import { agendaService } from "../services/agenda.service.js";
@@ -13,7 +14,7 @@ function getRouteId(param: string | string[]): string {
 
 function handleServiceError(res: Response, error: unknown): void {
   if (error instanceof AppError) {
-    res.status(error.statusCode).json({ message: error.message });
+    res.status(error.statusCode).json({ message: error.message, code: error.name });
     return;
   }
 
@@ -80,11 +81,7 @@ router.patch("/agenda/rooms/:id", requireAdmin, async (req: Request, res: Respon
 
 router.patch("/agenda/rooms/:id/status", requireAdmin, async (req: Request, res: Response) => {
   try {
-    const isActive = (req.body as { isActive?: unknown })?.isActive;
-    if (typeof isActive !== "boolean") {
-      res.status(400).json({ message: "O campo isActive deve ser booleano." });
-      return;
-    }
+    const isActive = validateIsActive((req.body as { isActive?: unknown })?.isActive);
     const result = await agendaService.updateRoomStatus(getRouteId(req.params.id), isActive);
     res.status(200).json(result);
   } catch (error) {
@@ -129,11 +126,7 @@ router.patch("/agenda/session-types/:id", requireAdmin, async (req: Request, res
 
 router.patch("/agenda/session-types/:id/status", requireAdmin, async (req: Request, res: Response) => {
   try {
-    const isActive = (req.body as { isActive?: unknown })?.isActive;
-    if (typeof isActive !== "boolean") {
-      res.status(400).json({ message: "O campo isActive deve ser booleano." });
-      return;
-    }
+    const isActive = validateIsActive((req.body as { isActive?: unknown })?.isActive);
     const result = await agendaService.updateSessionTypeStatus(
       getRouteId(req.params.id),
       isActive,

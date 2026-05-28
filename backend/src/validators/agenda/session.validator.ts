@@ -1,0 +1,178 @@
+import { ValidationError } from "../../errors/http-errors.js";
+import { SESSION_LIMITS } from "../../models/session.model.js";
+import {
+  SESSION_MODALITIES,
+  type SessionModality,
+} from "../../models/session-type.model.js";
+import { isObjectId, normalizeText, parseDate, parseUniqueIdArray } from "./agenda.utils.js";
+
+const SESSION_FORMAT_LABELS: Record<SessionModality, string> = {
+  individual: "Individual",
+  dupla: "Dupla",
+  grupo: "Grupo",
+};
+
+export type SessionPayload = {
+  sessionTypeId?: unknown;
+  modality?: unknown;
+  roomId?: unknown;
+  startAt?: unknown;
+  durationMinutes?: unknown;
+  patientIds?: unknown;
+  professionalIds?: unknown;
+  notes?: unknown;
+};
+
+export type NormalizedSessionInput = {
+  sessionTypeId: string;
+  modality: SessionModality;
+  roomId: string;
+  startAt: Date | null;
+  durationMinutes: number;
+  patientIds: string[];
+  professionalIds: string[];
+  notes: string;
+};
+
+export function normalizeSessionInput(
+  payload: SessionPayload,
+  fallback?: {
+    sessionTypeId: string;
+    modality: SessionModality;
+    roomId: string;
+    startAt: Date;
+    durationMinutes: number;
+    patientIds: string[];
+    professionalIds: string[];
+    notes: string;
+  },
+): NormalizedSessionInput {
+  const sessionTypeId = normalizeText(payload.sessionTypeId) || fallback?.sessionTypeId || "";
+  const modality = (normalizeText(payload.modality) || fallback?.modality || "") as SessionModality;
+  const roomId = normalizeText(payload.roomId) || fallback?.roomId || "";
+  const startAt = parseDate(payload.startAt) ?? fallback?.startAt ?? null;
+  const durationMinutes =
+    Number.parseInt(String(payload.durationMinutes), 10) || fallback?.durationMinutes || 0;
+  const patientIds = parseUniqueIdArray(payload.patientIds);
+  const professionalIds = parseUniqueIdArray(payload.professionalIds);
+  const notes =
+    payload.notes === undefined ? (fallback?.notes ?? "") : normalizeText(payload.notes);
+
+  return {
+    sessionTypeId,
+    modality,
+    roomId,
+    startAt,
+    durationMinutes,
+    patientIds: patientIds.length > 0 ? patientIds : (fallback?.patientIds ?? []),
+    professionalIds:
+      professionalIds.length > 0 ? professionalIds : (fallback?.professionalIds ?? []),
+    notes,
+  };
+}
+
+export function validateSession(input: NormalizedSessionInput): void {
+  if (!isObjectId(input.sessionTypeId)) {
+    throw new ValidationError("Selecione uma modalidade de atendimento.");
+  }
+  if (!SESSION_MODALITIES.includes(input.modality)) {
+    throw new ValidationError("Selecione um tipo de sessão válido (individual, dupla ou grupo).");
+  }
+  if (!isObjectId(input.roomId)) {
+    throw new ValidationError("Selecione uma sala.");
+  }
+  if (!input.startAt) {
+    throw new ValidationError("Informe data e hora de início.");
+  }
+  if (!Number.isFinite(input.durationMinutes) || input.durationMinutes <= 0) {
+    throw new ValidationError("Informe uma duração válida em minutos.");
+  }
+  if (input.patientIds.length === 0) {
+    throw new ValidationError("Adicione ao menos um paciente à sessão.");
+  }
+  if (input.professionalIds.length === 0) {
+    throw new ValidationError("Adicione ao menos um profissional à sessão.");
+  }
+  if (
+    !input.patientIds.every((id) => isObjectId(id)) ||
+    !input.professionalIds.every((id) => isObjectId(id))
+  ) {
+    throw new ValidationError("Paciente ou profissional selecionado é inválido.");
+  }
+
+  const limits = SESSION_LIMITS[input.modality];
+  if (limits) {
+    const formatLabel = SESSION_FORMAT_LABELS[input.modality] ?? input.modality;
+    const { patientIds, professionalIds } = input;
+
+    if (patientIds.length < limits.minPatients || patientIds.length > limits.maxPatients) {
+      if (limits.minPatients === limits.maxPatients) {
+        throw new ValidationError(
+          `Para tipo de sessão ${formatLabel}, selecione exatamente ${limits.minPatients} paciente(s).`,
+        );
+      }
+      throw new ValidationError(
+        `Para tipo de sessão ${formatLabel}, selecione entre ${limits.minPatients} e ${limits.maxPatients} pacientes.`,
+      );
+    }
+
+    if (
+      professionalIds.length < limits.minProfessionals ||
+      professionalIds.length > limits.maxProfessionals
+    ) {
+      if (limits.minProfessionals === limits.maxProfessionals) {
+        throw new ValidationError(
+          `Para tipo de sessão ${formatLabel}, selecione exatamente ${limits.minProfessionals} profissional(is).`,
+        );
+      }
+      throw new ValidationError(
+        `Para tipo de sessão ${formatLabel}, selecione entre ${limits.minProfessionals} e ${limits.maxProfessionals} profissionais.`,
+      );
+    }
+  }
+}
+
+export function validateSessionModality(
+  allowedModalities: SessionModality[],
+  modality: SessionModality,
+): void {
+  if (!allowedModalities.includes(modality)) {
+    const formatLabel = SESSION_FORMAT_LABELS[modality] ?? modality;
+    throw new ValidationError(
+      `A modalidade selecionada não permite tipo de sessão ${formatLabel}.`,
+    );
+  }
+}
+
+export function validateSessionId(sessionId: string): void {
+  if (!isObjectId(sessionId)) {
+    throw new ValidationError("Identificador de sessão inválido.");
+  }
+}
+
+export function validateCancelSession(
+  sessionId: string,
+  payload: { cancelReason?: unknown },
+): { cancelReason: string } {
+  validateSessionId(sessionId);
+
+  const cancelReason = normalizeText(payload.cancelReason);
+  if (!cancelReason) {
+    throw new ValidationError("Motivo do cancelamento é obrigatório.");
+  }
+  return { cancelReason };
+}
+
+export function validateUpdateSession(sessionId: string, status: string): void {
+  validateSessionId(sessionId);
+  if (status === "cancelada") {
+    throw new ValidationError("Sessão cancelada não pode ser editada.");
+  }
+}
+
+export function validateCompleteSession(sessionId: string, status: string): void {
+  validateSessionId(sessionId);
+  if (status === "cancelada") {
+    throw new ValidationError("Sessão cancelada não pode ser marcada como realizada.");
+  }
+}
