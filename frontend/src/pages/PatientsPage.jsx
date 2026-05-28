@@ -1,5 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { Badge } from "@/components/ui/badge";
+import {
+  EntityList,
+  EntityListItem,
+  EntityListItemFooterRow,
+  EntityStatusBadge,
+  EntityTagBadge,
+  entityListActionButtonClassName,
+} from "@/components/cadastros/EntityListItem";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -477,64 +484,54 @@ export function PatientsPage() {
               Nenhum paciente encontrado para os filtros informados.
             </p>
           ) : (
-            <div className="space-y-3">
+            <EntityList>
               {patients.map((patient) => (
-                <Card key={patient._id} className="min-w-0 overflow-hidden border-ama-cyan/20">
-                  <CardHeader className="flex flex-col gap-3 p-4 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-                    <div className="min-w-0 space-y-2">
-                      <CardTitle className="text-base break-words text-ama-blue-dark">
-                        {patient.fullName}
-                      </CardTitle>
-                      <CardDescription className="break-words">
-                        <span className="block sm:inline">
-                          Responsável: {patient.guardianName}
-                        </span>
-                        <span className="hidden sm:inline"> · </span>
-                        <span className="block sm:inline">Telefone: {patient.phone}</span>
-                      </CardDescription>
-                    </div>
-                    <div className="flex flex-row flex-wrap gap-2 sm:flex-col sm:items-end">
-                      <Badge variant="outline" className="border-ama-cyan text-ama-blue">
-                        {patient.fundingSource}
-                      </Badge>
-                      <Badge
-                        variant={patient.isActive ? "secondary" : "outline"}
-                        className={
-                          patient.isActive
-                            ? "bg-ama-light text-ama-blue-dark"
-                            : "border-muted-foreground/30 text-muted-foreground"
-                        }
-                      >
-                        {patient.isActive ? "Ativo" : "Inativo"}
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="flex flex-col gap-3 p-4 pt-0 sm:flex-row sm:items-center sm:justify-between">
-                    <p className="text-xs break-words text-muted-foreground">
-                      Nascimento: {formatBirthDatePtBr(patient.birthDate)}
+                <EntityListItem
+                  key={patient._id}
+                  title={patient.fullName}
+                  badges={
+                    <>
+                      <EntityTagBadge>{patient.fundingSource}</EntityTagBadge>
+                      <EntityStatusBadge active={patient.isActive} />
+                    </>
+                  }
+                >
+                  <p className="break-words">
+                    <span className="text-foreground/80">Responsável:</span>{" "}
+                    {patient.guardianName}
+                    <span className="mx-1.5 text-border">·</span>
+                    <span className="text-foreground/80">Telefone:</span> {patient.phone}
+                  </p>
+                  <EntityListItemFooterRow
+                    actions={
+                      <>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className={entityListActionButtonClassName()}
+                          onClick={() => openEditDialog(patient)}
+                        >
+                          Editar
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className={entityListActionButtonClassName()}
+                          onClick={() => handleToggleStatus(patient)}
+                        >
+                          {patient.isActive ? "Inativar" : "Reativar"}
+                        </Button>
+                      </>
+                    }
+                  >
+                    <p>
+                      <span className="text-foreground/80">Nascimento:</span>{" "}
+                      {formatBirthDatePtBr(patient.birthDate)}
                     </p>
-                    <div className="flex flex-col gap-2 sm:flex-row">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="w-full sm:w-auto"
-                        onClick={() => openEditDialog(patient)}
-                      >
-                        Editar
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="w-full sm:w-auto"
-                        onClick={() => handleToggleStatus(patient)}
-                      >
-                        {patient.isActive ? "Inativar" : "Reativar"}
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
+                  </EntityListItemFooterRow>
+                </EntityListItem>
               ))}
-            </div>
+            </EntityList>
           )}
         </CardContent>
       </Card>

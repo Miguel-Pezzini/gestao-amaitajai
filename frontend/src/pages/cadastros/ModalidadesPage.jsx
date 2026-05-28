@@ -1,5 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { Badge } from "@/components/ui/badge";
+import {
+  EntityList,
+  EntityListItem,
+  EntityListItemFooterRow,
+  EntityStatusBadge,
+  EntityTagBadge,
+  entityListActionButtonClassName,
+} from "@/components/cadastros/EntityListItem";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -396,52 +403,53 @@ export function ModalidadesPage() {
               Nenhuma modalidade encontrada para os filtros informados.
             </p>
           ) : (
-            <div className="space-y-3">
+            <EntityList>
               {filteredItems.map((item) => (
-                <Card key={item._id} className="min-w-0 overflow-hidden border-ama-cyan/20">
-                  <CardHeader className="flex flex-col gap-3 p-4 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="min-w-0 space-y-2">
-                      <CardTitle className="text-base break-words text-ama-blue-dark">
-                        {item.name}
-                      </CardTitle>
-                      <CardDescription>
-                        Duração padrão: {item.defaultDurationMinutes} min
-                        {item.isDurationFlexible ? " · flexível" : ""}
-                      </CardDescription>
-                      <div className="flex flex-wrap gap-2">
+                <EntityListItem
+                  key={item._id}
+                  title={item.name}
+                  badges={<EntityStatusBadge active={item.isActive} />}
+                >
+                  <p>
+                    <span className="text-foreground/80">Duração padrão:</span>{" "}
+                    {item.defaultDurationMinutes} min
+                    {item.isDurationFlexible ? " · flexível" : ""}
+                  </p>
+                  <EntityListItemFooterRow
+                    actions={
+                      <>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className={entityListActionButtonClassName()}
+                          onClick={() => openEditDialog(item)}
+                        >
+                          Editar
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className={entityListActionButtonClassName()}
+                          onClick={() => handleToggleStatus(item)}
+                        >
+                          {item.isActive ? "Inativar" : "Reativar"}
+                        </Button>
+                      </>
+                    }
+                  >
+                    {(item.allowedModalities ?? []).length > 0 ? (
+                      <div className="flex flex-wrap gap-1.5">
                         {(item.allowedModalities ?? []).map((modality) => (
-                          <Badge
-                            key={`${item._id}-${modality}`}
-                            variant="outline"
-                            className="border-ama-cyan text-ama-blue"
-                          >
+                          <EntityTagBadge key={`${item._id}-${modality}`}>
                             {MODALITY_LABELS[modality] ?? modality}
-                          </Badge>
+                          </EntityTagBadge>
                         ))}
                       </div>
-                    </div>
-                    <Badge
-                      variant={item.isActive ? "secondary" : "outline"}
-                      className={
-                        item.isActive
-                          ? "bg-ama-light text-ama-blue-dark"
-                          : "border-muted-foreground/30 text-muted-foreground"
-                      }
-                    >
-                      {item.isActive ? "Ativo" : "Inativo"}
-                    </Badge>
-                  </CardHeader>
-                  <CardContent className="flex flex-col gap-2 p-4 pt-0 sm:flex-row sm:justify-end">
-                    <Button size="sm" variant="outline" onClick={() => openEditDialog(item)}>
-                      Editar
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => handleToggleStatus(item)}>
-                      {item.isActive ? "Inativar" : "Reativar"}
-                    </Button>
-                  </CardContent>
-                </Card>
+                    ) : null}
+                  </EntityListItemFooterRow>
+                </EntityListItem>
               ))}
-            </div>
+            </EntityList>
           )}
         </CardContent>
       </Card>

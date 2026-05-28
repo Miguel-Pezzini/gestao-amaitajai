@@ -1,5 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { Badge } from "@/components/ui/badge";
+import {
+  EntityList,
+  EntityListItem,
+  EntityListItemFooterRow,
+  EntityStatusBadge,
+  entityListActionButtonClassName,
+} from "@/components/cadastros/EntityListItem";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -267,35 +273,44 @@ export function SalasPage() {
               Nenhuma sala encontrada para os filtros informados.
             </p>
           ) : (
-            <div className="space-y-3">
+            <EntityList>
               {filteredRooms.map((room) => (
-                <Card key={room._id} className="min-w-0 overflow-hidden border-ama-cyan/20">
-                  <CardHeader className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
-                    <CardTitle className="text-base break-words text-ama-blue-dark">
-                      {room.name}
-                    </CardTitle>
-                    <Badge
-                      variant={room.isActive ? "secondary" : "outline"}
-                      className={
-                        room.isActive
-                          ? "bg-ama-light text-ama-blue-dark"
-                          : "border-muted-foreground/30 text-muted-foreground"
-                      }
-                    >
-                      {room.isActive ? "Ativa" : "Inativa"}
-                    </Badge>
-                  </CardHeader>
-                  <CardContent className="flex flex-col gap-2 p-4 pt-0 sm:flex-row sm:justify-end">
-                    <Button size="sm" variant="outline" onClick={() => openEditDialog(room)}>
-                      Editar
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => handleToggleStatus(room)}>
-                      {room.isActive ? "Inativar" : "Reativar"}
-                    </Button>
-                  </CardContent>
-                </Card>
+                <EntityListItem
+                  key={room._id}
+                  title={room.name}
+                  badges={
+                    <EntityStatusBadge
+                      active={room.isActive}
+                      activeLabel="Ativa"
+                      inactiveLabel="Inativa"
+                    />
+                  }
+                >
+                  <EntityListItemFooterRow
+                    actions={
+                      <>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className={entityListActionButtonClassName()}
+                          onClick={() => openEditDialog(room)}
+                        >
+                          Editar
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className={entityListActionButtonClassName()}
+                          onClick={() => handleToggleStatus(room)}
+                        >
+                          {room.isActive ? "Inativar" : "Reativar"}
+                        </Button>
+                      </>
+                    }
+                  />
+                </EntityListItem>
               ))}
-            </div>
+            </EntityList>
           )}
         </CardContent>
       </Card>
