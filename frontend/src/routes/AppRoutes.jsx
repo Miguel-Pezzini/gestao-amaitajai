@@ -10,6 +10,7 @@ import { UsuariosPage } from "@/pages/cadastros/UsuariosPage";
 import { HomePage } from "@/pages/HomePage";
 import { LoginPage } from "@/pages/LoginPage";
 import { ModuleComingSoonPage } from "@/pages/ModuleComingSoonPage";
+import { RoomOccupancyPage } from "@/pages/RoomOccupancyPage";
 import { PatientsPage } from "@/pages/PatientsPage";
 
 function AuthenticatedLayout() {
@@ -26,6 +27,14 @@ export function AppRoutes() {
           <Route path="/" element={<HomePage />} />
           <Route path="/patients" element={<PatientsPage />} />
           <Route path="/agenda" element={<AgendaPage />} />
+          <Route
+            path="/salas/ocupacao"
+            element={
+              <RequireAdminRoute>
+                <RoomOccupancyPage />
+              </RequireAdminRoute>
+            }
+          />
           <Route path="/attendance" element={<ModuleComingSoonPage />} />
           <Route path="/check-in" element={<ModuleComingSoonPage />} />
           <Route path="/waitlist" element={<ModuleComingSoonPage />} />
