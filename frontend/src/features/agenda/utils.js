@@ -98,6 +98,24 @@ export function isToday(date) {
   return isSameCalendarDay(date, new Date());
 }
 
+export function isCurrentAgendaPeriod(referenceDate, viewMode) {
+  const today = new Date();
+
+  if (viewMode === "day") {
+    return isSameCalendarDay(referenceDate, today);
+  }
+
+  if (viewMode === "week") {
+    const todayKey = toCalendarKey(today);
+    return buildWeekDays(referenceDate).some((day) => toCalendarKey(day) === todayKey);
+  }
+
+  return (
+    referenceDate.getFullYear() === today.getFullYear()
+    && referenceDate.getMonth() === today.getMonth()
+  );
+}
+
 export function startOfWeek(date) {
   const start = new Date(date.getFullYear(), date.getMonth(), date.getDate());
   start.setDate(start.getDate() - start.getDay());

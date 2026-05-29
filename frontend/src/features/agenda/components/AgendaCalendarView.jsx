@@ -79,7 +79,7 @@ export function AgendaCalendarView({
 
   return (
     <Card className="border-ama-cyan/30">
-      <CardHeader className="space-y-4">
+      <CardHeader className="space-y-3 p-4 sm:space-y-4 sm:p-6">
         <AgendaCalendarNav
           referenceDate={referenceDate}
           viewMode={viewMode}

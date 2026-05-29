@@ -54,6 +54,7 @@ export function EmptyLeadingCell({ tall = false }) {
 
 export function WeekColumnHeader({ date }) {
   const today = isToday(date);
+  const weekday = formatWeekdayShort(date);
 
   return (
     <div
@@ -64,11 +65,12 @@ export function WeekColumnHeader({ date }) {
     >
       <span
         className={cn(
-          "text-[10px] font-semibold uppercase sm:text-xs",
+          "text-[11px] font-semibold uppercase sm:text-xs",
           today ? "text-ama-blue" : "text-ama-blue-dark",
         )}
       >
-        {formatWeekdayShort(date)}
+        <span className="sm:hidden">{weekday.charAt(0)}</span>
+        <span className="hidden sm:inline">{weekday}</span>
       </span>
       <CalendarDayNumber date={date} />
     </div>

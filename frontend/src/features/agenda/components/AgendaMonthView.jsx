@@ -11,7 +11,7 @@ export function AgendaMonthView({ referenceDate, grouped, onOpenDay }) {
 
   return (
     <>
-      <div className="grid grid-cols-7 gap-0.5 px-2 text-center text-[10px] font-semibold uppercase sm:gap-1 sm:px-4 sm:text-xs">
+      <div className="grid grid-cols-7 gap-0.5 px-1.5 text-center text-[11px] font-semibold uppercase sm:gap-1 sm:px-4 sm:text-xs">
         {WEEKDAY_HEADERS.map((label, index) => (
           <span
             key={label}
@@ -21,12 +21,13 @@ export function AgendaMonthView({ referenceDate, grouped, onOpenDay }) {
                 : "text-ama-blue-dark"
             }
           >
-            {label}
+            <span className="sm:hidden">{label.charAt(0)}</span>
+            <span className="hidden sm:inline">{label}</span>
           </span>
         ))}
       </div>
 
-      <CardContent className="grid grid-cols-7 gap-0.5 p-2 sm:gap-1 sm:p-4">
+      <CardContent className="grid grid-cols-7 gap-0.5 p-1.5 sm:gap-1 sm:p-4">
         {emptyCells.map((key) => (
           <EmptyLeadingCell key={key} />
         ))}
