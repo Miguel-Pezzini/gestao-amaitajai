@@ -12,10 +12,12 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useSession } from "@/contexts/session-context";
 import { login } from "@/services/auth";
 
 export function LoginPage() {
   const navigate = useNavigate();
+  const { setUser } = useSession();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -28,7 +30,8 @@ export function LoginPage() {
     setLoading(true);
 
     try {
-      await login({ email: email.trim(), password });
+      const data = await login({ email: email.trim(), password });
+      setUser(data?.user ?? null);
       navigate("/", { replace: true });
     } catch (err) {
       const message =

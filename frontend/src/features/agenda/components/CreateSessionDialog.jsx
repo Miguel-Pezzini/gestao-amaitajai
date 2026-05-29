@@ -14,6 +14,7 @@ export function CreateSessionDialog({
   open,
   setOpen,
   saving,
+  loadingCatalogs = false,
   form,
   fieldErrors,
   sessionTypes,
@@ -56,6 +57,9 @@ export function CreateSessionDialog({
       title="Nova sessão"
       description="Autocomplete de pacientes e profissionais já busca ao digitar."
     >
+      {loadingCatalogs ? (
+        <p className="text-sm text-muted-foreground">Carregando opções da sessão...</p>
+      ) : (
       <form onSubmit={onSubmit} className="space-y-3">
         <div className="space-y-2">
           <Label htmlFor="sessionTypeId">Modalidade</Label>
@@ -256,6 +260,7 @@ export function CreateSessionDialog({
           </Button>
         </div>
       </form>
+      )}
     </Dialog>
   );
 }

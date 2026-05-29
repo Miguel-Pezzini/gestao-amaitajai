@@ -1,14 +1,16 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { clearStoredUser, normalizeAuthUser, persistUser, readStoredUser } from "@/lib/auth-session";
 import { getNavigationBySession } from "@/lib/navigation";
 import { getSession, logout } from "@/services/auth";
+import { registerUnauthorizedHandler } from "@/services/api";
 
 const SessionContext = createContext(null);
 
 export function SessionProvider({ children }) {
   const navigate = useNavigate();
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUserState] = useState(() => readStoredUser());
+  const [hydrating, setHydrating] = useState(() => readStoredUser() === null);
   const [leaving, setLeaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -19,40 +21,68 @@ export function SessionProvider({ children }) {
 
   const userName = user?.name?.trim() || "Equipe AMA";
 
+  function setUser(nextUser) {
+    const normalized = normalizeAuthUser(nextUser);
+    setUserState(normalized);
+    if (normalized) {
+      persistUser(normalized);
+      return;
+    }
+    clearStoredUser();
+  }
+
   useEffect(() => {
+    registerUnauthorizedHandler(() => {
+      setUserState(null);
+      navigate("/login", { replace: true });
+    });
+
+    return () => {
+      registerUnauthorizedHandler(null);
+    };
+  }, [navigate]);
+
+  useEffect(() => {
+    if (readStoredUser()) {
+      setHydrating(false);
+      return;
+    }
+
     let mounted = true;
 
-    async function loadSession() {
+    async function hydrateSession() {
       try {
         const data = await getSession();
         if (!mounted) {
           return;
         }
-        setUser(data?.user ?? null);
-      } catch {
-        if (!mounted) {
-          return;
+        const normalized = normalizeAuthUser(data?.user);
+        if (normalized) {
+          setUserState(normalized);
+          persistUser(normalized);
         }
-        navigate("/login", { replace: true });
+      } catch {
+        // Sessão inválida: o interceptor global trata 401 nas demais rotas.
       } finally {
         if (mounted) {
-          setLoading(false);
+          setHydrating(false);
         }
       }
     }
 
-    loadSession();
+    hydrateSession();
 
     return () => {
       mounted = false;
     };
-  }, [navigate]);
+  }, []);
 
   async function handleLogout() {
     setError("");
     setLeaving(true);
     try {
       await logout();
+      setUser(null);
       navigate("/login", { replace: true });
     } catch {
       setError("Não foi possível encerrar a sessão. Tente novamente.");
@@ -64,10 +94,11 @@ export function SessionProvider({ children }) {
   const value = {
     user,
     userName,
-    loading,
+    hydrating,
     leaving,
     error,
     setError,
+    setUser,
     sidebarItems: navigation.sidebarItems,
     sidebarGroups: navigation.sidebarGroups,
     quickAccessItems: navigation.quickAccessItems,

@@ -31,6 +31,8 @@ export function useAgendaPage(user) {
   const isAdmin = role === "administrador";
 
   const [loading, setLoading] = useState(true);
+  const [loadingCatalogs, setLoadingCatalogs] = useState(false);
+  const [catalogsLoaded, setCatalogsLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [sessions, setSessions] = useState([]);
   const [rooms, setRooms] = useState([]);
@@ -72,8 +74,11 @@ export function useAgendaPage(user) {
     setSessionModalitySettings(modalitySettingsResponse.items ?? []);
   }
 
-  async function loadSessions() {
-    setLoading(true);
+  async function loadSessions(options = {}) {
+    const { showLoading = true } = options;
+    if (showLoading) {
+      setLoading(true);
+    }
     try {
       const response = await listSessions();
       setSessions(response.items ?? []);
@@ -82,41 +87,53 @@ export function useAgendaPage(user) {
         getApiErrorMessage(err, "Não foi possível carregar as sessões. Tente novamente."),
       );
     } finally {
-      setLoading(false);
+      if (showLoading) {
+        setLoading(false);
+      }
     }
   }
 
   useEffect(() => {
+    loadSessions();
+  }, []);
+
+  useEffect(() => {
+    if (!createDialogOpen || catalogsLoaded) {
+      return;
+    }
+
     let mounted = true;
-    async function bootstrap() {
-      setLoading(true);
+
+    async function loadCatalogs() {
+      setLoadingCatalogs(true);
       try {
         await loadDependencies();
-        const response = await listSessions();
-        if (!mounted) {
-          return;
+        if (mounted) {
+          setCatalogsLoaded(true);
         }
-        setSessions(response.items ?? []);
       } catch (err) {
         if (mounted) {
           toast.error(
             getApiErrorMessage(
               err,
-              "Não foi possível carregar os dados da agenda. Tente novamente.",
+              "Não foi possível carregar os dados para criar sessão. Tente novamente.",
             ),
           );
+          setCreateDialogOpen(false);
         }
       } finally {
         if (mounted) {
-          setLoading(false);
+          setLoadingCatalogs(false);
         }
       }
     }
-    bootstrap();
+
+    loadCatalogs();
+
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [createDialogOpen, catalogsLoaded]);
 
   useEffect(() => {
     if (!createDialogOpen) {
@@ -434,6 +451,7 @@ export function useAgendaPage(user) {
     role,
     isAdmin,
     loading,
+    loadingCatalogs,
     saving,
     sessions,
     rooms,

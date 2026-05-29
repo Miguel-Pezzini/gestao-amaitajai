@@ -28,7 +28,7 @@ function readSidebarExpanded() {
 }
 
 export function AppLayout() {
-  const { loading, leaving, error, sidebarItems, sidebarGroups, logout } = useSession();
+  const { hydrating, leaving, error, sidebarItems, sidebarGroups, logout } = useSession();
   const [sidebarExpanded, setSidebarExpanded] = useState(readSidebarExpanded);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -40,7 +40,7 @@ export function AppLayout() {
     }
   }, [sidebarExpanded]);
 
-  if (loading) {
+  if (hydrating) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-ama-light px-6">
         <p className="text-sm text-muted-foreground">Carregando painel...</p>

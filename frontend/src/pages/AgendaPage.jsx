@@ -41,6 +41,7 @@ export function AgendaPage() {
         open={agenda.createDialogOpen}
         setOpen={agenda.setCreateDialogOpen}
         saving={agenda.saving}
+        loadingCatalogs={agenda.loadingCatalogs}
         form={agenda.form}
         fieldErrors={agenda.fieldErrors}
         sessionTypes={agenda.sessionTypes}

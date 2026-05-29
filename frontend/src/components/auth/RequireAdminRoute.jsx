@@ -10,13 +10,7 @@ function getUserRole(user) {
 }
 
 export function RequireAdminRoute({ children }) {
-  const { user, loading } = useSession();
-
-  if (loading) {
-    return (
-      <p className="text-sm text-muted-foreground">Carregando permissões...</p>
-    );
-  }
+  const { user } = useSession();
 
   if (getUserRole(user) !== "administrador") {
     return <Navigate to="/" replace />;

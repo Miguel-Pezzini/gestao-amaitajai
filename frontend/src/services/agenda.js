@@ -1,17 +1,17 @@
-import api from "./api";
+import api, { getOnce } from "./api";
 
 export async function listRooms() {
-  const { data } = await api.get("/agenda/rooms");
+  const { data } = await getOnce("/agenda/rooms");
   return data;
 }
 
 export async function searchAgendaPatients(params = {}) {
-  const { data } = await api.get("/agenda/lookups/patients", { params });
+  const { data } = await getOnce("/agenda/lookups/patients", { params });
   return data;
 }
 
 export async function searchAgendaProfessionals(params = {}) {
-  const { data } = await api.get("/agenda/lookups/professionals", { params });
+  const { data } = await getOnce("/agenda/lookups/professionals", { params });
   return data;
 }
 
@@ -31,7 +31,7 @@ export async function updateRoomStatus(roomId, isActive) {
 }
 
 export async function listSessionTypes() {
-  const { data } = await api.get("/agenda/session-types");
+  const { data } = await getOnce("/agenda/session-types");
   return data;
 }
 
@@ -53,7 +53,7 @@ export async function updateSessionTypeStatus(sessionTypeId, isActive) {
 }
 
 export async function listSessionModalities() {
-  const { data } = await api.get("/agenda/session-modalities");
+  const { data } = await getOnce("/agenda/session-modalities");
   return data;
 }
 
@@ -62,8 +62,8 @@ export async function updateSessionModality(modality, payload) {
   return data;
 }
 
-export async function listSessions(params = {}) {
-  const { data } = await api.get("/agenda/sessions", { params });
+export async function listSessions(params = {}, config = {}) {
+  const { data } = await getOnce("/agenda/sessions", { params, ...config });
   return data;
 }
 

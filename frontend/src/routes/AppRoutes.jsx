@@ -12,18 +12,17 @@ import { LoginPage } from "@/pages/LoginPage";
 import { ModuleComingSoonPage } from "@/pages/ModuleComingSoonPage";
 import { PatientsPage } from "@/pages/PatientsPage";
 
+function AuthenticatedLayout() {
+  return <AppLayout />;
+}
+
 export function AppRoutes() {
   return (
     <BrowserRouter>
-      <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route
-          element={
-            <SessionProvider>
-              <AppLayout />
-            </SessionProvider>
-          }
-        >
+      <SessionProvider>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route element={<AuthenticatedLayout />}>
           <Route path="/" element={<HomePage />} />
           <Route path="/patients" element={<PatientsPage />} />
           <Route path="/agenda" element={<AgendaPage />} />
@@ -67,9 +66,10 @@ export function AppRoutes() {
             element={<Navigate to="/cadastros/funcionarios" replace />}
           />
           <Route path="/module/:moduleId" element={<ModuleComingSoonPage />} />
-        </Route>
-        <Route path="*" element={<Navigate to="/login" replace />} />
-      </Routes>
+          </Route>
+          <Route path="*" element={<Navigate to="/login" replace />} />
+        </Routes>
+      </SessionProvider>
     </BrowserRouter>
   );
 }

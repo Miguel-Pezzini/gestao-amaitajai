@@ -1,4 +1,4 @@
-import api from "./api";
+import api, { getOnce } from "./api";
 
 /**
  * Autenticação via cookie httpOnly (JWT definido pelo backend).
@@ -15,6 +15,6 @@ export async function logout() {
 }
 
 export async function getSession() {
-  const { data } = await api.get("/auth/me");
+  const { data } = await getOnce("/auth/me");
   return data;
 }

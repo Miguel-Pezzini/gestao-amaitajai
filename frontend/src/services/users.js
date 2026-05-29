@@ -1,7 +1,7 @@
-import api from "./api";
+import api, { getOnce } from "./api";
 
 export async function listUsers(params = {}) {
-  const { data } = await api.get("/users", { params });
+  const { data } = await getOnce("/users", { params });
   return data;
 }
 

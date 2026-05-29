@@ -1,7 +1,7 @@
-import api from "./api";
+import api, { getOnce } from "./api";
 
 export async function listPatients(params = {}) {
-  const { data } = await api.get("/patients", { params });
+  const { data } = await getOnce("/patients", { params });
   return data;
 }
 
