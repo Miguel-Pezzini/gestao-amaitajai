@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { LogOut, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { Outlet } from "react-router-dom";
-import { AppMobileNav, AppSidebarNav } from "@/components/layout/AppSidebarNav";
-import { Badge } from "@/components/ui/badge";
+import { AppMobileHeader, AppMobileMenuDrawer } from "@/components/layout/AppMobileMenu";
+import { AppSidebarNav } from "@/components/layout/AppSidebarNav";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -30,7 +30,7 @@ function readSidebarExpanded() {
 export function AppLayout() {
   const { loading, leaving, error, sidebarItems, sidebarGroups, logout } = useSession();
   const [sidebarExpanded, setSidebarExpanded] = useState(readSidebarExpanded);
-  const [mobileCadastrosOpen, setMobileCadastrosOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     try {
@@ -128,36 +128,22 @@ export function AppLayout() {
 
       <section
         className={cn(
-          "flex min-h-screen min-w-0 flex-col overflow-x-hidden transition-[margin] duration-300 ease-in-out max-lg:pt-36",
+          "flex min-h-screen min-w-0 flex-col overflow-x-hidden transition-[margin] duration-300 ease-in-out max-lg:pt-[4.75rem]",
           sidebarExpanded ? "lg:ml-72" : "lg:ml-[4.75rem]",
         )}
       >
         <div className="fixed inset-x-0 top-0 z-40 lg:hidden">
-          <header className="flex items-center justify-between gap-3 border-b border-ama-cyan/20 bg-white/95 px-4 py-3 backdrop-blur sm:px-6 sm:py-4">
-            <div>
-              <Badge variant="secondary" className="bg-ama-light text-ama-blue-dark">
-                Gestão interna
-              </Badge>
-              <p className="mt-2 text-sm font-medium text-ama-text">AMA Itajaí</p>
-            </div>
-            <Button
-              onClick={logout}
-              className="bg-ama-blue text-white hover:bg-ama-blue-dark"
-              disabled={leaving}
-            >
-              {leaving ? "Saindo..." : "Sair"}
-            </Button>
-          </header>
-
-          <nav className="border-b border-ama-cyan/20 bg-ama-blue-dark px-4 py-3">
-            <AppMobileNav
-              sidebarItems={sidebarItems}
-              sidebarGroups={sidebarGroups}
-              cadastroItemsExpanded={mobileCadastrosOpen}
-              onCadastroItemsExpandedChange={setMobileCadastrosOpen}
-            />
-          </nav>
+          <AppMobileHeader menuOpen={mobileMenuOpen} onMenuOpenChange={setMobileMenuOpen} />
         </div>
+
+        <AppMobileMenuDrawer
+          open={mobileMenuOpen}
+          onOpenChange={setMobileMenuOpen}
+          sidebarItems={sidebarItems}
+          sidebarGroups={sidebarGroups}
+          logout={logout}
+          leaving={leaving}
+        />
 
         {error ? (
           <p className="mx-4 mt-4 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive sm:mx-6 md:mx-8">

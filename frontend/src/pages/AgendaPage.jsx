@@ -9,7 +9,7 @@ import { useAgendaPage } from "@/hooks/useAgendaPage";
 
 export function AgendaPage() {
   const { userName, user } = useSession();
-  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [referenceDate, setReferenceDate] = useState(new Date());
   const agenda = useAgendaPage(user);
   const selectedSessionType = agenda.sessionTypes.find((item) => item._id === agenda.form.sessionTypeId);
   const modalityOptions =
@@ -29,8 +29,8 @@ export function AgendaPage() {
 
       <AgendaCalendarView
         sessions={agenda.sessions}
-        currentMonth={currentMonth}
-        setCurrentMonth={setCurrentMonth}
+        referenceDate={referenceDate}
+        setReferenceDate={setReferenceDate}
         onCompleteSession={agenda.handleCompleteSession}
         onCancelSession={agenda.openCancelDialog}
         onOpenCreate={agenda.openCreateDialog}

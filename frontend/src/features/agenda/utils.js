@@ -90,6 +90,94 @@ export function toCalendarKey(date) {
   return `${year}-${month}-${day}`;
 }
 
+export function isSameCalendarDay(left, right) {
+  return toCalendarKey(left) === toCalendarKey(right);
+}
+
+export function isToday(date) {
+  return isSameCalendarDay(date, new Date());
+}
+
+export function startOfWeek(date) {
+  const start = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  start.setDate(start.getDate() - start.getDay());
+  return start;
+}
+
+export function buildWeekDays(referenceDate) {
+  const start = startOfWeek(referenceDate);
+  return Array.from({ length: 7 }, (_, index) => {
+    const day = new Date(start);
+    day.setDate(start.getDate() + index);
+    return day;
+  });
+}
+
+export function buildMonthGrid(referenceDate) {
+  const year = referenceDate.getFullYear();
+  const month = referenceDate.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  const days = [];
+
+  for (let day = 1; day <= lastDay.getDate(); day += 1) {
+    days.push(new Date(year, month, day));
+  }
+
+  const leadingEmpty = firstDay.getDay();
+  const emptyCells = Array.from({ length: leadingEmpty }, (_, idx) => `empty-${idx}`);
+  return { days, emptyCells };
+}
+
+export function weekRangeLabel(referenceDate) {
+  const days = buildWeekDays(referenceDate);
+  const first = days[0];
+  const last = days[6];
+  const sameMonth = first.getMonth() === last.getMonth();
+  const sameYear = first.getFullYear() === last.getFullYear();
+
+  const dayFormatter = new Intl.DateTimeFormat("pt-BR", { day: "numeric" });
+  const monthFormatter = new Intl.DateTimeFormat("pt-BR", { month: "short" });
+  const yearFormatter = new Intl.DateTimeFormat("pt-BR", { year: "numeric" });
+
+  if (sameMonth && sameYear) {
+    return `${dayFormatter.format(first)} – ${dayFormatter.format(last)} de ${monthLabel(first)}`;
+  }
+
+  if (sameYear) {
+    return `${dayFormatter.format(first)} ${monthFormatter.format(first)} – ${dayFormatter.format(last)} ${monthFormatter.format(last)} de ${yearFormatter.format(first)}`;
+  }
+
+  return `${dayFormatter.format(first)} ${monthFormatter.format(first)} ${yearFormatter.format(first)} – ${dayFormatter.format(last)} ${monthFormatter.format(last)} ${yearFormatter.format(last)}`;
+}
+
+export function navigateReferenceDate(referenceDate, viewMode, direction) {
+  const delta = direction === "next" ? 1 : -1;
+  const next = new Date(referenceDate);
+
+  if (viewMode === "day") {
+    next.setDate(next.getDate() + delta);
+    return next;
+  }
+
+  if (viewMode === "week") {
+    next.setDate(next.getDate() + delta * 7);
+    return next;
+  }
+
+  return new Date(next.getFullYear(), next.getMonth() + delta, 1);
+}
+
+export function referenceDateLabel(referenceDate, viewMode) {
+  if (viewMode === "day") {
+    return formatDayFull(referenceDate);
+  }
+  if (viewMode === "week") {
+    return weekRangeLabel(referenceDate);
+  }
+  return monthLabel(referenceDate);
+}
+
 export function groupSessionsByDay(sessions) {
   return sessions.reduce((acc, session) => {
     const date = new Date(session.startAt);

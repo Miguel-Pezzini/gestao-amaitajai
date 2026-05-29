@@ -6,6 +6,18 @@ import {
 
 export const STATUS_OPTIONS = ["agendada", "realizada", "cancelada"];
 
+export const AGENDA_VIEW_MODES = {
+  MONTH: "month",
+  WEEK: "week",
+  DAY: "day",
+};
+
+export const AGENDA_VIEW_MODE_OPTIONS = [
+  { value: AGENDA_VIEW_MODES.MONTH, label: "Mês" },
+  { value: AGENDA_VIEW_MODES.WEEK, label: "Semana" },
+  { value: AGENDA_VIEW_MODES.DAY, label: "Dia" },
+];
+
 /** Campo API `modality` — tipo de sessão (individual, dupla, grupo). */
 export { MODALITY_OPTIONS, SESSION_FORMAT_LABELS, SESSION_FORMAT_OPTIONS };
 
