@@ -3,6 +3,9 @@ import mongoose, { type HydratedDocument, type InferSchemaType } from "mongoose"
 export const USER_ROLES = ["administrador", "tecnico"] as const;
 export type UserRole = (typeof USER_ROLES)[number];
 
+export const USER_ACCOUNT_STATUSES = ["pendente", "ativo", "inativo"] as const;
+export type UserAccountStatus = (typeof USER_ACCOUNT_STATUSES)[number];
+
 const userSchema = new mongoose.Schema(
   {
     name: {
@@ -19,7 +22,13 @@ const userSchema = new mongoose.Schema(
     },
     passwordHash: {
       type: String,
-      required: true,
+      default: null,
+    },
+    googleId: {
+      type: String,
+      default: null,
+      sparse: true,
+      index: true,
     },
     role: {
       type: String,
@@ -28,9 +37,11 @@ const userSchema = new mongoose.Schema(
       default: "tecnico",
       index: true,
     },
-    isActive: {
-      type: Boolean,
-      default: true,
+    accountStatus: {
+      type: String,
+      required: true,
+      enum: USER_ACCOUNT_STATUSES,
+      default: "ativo",
       index: true,
     },
   },

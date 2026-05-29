@@ -46,13 +46,13 @@ describe("Agenda integration", () => {
       const techPassword = "tech123456";
       const admin = await createUser({
         name: "Admin",
-        email: "admin@agenda.test",
+        email: "admin@amaitajai.org.br",
         password: adminPassword,
         role: "administrador",
       });
       const tecnico = await createUser({
         name: "Tecnico",
-        email: "tecnico@agenda.test",
+        email: "tecnico@amaitajai.org.br",
         password: techPassword,
         role: "tecnico",
       });
@@ -343,7 +343,7 @@ describe("Agenda integration", () => {
             (
               await createUser({
                 name: "Outro Prof",
-                email: `outro-${Date.now()}@agenda.test`,
+                email: `outro-${Date.now()}@amaitajai.org.br`,
                 password: "x",
                 role: "tecnico",
               })
@@ -405,13 +405,13 @@ describe("Agenda integration", () => {
       });
       const profissional1 = await createUser({
         name: "Prof Limites 1",
-        email: `prof-limites-1-${Date.now()}@agenda.test`,
+        email: `prof-limites-1-${Date.now()}@amaitajai.org.br`,
         password: "prof123456",
         role: "tecnico",
       });
       const profissional2 = await createUser({
         name: "Prof Limites 2",
-        email: `prof-limites-2-${Date.now()}@agenda.test`,
+        email: `prof-limites-2-${Date.now()}@amaitajai.org.br`,
         password: "prof123456",
         role: "tecnico",
       });
@@ -459,7 +459,7 @@ describe("Agenda integration", () => {
       const { adminCookie, paciente, profissional, room, sessionType } = await seedAgendaBase();
       const profissional2 = await createUser({
         name: "Profissional Grupo",
-        email: `prof-grupo-${Date.now()}@agenda.test`,
+        email: `prof-grupo-${Date.now()}@amaitajai.org.br`,
         password: "prof123456",
         role: "tecnico",
       });
@@ -530,7 +530,7 @@ describe("Agenda integration", () => {
       const { adminCookie, paciente, profissional, room, sessionType } = await seedAgendaBase();
       const outroProf = await createUser({
         name: "Outro",
-        email: `outro2-${Date.now()}@agenda.test`,
+        email: `outro2-${Date.now()}@amaitajai.org.br`,
         password: "outro123456",
         role: "tecnico",
       });
@@ -641,19 +641,19 @@ describe("Agenda integration", () => {
 
       const admin = await createUser({
         name: "Admin",
-        email: "admin3@agenda.test",
+        email: "admin3@amaitajai.org.br",
         password: adminPassword,
         role: "administrador",
       });
       const tecnicoA = await createUser({
         name: "Tecnico A",
-        email: "tecnicoa@agenda.test",
+        email: "tecnicoa@amaitajai.org.br",
         password: tecnicoApassword,
         role: "tecnico",
       });
       const tecnicoB = await createUser({
         name: "Tecnico B",
-        email: "tecnicob@agenda.test",
+        email: "tecnicob@amaitajai.org.br",
         password: tecnicoBpassword,
         role: "tecnico",
       });

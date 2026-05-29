@@ -95,7 +95,7 @@ export class AgendaService {
     const limit = parseLimit(query.limit);
     const matcher = new RegExp(escapeRegex(term), "i");
     const items = await User.find({
-      isActive: true,
+      accountStatus: "ativo",
       role: { $in: USER_ROLES as unknown as UserRole[] },
       $or: [{ name: matcher }, { email: matcher }],
     })
@@ -508,7 +508,7 @@ export class AgendaService {
       User.countDocuments({
         _id: { $in: input.professionalIds },
         role: { $in: USER_ROLES as unknown as UserRole[] },
-        isActive: true,
+        accountStatus: "ativo",
       }),
     ]);
 

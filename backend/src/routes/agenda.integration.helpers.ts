@@ -21,7 +21,7 @@ export async function createUser(params: {
     email: params.email,
     passwordHash,
     role: params.role,
-    isActive: true,
+    accountStatus: "ativo",
   });
 }
 
@@ -37,13 +37,13 @@ export async function seedAgendaBase() {
   const adminPassword = "admin123456";
   const admin = await createUser({
     name: "Admin",
-    email: `admin-${Date.now()}@agenda.test`,
+    email: `admin-${Date.now()}@amaitajai.org.br`,
     password: adminPassword,
     role: "administrador",
   });
   const profissional = await createUser({
     name: "Profissional",
-    email: `prof-${Date.now()}@agenda.test`,
+    email: `prof-${Date.now()}@amaitajai.org.br`,
     password: "prof123456",
     role: "tecnico",
   });

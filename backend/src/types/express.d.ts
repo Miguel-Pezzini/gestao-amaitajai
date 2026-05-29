@@ -1,12 +1,12 @@
 import type { Types } from "mongoose";
-import type { UserRole } from "../models/user.model.js";
+import type { UserAccountStatus, UserRole } from "../models/user.model.js";
 
 export interface AuthUser {
   _id: Types.ObjectId;
   name: string;
   email: string;
   role: UserRole;
-  isActive: boolean;
+  accountStatus: UserAccountStatus;
   createdAt?: Date;
   updatedAt?: Date;
 }

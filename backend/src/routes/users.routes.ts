@@ -4,7 +4,14 @@ import mongoose from "mongoose";
 import { env } from "../config/env.js";
 import { requireAuth } from "../middlewares/auth.middleware.js";
 import { requireAdmin } from "../middlewares/authz.middleware.js";
-import { USER_ROLES, User, type UserRole } from "../models/user.model.js";
+import {
+  USER_ACCOUNT_STATUSES,
+  USER_ROLES,
+  User,
+  type UserAccountStatus,
+  type UserRole,
+} from "../models/user.model.js";
+import { isAllowedEmailDomain } from "../validators/auth/email-domain.validator.js";
 
 const router = Router();
 
@@ -23,6 +30,13 @@ function normalizeEmail(value: unknown): string {
 function normalizeRole(value: unknown): UserRole | null {
   const role = normalizeText(value).toLowerCase();
   return USER_ROLES.includes(role as UserRole) ? (role as UserRole) : null;
+}
+
+function normalizeAccountStatus(value: unknown): UserAccountStatus | null {
+  const status = normalizeText(value).toLowerCase();
+  return USER_ACCOUNT_STATUSES.includes(status as UserAccountStatus)
+    ? (status as UserAccountStatus)
+    : null;
 }
 
 function parsePositiveInt(value: unknown, fallback: number): number {
@@ -74,6 +88,8 @@ function validateUserPayload(
     const email = normalizeEmail(payload.email);
     if (!email || !email.includes("@")) {
       errors.push("E-mail inválido.");
+    } else if (!isAllowedEmailDomain(email, env.allowedEmailDomain)) {
+      errors.push(`Use um e-mail institucional @${env.allowedEmailDomain}.`);
     } else {
       update.email = email;
     }
@@ -123,15 +139,22 @@ function buildFilters(queryParams: Request["query"]): Record<string, unknown> {
 
   const status = normalizeText(queryParams.status).toLowerCase();
   if (status === "active") {
-    filters.isActive = true;
+    filters.accountStatus = "ativo";
   } else if (status === "inactive") {
-    filters.isActive = false;
+    filters.accountStatus = "inativo";
+  } else if (status === "pending") {
+    filters.accountStatus = "pendente";
   }
 
   return filters;
 }
 
 router.use("/users", requireAuth, requireAdmin);
+
+router.get("/users/pending-count", async (_req: Request, res: Response) => {
+  const total = await User.countDocuments({ accountStatus: "pendente" });
+  res.status(200).json({ total });
+});
 
 router.get("/users", async (req: Request, res: Response) => {
   const page = parsePositiveInt(req.query.page, 1);
@@ -182,7 +205,7 @@ router.post("/users", async (req: Request, res: Response) => {
     email: update.email,
     role: update.role ?? "tecnico",
     passwordHash,
-    isActive: true,
+    accountStatus: "ativo",
   });
 
   const user = await User.findById(created._id).select("-passwordHash").lean();
@@ -250,20 +273,22 @@ router.patch("/users/:id/status", async (req: Request, res: Response) => {
     return;
   }
 
-  const isActive = (req.body as { isActive?: unknown })?.isActive;
-  if (typeof isActive !== "boolean") {
-    res.status(400).json({ message: "O campo isActive deve ser booleano." });
+  const accountStatus = normalizeAccountStatus((req.body as { accountStatus?: unknown })?.accountStatus);
+  if (!accountStatus || accountStatus === "pendente") {
+    res.status(400).json({
+      message: "O campo accountStatus deve ser 'ativo' ou 'inativo'.",
+    });
     return;
   }
 
-  if (req.user?._id.toString() === id && !isActive) {
+  if (req.user?._id.toString() === id && accountStatus === "inativo") {
     res.status(400).json({ message: "Você não pode inativar sua própria conta." });
     return;
   }
 
   const user = await User.findByIdAndUpdate(
     id,
-    { isActive },
+    { accountStatus },
     { new: true, runValidators: true },
   )
     .select("-passwordHash")

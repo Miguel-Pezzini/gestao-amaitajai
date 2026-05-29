@@ -211,7 +211,12 @@ export function UsuariosPage() {
   }, []);
 
   const activeCount = useMemo(
-    () => users.filter((item) => item.isActive).length,
+    () => users.filter((item) => item.accountStatus === "ativo").length,
+    [users],
+  );
+
+  const pendingCount = useMemo(
+    () => users.filter((item) => item.accountStatus === "pendente").length,
     [users],
   );
 
@@ -281,10 +286,10 @@ export function UsuariosPage() {
     }
   }
 
-  async function handleToggleStatus(item) {
+  async function handleStatusChange(item, nextStatus) {
     setError("");
     try {
-      await updateUserStatus(item._id, !item.isActive);
+      await updateUserStatus(item._id, nextStatus);
       await loadUsers();
     } catch (err) {
       setError(
@@ -343,7 +348,7 @@ export function UsuariosPage() {
           <div className="min-w-0">
             <CardTitle className="text-base text-ama-blue-dark">Funcionários cadastrados</CardTitle>
             <CardDescription className="break-words">
-              {activeCount} ativos em {users.length} carregado(s).
+              {activeCount} ativos, {pendingCount} pendentes em {users.length} carregado(s).
             </CardDescription>
           </div>
 
@@ -381,6 +386,7 @@ export function UsuariosPage() {
                 onChange={(event) => setStatusFilter(event.target.value)}
               >
                 <option value="active">Apenas ativos</option>
+                <option value="pending">Apenas pendentes</option>
                 <option value="inactive">Apenas inativos</option>
                 <option value="all">Todos</option>
               </select>
@@ -424,7 +430,7 @@ export function UsuariosPage() {
                         <EntityTagBadge>
                           {USER_ROLE_LABELS[item.role] ?? item.role}
                         </EntityTagBadge>
-                        <EntityStatusBadge active={item.isActive} />
+                        <EntityStatusBadge status={item.accountStatus ?? "ativo"} />
                       </>
                     }
                   >
@@ -439,15 +445,31 @@ export function UsuariosPage() {
                           >
                             Editar
                           </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className={entityListActionButtonClassName()}
-                            onClick={() => handleToggleStatus(item)}
-                            disabled={isSelf && item.isActive}
-                          >
-                            {item.isActive ? "Inativar" : "Reativar"}
-                          </Button>
+                          {item.accountStatus === "pendente" ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className={entityListActionButtonClassName()}
+                              onClick={() => handleStatusChange(item, "ativo")}
+                            >
+                              Ativar
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className={entityListActionButtonClassName()}
+                              onClick={() =>
+                                handleStatusChange(
+                                  item,
+                                  item.accountStatus === "ativo" ? "inativo" : "ativo",
+                                )
+                              }
+                              disabled={isSelf && item.accountStatus === "ativo"}
+                            >
+                              {item.accountStatus === "ativo" ? "Inativar" : "Reativar"}
+                            </Button>
+                          )}
                         </>
                       }
                     >
