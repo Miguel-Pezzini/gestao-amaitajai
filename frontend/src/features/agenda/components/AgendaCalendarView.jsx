@@ -34,7 +34,7 @@ export function AgendaCalendarView({
   onOpenCreate,
   isAdmin,
 }) {
-  const [viewMode, setViewMode] = useState(AGENDA_VIEW_MODES.MONTH);
+  const [viewMode, setViewMode] = useState(AGENDA_VIEW_MODES.WEEK);
   const grouped = groupSessionsByDay(sessions);
   const [listDialog, setListDialog] = useState(EMPTY_LIST_DIALOG);
   const [selectedSession, setSelectedSession] = useState(null);
