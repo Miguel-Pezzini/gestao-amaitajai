@@ -4,7 +4,13 @@ import {
   SESSION_FORMAT_OPTIONS,
 } from "@/features/cadastros/constants";
 
-import { OCCUPANCY_TOTAL_SLOTS } from "@/features/room-occupancy/constants";
+import {
+  OCCUPANCY_START_HOUR,
+  OCCUPANCY_TOTAL_SLOTS,
+} from "@/features/room-occupancy/constants";
+
+/** Horário inicial ao abrir o diálogo de nova sessão (alinhado ao início da grade). */
+export const DEFAULT_SESSION_START_TIME = `${String(OCCUPANCY_START_HOUR).padStart(2, "0")}:00`;
 
 export const STATUS_OPTIONS = ["agendada", "realizada", "cancelada"];
 

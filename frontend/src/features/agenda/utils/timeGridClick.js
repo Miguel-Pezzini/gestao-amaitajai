@@ -1,3 +1,4 @@
+import { DEFAULT_SESSION_START_TIME } from "@/features/agenda/constants";
 import {
   OCCUPANCY_END_HOUR,
   OCCUPANCY_SLOT_MINUTES,
@@ -11,7 +12,7 @@ export const TIME_GRID_SESSION_ATTR = "data-time-grid-session";
 export function getTimeKeyFromGridClick(clientY, gridElement) {
   const rect = gridElement.getBoundingClientRect();
   if (rect.height <= 0) {
-    return "09:00";
+    return DEFAULT_SESSION_START_TIME;
   }
 
   const ratio = Math.min(1, Math.max(0, (clientY - rect.top) / rect.height));

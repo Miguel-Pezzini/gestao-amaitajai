@@ -13,6 +13,7 @@ import {
 import { useToast } from "@/contexts/toast-context";
 import {
   buildInitialSessionForm,
+  DEFAULT_SESSION_START_TIME,
   buildSessionLimitsMap,
   canAddSessionPatient,
   canAddSessionProfessional,
@@ -231,7 +232,7 @@ export function useAgendaPage(user) {
     resetCreateForm();
   }
 
-  function openCreateDialog(day, startTime = "09:00") {
+  function openCreateDialog(day, startTime = DEFAULT_SESSION_START_TIME) {
     if (day) {
       const { startDate } = splitStartDateTime(day);
       setForm(

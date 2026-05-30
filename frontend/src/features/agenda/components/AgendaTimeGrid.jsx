@@ -2,6 +2,7 @@ import {
   AGENDA_TIME_GRID_DAY_COLUMN_MIN_REM,
   AGENDA_TIME_GRID_HEIGHT_PX,
   AGENDA_TIME_GRID_HOUR_COLUMN_REM,
+  DEFAULT_SESSION_START_TIME,
 } from "@/features/agenda/constants";
 import {
   OCCUPANCY_END_HOUR,
@@ -126,7 +127,7 @@ function TimeGridDayColumn({
     event.preventDefault();
 
     if (canCreateOnGrid) {
-      onOpenCreate(date, "09:00");
+      onOpenCreate(date, DEFAULT_SESSION_START_TIME);
       return;
     }
 
