@@ -1,15 +1,21 @@
 import { CardContent } from "@/components/ui/card";
+import { TimeGridAxisLabels } from "@/features/agenda/components/TimeGridAxisLabels";
+import { TimeGridSlotLines } from "@/features/agenda/components/TimeGridSlotLines";
 import { RoomOccupancyBlock } from "@/features/room-occupancy/components/RoomOccupancyBlock";
+import { RoomOccupancySessionGroup } from "@/features/room-occupancy/components/RoomOccupancySessionGroup";
+import {
+  AGENDA_TIME_GRID_HEIGHT_PX,
+  AGENDA_TIME_GRID_HOUR_COLUMN_REM,
+} from "@/features/agenda/constants";
 import {
   OCCUPANCY_END_HOUR,
-  OCCUPANCY_GRID_HEIGHT_PX,
+  OCCUPANCY_SLOT_MINUTES,
   OCCUPANCY_START_HOUR,
 } from "@/features/room-occupancy/constants";
 import {
-  buildHourLabels,
   computeDayFreeGaps,
   formatHourLabel,
-  sessionToGridMetrics,
+  prepareOccupancyGridBlocks,
 } from "@/features/room-occupancy/utils";
 import { formatWeekdayShort, isToday, toCalendarKey } from "@/features/agenda/utils";
 import { cn } from "@/lib/utils";
@@ -36,19 +42,7 @@ function DayColumnHeader({ date }) {
 
 function DayColumn({ date, sessions, onOpenSession }) {
   const today = isToday(date);
-  const positionedSessions = sessions
-    .map((session) => {
-      const metrics = sessionToGridMetrics(session);
-      if (!metrics) {
-        return null;
-      }
-      return {
-        ...session,
-        _gridTop: metrics.topPercent,
-        _gridHeight: metrics.heightPercent,
-      };
-    })
-    .filter(Boolean);
+  const blocks = prepareOccupancyGridBlocks(sessions);
 
   return (
     <div
@@ -59,24 +53,26 @@ function DayColumn({ date, sessions, onOpenSession }) {
     >
       <div
         className="relative"
-        style={{ height: `${OCCUPANCY_GRID_HEIGHT_PX}px` }}
+        style={{ height: `${AGENDA_TIME_GRID_HEIGHT_PX}px` }}
         aria-label={`Ocupação ${formatWeekdayShort(date)}`}
       >
-        {Array.from({ length: OCCUPANCY_END_HOUR - OCCUPANCY_START_HOUR }, (_, index) => (
-          <div
-            key={index}
-            className="pointer-events-none absolute inset-x-0 border-t border-ama-cyan/10"
-            style={{ top: `${((index + 1) / (OCCUPANCY_END_HOUR - OCCUPANCY_START_HOUR)) * 100}%` }}
-          />
-        ))}
+        <TimeGridSlotLines />
 
-        {positionedSessions.map((session) => (
-          <RoomOccupancyBlock
-            key={session._id}
-            session={session}
-            onOpenSession={onOpenSession}
-          />
-        ))}
+        {blocks.map((block) =>
+          block.type === "group" ? (
+            <RoomOccupancySessionGroup
+              key={block.id}
+              block={block}
+              onOpenSession={onOpenSession}
+            />
+          ) : (
+            <RoomOccupancyBlock
+              key={block.session._id}
+              session={block.session}
+              onOpenSession={onOpenSession}
+            />
+          ),
+        )}
       </div>
     </div>
   );
@@ -115,13 +111,13 @@ function DaySummary({ date, sessions }) {
 }
 
 export function RoomOccupancyGrid({ workWeekDays, getDaySessions, onOpenSession }) {
-  const hourLabels = buildHourLabels();
+  const gridTemplate = `${AGENDA_TIME_GRID_HOUR_COLUMN_REM}rem 1fr`;
 
   return (
     <CardContent className="space-y-4 p-4 sm:p-6">
       <div className="overflow-x-auto rounded-lg border border-ama-cyan/20 bg-white">
         <div className="min-w-[44rem]">
-          <div className="grid grid-cols-[3.5rem_1fr]">
+          <div className="grid" style={{ gridTemplateColumns: gridTemplate }}>
             <div aria-hidden="true" />
             <div className="grid grid-cols-5">
               {workWeekDays.map((date) => (
@@ -130,21 +126,8 @@ export function RoomOccupancyGrid({ workWeekDays, getDaySessions, onOpenSession 
             </div>
           </div>
 
-          <div className="grid grid-cols-[3.5rem_1fr]">
-            <div
-              className="relative border-r border-ama-cyan/15 pr-1"
-              style={{ height: `${OCCUPANCY_GRID_HEIGHT_PX}px` }}
-            >
-              {hourLabels.map((hour, index) => (
-                <span
-                  key={hour}
-                  className="absolute right-1 -translate-y-1/2 text-[10px] text-muted-foreground sm:text-xs"
-                  style={{ top: `${(index / (hourLabels.length - 1)) * 100}%` }}
-                >
-                  {formatHourLabel(hour)}
-                </span>
-              ))}
-            </div>
+          <div className="grid" style={{ gridTemplateColumns: gridTemplate }}>
+            <TimeGridAxisLabels />
 
             <div className="grid grid-cols-5">
               {workWeekDays.map((date) => (
@@ -176,8 +159,9 @@ export function RoomOccupancyGrid({ workWeekDays, getDaySessions, onOpenSession 
       </div>
 
       <p className="text-xs text-muted-foreground">
-        Grade das {formatHourLabel(OCCUPANCY_START_HOUR)} às {formatHourLabel(OCCUPANCY_END_HOUR)}.
-        Clique em um atendimento para ver detalhes.
+        Grade das {formatHourLabel(OCCUPANCY_START_HOUR)} às {formatHourLabel(OCCUPANCY_END_HOUR)}{" "}
+        (intervalos de {OCCUPANCY_SLOT_MINUTES} min). Horários sobrepostos na mesma sala aparecem
+        agrupados — clique para ver todos.
       </p>
     </CardContent>
   );

@@ -3,6 +3,7 @@ import {
   OCCUPANCY_SLOT_MINUTES,
   OCCUPANCY_START_HOUR,
   OCCUPANCY_TOTAL_MINUTES,
+  OCCUPANCY_TOTAL_SLOTS,
 } from "@/features/room-occupancy/constants";
 import {
   formatSessionTime,
@@ -135,6 +136,22 @@ export function sessionToGridMetrics(session) {
   };
 }
 
+export function prepareGridSessions(sessions) {
+  return sessions
+    .map((session) => {
+      const metrics = sessionToGridMetrics(session);
+      if (!metrics) {
+        return null;
+      }
+      return {
+        ...session,
+        _gridTop: metrics.topPercent,
+        _gridHeight: metrics.heightPercent,
+      };
+    })
+    .filter(Boolean);
+}
+
 export function buildHourLabels() {
   return Array.from(
     { length: OCCUPANCY_END_HOUR - OCCUPANCY_START_HOUR + 1 },
@@ -144,6 +161,144 @@ export function buildHourLabels() {
 
 export function formatHourLabel(hour) {
   return `${String(hour).padStart(2, "0")}:00`;
+}
+
+function formatMinutesLabel(totalMinutes) {
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+}
+
+/** Rótulos do eixo vertical (intervalos de 15 min, 8h–18h). */
+export function buildTimeAxisLabels() {
+  const labels = [];
+  const windowStart = OCCUPANCY_START_HOUR * 60;
+
+  for (let slot = 0; slot <= OCCUPANCY_TOTAL_SLOTS; slot += 1) {
+    const minutes = windowStart + slot * OCCUPANCY_SLOT_MINUTES;
+    labels.push({
+      label: formatMinutesLabel(minutes),
+      topPercent: (slot * OCCUPANCY_SLOT_MINUTES) / OCCUPANCY_TOTAL_MINUTES * 100,
+      isHour: minutes % 60 === 0,
+    });
+  }
+
+  return labels;
+}
+
+/**
+ * Linhas horizontais da grade (15 min).
+ * variant: hour | half | quarter
+ */
+export function buildTimeGridSlotLines() {
+  const slotCount = OCCUPANCY_TOTAL_SLOTS;
+  const lines = [];
+
+  for (let slot = 0; slot <= slotCount; slot += 1) {
+    const minutesFromStart = slot * OCCUPANCY_SLOT_MINUTES;
+    const isHour = minutesFromStart % 60 === 0;
+    const isHalfHour = minutesFromStart % 60 === 30;
+
+    lines.push({
+      topPercent: (slot / slotCount) * 100,
+      variant: isHour ? "hour" : isHalfHour ? "half" : "quarter",
+    });
+  }
+
+  return lines;
+}
+
+function getSessionGridRange(session) {
+  return {
+    top: session._gridTop,
+    bottom: session._gridTop + session._gridHeight,
+  };
+}
+
+function sessionRangesOverlap(left, right) {
+  return left.top < right.bottom && right.top < left.bottom;
+}
+
+function findSessionOverlapClusters(sessions) {
+  if (sessions.length === 0) {
+    return [];
+  }
+
+  if (sessions.length === 1) {
+    return [sessions];
+  }
+
+  const parent = sessions.map((_, index) => index);
+
+  function find(index) {
+    if (parent[index] !== index) {
+      parent[index] = find(parent[index]);
+    }
+    return parent[index];
+  }
+
+  function union(leftIndex, rightIndex) {
+    const leftRoot = find(leftIndex);
+    const rightRoot = find(rightIndex);
+    if (leftRoot !== rightRoot) {
+      parent[rightRoot] = leftRoot;
+    }
+  }
+
+  for (let leftIndex = 0; leftIndex < sessions.length; leftIndex += 1) {
+    for (let rightIndex = leftIndex + 1; rightIndex < sessions.length; rightIndex += 1) {
+      if (
+        sessionRangesOverlap(
+          getSessionGridRange(sessions[leftIndex]),
+          getSessionGridRange(sessions[rightIndex]),
+        )
+      ) {
+        union(leftIndex, rightIndex);
+      }
+    }
+  }
+
+  const clusters = new Map();
+  sessions.forEach((session, index) => {
+    const root = find(index);
+    const bucket = clusters.get(root) ?? [];
+    bucket.push(session);
+    clusters.set(root, bucket);
+  });
+
+  return [...clusters.values()];
+}
+
+export function prepareOccupancyGridBlocks(sessions) {
+  const positioned = prepareGridSessions(sessions);
+  const clusters = findSessionOverlapClusters(positioned);
+
+  return clusters
+    .map((cluster) => {
+      if (cluster.length === 1) {
+        return { type: "single", session: cluster[0] };
+      }
+
+      const sorted = [...cluster].sort(
+        (left, right) => new Date(left.startAt).getTime() - new Date(right.startAt).getTime(),
+      );
+      const top = Math.min(...cluster.map((item) => item._gridTop));
+      const bottom = Math.max(...cluster.map((item) => item._gridTop + item._gridHeight));
+
+      return {
+        type: "group",
+        id: `overlap-${sorted.map((item) => item._id).join("-")}`,
+        sessions: sorted,
+        startAt: sorted[0].startAt,
+        endAt: sorted.reduce((latest, item) => {
+          const end = new Date(item.endAt).getTime();
+          return end > latest ? item.endAt : latest;
+        }, sorted[0].endAt),
+        _gridTop: top,
+        _gridHeight: bottom - top,
+      };
+    })
+    .sort((left, right) => left._gridTop - right._gridTop);
 }
 
 export function formatSessionTimeRange(session) {

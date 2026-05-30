@@ -21,13 +21,15 @@ export function RoomOccupancyBlock({ session, onOpenSession }) {
     <button
       type="button"
       className={cn(
-        "absolute inset-x-0.5 z-10 overflow-hidden rounded-md border-l-[3px] px-1.5 py-1 text-left shadow-sm transition hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ama-blue/40",
+        "absolute z-10 overflow-hidden rounded-md border-l-[3px] px-1.5 py-1 text-left shadow-sm transition hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ama-blue/40",
         container,
         accent,
       )}
       style={{
         top: `${session._gridTop}%`,
         height: `${session._gridHeight}%`,
+        left: "2px",
+        width: "calc(100% - 4px)",
       }}
       title={sessionCalendarTooltip(session)}
       onClick={() => onOpenSession(session)}

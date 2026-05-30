@@ -231,15 +231,15 @@ export function useAgendaPage(user) {
     resetCreateForm();
   }
 
-  function toDefaultStartDateTime(date) {
-    const { startDate } = splitStartDateTime(date);
-    return { startDate, startTime: "09:00" };
-  }
-
-  function openCreateDialog(day) {
+  function openCreateDialog(day, startTime = "09:00") {
     if (day) {
-      const { startDate, startTime } = toDefaultStartDateTime(day);
-      setForm(buildInitialSessionForm(sessionTypes, rooms, { startDate, startTime }));
+      const { startDate } = splitStartDateTime(day);
+      setForm(
+        buildInitialSessionForm(sessionTypes, rooms, {
+          startDate,
+          startTime,
+        }),
+      );
       setPatientTerm("");
       setProfessionalTerm("");
       setPatientOptions([]);

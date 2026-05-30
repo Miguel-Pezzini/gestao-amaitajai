@@ -1,7 +1,7 @@
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CardContent } from "@/components/ui/card";
-import { AgendaSessionCard } from "@/features/agenda/components/AgendaSessionCard";
+import { AgendaTimeGrid } from "@/features/agenda/components/AgendaTimeGrid";
 import { CalendarDayNumber } from "@/features/agenda/components/CalendarDayNumber";
 import { formatWeekdayShort, isToday } from "@/features/agenda/utils";
 import { cn } from "@/lib/utils";
@@ -11,8 +11,7 @@ export function AgendaDayView({
   sessions,
   isAdmin,
   onOpenSession,
-  onCompleteSession,
-  onCancelSession,
+  onOpenSessionGroup,
   onOpenCreate,
 }) {
   const today = isToday(referenceDate);
@@ -50,9 +49,19 @@ export function AgendaDayView({
         ) : null}
       </div>
 
+      <AgendaTimeGrid
+        days={[referenceDate]}
+        getDaySessions={() => sessions}
+        onOpenSession={onOpenSession}
+        onOpenSessionGroup={onOpenSessionGroup}
+        onOpenCreate={isAdmin ? onOpenCreate : undefined}
+        overlapLayout="sideBySide"
+        showCaption
+      />
+
       {sessions.length === 0 ? (
         isAdmin ? (
-          <div className="rounded-lg border border-dashed border-ama-cyan/30 bg-ama-light/30 px-4 py-8 text-center">
+          <div className="rounded-lg border border-dashed border-ama-cyan/30 bg-ama-light/30 px-4 py-6 text-center">
             <p className="text-sm text-muted-foreground">Nenhuma sessão neste dia.</p>
             <Button
               type="button"
@@ -66,22 +75,9 @@ export function AgendaDayView({
             </Button>
           </div>
         ) : (
-          <p className="py-4 text-center text-sm text-muted-foreground">Nenhuma sessão neste dia.</p>
+          <p className="text-center text-sm text-muted-foreground">Nenhuma sessão neste dia.</p>
         )
-      ) : (
-        <ul className="divide-y divide-ama-cyan/15 overflow-hidden rounded-lg border border-ama-cyan/20 bg-white">
-          {sessions.map((session) => (
-            <AgendaSessionCard
-              key={session._id}
-              session={session}
-              onOpenSession={onOpenSession}
-              onCompleteSession={onCompleteSession}
-              onCancelSession={onCancelSession}
-              isAdmin={isAdmin}
-            />
-          ))}
-        </ul>
-      )}
+      ) : null}
     </CardContent>
   );
 }

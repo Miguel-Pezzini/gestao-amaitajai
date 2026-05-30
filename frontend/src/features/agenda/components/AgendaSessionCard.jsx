@@ -3,11 +3,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SessionParticipantsPreview } from "@/features/agenda/components/SessionParticipants";
 import {
-  formatSessionTime,
   getSessionStatusLabel,
   sessionSummary,
   statusBadgeClass,
 } from "@/features/agenda/utils";
+import { formatSessionTimeRange } from "@/features/room-occupancy/utils";
 
 export function AgendaSessionCard({
   session,
@@ -25,13 +25,13 @@ export function AgendaSessionCard({
       <button
         type="button"
         onClick={() => onOpenSession(session)}
-        className="flex min-w-0 flex-1 items-start gap-3 rounded-md px-1 py-1 text-left transition hover:bg-ama-light/50 sm:gap-4"
+        className="flex min-w-0 flex-1 cursor-pointer items-start gap-3 rounded-md px-1 py-1 text-left transition hover:bg-ama-light/50 sm:gap-4"
       >
         <time
-          dateTime={session.startAt}
-          className="w-12 shrink-0 pt-0.5 text-sm font-semibold tabular-nums text-ama-blue-dark sm:w-14"
+          dateTime={`${session.startAt}/${session.endAt}`}
+          className="min-w-[7.75rem] shrink-0 whitespace-nowrap pt-0.5 text-xs font-semibold tabular-nums text-ama-blue-dark sm:min-w-[9.25rem] sm:text-sm"
         >
-          {formatSessionTime(session.startAt)}
+          {formatSessionTimeRange(session)}
         </time>
 
         <div className="min-w-0 flex-1 space-y-1">

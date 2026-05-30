@@ -4,6 +4,8 @@ import {
   SESSION_FORMAT_OPTIONS,
 } from "@/features/cadastros/constants";
 
+import { OCCUPANCY_TOTAL_SLOTS } from "@/features/room-occupancy/constants";
+
 export const STATUS_OPTIONS = ["agendada", "realizada", "cancelada"];
 
 export const AGENDA_VIEW_MODES = {
@@ -17,6 +19,13 @@ export const AGENDA_VIEW_MODE_OPTIONS = [
   { value: AGENDA_VIEW_MODES.WEEK, label: "Semana" },
   { value: AGENDA_VIEW_MODES.DAY, label: "Dia" },
 ];
+
+/** Grade horária (8h–18h): altura maior que ocupação de salas para melhor leitura. */
+export const AGENDA_TIME_GRID_SLOT_HEIGHT_PX = 20;
+export const AGENDA_TIME_GRID_HEIGHT_PX =
+  OCCUPANCY_TOTAL_SLOTS * AGENDA_TIME_GRID_SLOT_HEIGHT_PX;
+export const AGENDA_TIME_GRID_HOUR_COLUMN_REM = 4;
+export const AGENDA_TIME_GRID_DAY_COLUMN_MIN_REM = 7;
 
 /** Campo API `modality` — tipo de sessão (individual, dupla, grupo). */
 export { MODALITY_OPTIONS, SESSION_FORMAT_LABELS, SESSION_FORMAT_OPTIONS };
