@@ -27,7 +27,7 @@ function getParticipantLabel(session) {
 const SESSION_INSET_PX = 2;
 
 export function AgendaTimeGridSession({ session, onOpenSession, compact = false }) {
-  const { container, accent, cancelled } = getCalendarSessionStyle(session);
+  const { container, accent } = getCalendarSessionStyle(session);
   const modalityName = getSessionModalityName(session);
   const roomName = getSessionRoomName(session);
   const formatLabel = getSessionFormatLabel(session.modality);
@@ -46,7 +46,6 @@ export function AgendaTimeGridSession({ session, onOpenSession, compact = false 
         "absolute z-10 cursor-pointer overflow-hidden rounded-md border-l-[3px] px-1 py-1 text-left shadow-sm transition hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ama-blue/40",
         container,
         accent,
-        cancelled && "opacity-55",
       )}
       style={{
         top: `${session._gridTop}%`,
@@ -71,12 +70,7 @@ export function AgendaTimeGridSession({ session, onOpenSession, compact = false 
           <p className="truncate text-[10px] font-semibold leading-tight sm:text-[11px]">
             {roomName}
           </p>
-          <p
-            className={cn(
-              "truncate text-[9px] leading-tight opacity-90 sm:text-[10px]",
-              cancelled && "line-through decoration-muted-foreground/70",
-            )}
-          >
+          <p className="truncate text-[9px] leading-tight opacity-90 sm:text-[10px]">
             {participantLabel}
           </p>
           <p className="truncate text-[9px] leading-tight opacity-80 sm:text-[10px]">
@@ -85,12 +79,7 @@ export function AgendaTimeGridSession({ session, onOpenSession, compact = false 
         </>
       ) : (
         <>
-          <p
-            className={cn(
-              "truncate text-[10px] font-semibold leading-tight sm:text-[11px]",
-              cancelled && "line-through decoration-muted-foreground/70",
-            )}
-          >
+          <p className="truncate text-[10px] font-semibold leading-tight sm:text-[11px]">
             {time} · {modalityName}
           </p>
           <p className="truncate text-[9px] opacity-90 sm:text-[10px]">{roomName}</p>

@@ -22,7 +22,7 @@ function getParticipantLabel(session) {
 }
 
 export function AgendaWeekSlotChip({ session, onOpenSession }) {
-  const { container, accent, cancelled } = getCalendarSessionStyle(session);
+  const { container, accent } = getCalendarSessionStyle(session);
   const roomName = getSessionRoomName(session);
   const modalityName = getSessionModalityName(session);
   const participantLabel = getParticipantLabel(session);
@@ -34,7 +34,6 @@ export function AgendaWeekSlotChip({ session, onOpenSession }) {
         "min-w-0 rounded border-l-[3px] px-1.5 py-1 text-left transition hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ama-blue/40",
         container,
         accent,
-        cancelled && "opacity-55",
       )}
       title={sessionCalendarTooltip(session)}
       onClick={() => onOpenSession(session)}
@@ -42,12 +41,7 @@ export function AgendaWeekSlotChip({ session, onOpenSession }) {
       <p className="truncate text-[10px] font-semibold leading-tight text-inherit sm:text-[11px]">
         {roomName}
       </p>
-      <p
-        className={cn(
-          "truncate text-[9px] leading-tight opacity-90 sm:text-[10px]",
-          cancelled && "line-through decoration-muted-foreground/70",
-        )}
-      >
+      <p className="truncate text-[9px] leading-tight opacity-90 sm:text-[10px]">
         {participantLabel}
       </p>
       <p className="truncate text-[9px] leading-tight opacity-80 sm:text-[10px]">{modalityName}</p>

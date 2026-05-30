@@ -9,7 +9,7 @@ import {
 } from "@/features/agenda/utils";
 
 export function CalendarSessionBadge({ session }) {
-  const { container, accent, cancelled } = getCalendarSessionStyle(session);
+  const { container, accent } = getCalendarSessionStyle(session);
   const time = formatSessionTime(session.startAt);
   const modalityName = getSessionModalityName(session);
   const roomName = getSessionRoomName(session);
@@ -21,16 +21,10 @@ export function CalendarSessionBadge({ session }) {
         "flex min-w-0 items-stretch gap-0.5 overflow-hidden rounded-sm border-l-2 px-1 py-px",
         container,
         accent,
-        cancelled && "opacity-55",
       )}
       title={sessionCalendarTooltip(session)}
     >
-      <div
-        className={cn(
-          "min-w-0 flex-1 truncate leading-tight",
-          cancelled && "line-through decoration-muted-foreground/70",
-        )}
-      >
+      <div className="min-w-0 flex-1 truncate leading-tight">
         <p className="truncate text-[9px] font-semibold sm:text-[10px]">
           <span>{time}</span> <span className="font-medium">{modalityName}</span>
         </p>
