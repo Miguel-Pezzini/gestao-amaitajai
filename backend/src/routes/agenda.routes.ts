@@ -36,7 +36,7 @@ router.use("/agenda", requireAuth);
 
 router.get("/agenda/lookups/patients", async (req: Request, res: Response) => {
   try {
-    const result = await agendaService.searchPatients(req.query as { q?: unknown; limit?: unknown });
+    const result = await agendaService.searchPatients(req.query as Record<string, unknown>);
     res.status(200).json(result);
   } catch (error) {
     handleServiceError(res, error);
@@ -45,7 +45,7 @@ router.get("/agenda/lookups/patients", async (req: Request, res: Response) => {
 
 router.get("/agenda/lookups/professionals", async (req: Request, res: Response) => {
   try {
-    const result = await agendaService.searchProfessionals(req.query as { q?: unknown; limit?: unknown });
+    const result = await agendaService.searchProfessionals(req.query as Record<string, unknown>);
     res.status(200).json(result);
   } catch (error) {
     handleServiceError(res, error);

@@ -22,7 +22,12 @@ import {
   pickDefaultCatalogId,
 } from "@/features/agenda/constants";
 import { getApiErrorMessage } from "@/lib/api-error";
-import { combineStartDateTime, normalizeRole, splitStartDateTime } from "@/features/agenda/utils";
+import {
+  combineStartDateTime,
+  getSessionFormSlotQuery,
+  normalizeRole,
+  splitStartDateTime,
+} from "@/features/agenda/utils";
 
 const EMPTY_FIELD_ERRORS = {};
 
@@ -52,9 +57,11 @@ export function useAgendaPage(user) {
   const [patientOptions, setPatientOptions] = useState([]);
   const [loadingPatients, setLoadingPatients] = useState(false);
 
-  const [professionalTerm, setProfessionalTerm] = useState("");
-  const [professionalOptions, setProfessionalOptions] = useState([]);
+  const [professionalRoster, setProfessionalRoster] = useState([]);
+  const [professionalAvailabilityMeta, setProfessionalAvailabilityMeta] = useState(null);
   const [loadingProfessionals, setLoadingProfessionals] = useState(false);
+
+  const participantSlotReady = Boolean(getSessionFormSlotQuery(form));
 
   const sessionLimits = buildSessionLimitsMap(sessionModalitySettings);
 
@@ -140,11 +147,13 @@ export function useAgendaPage(user) {
     if (!createDialogOpen) {
       return;
     }
+
     const trimmed = patientTerm.trim();
     if (trimmed.length < 1) {
       setPatientOptions([]);
       return;
     }
+
     const timeoutId = setTimeout(async () => {
       setLoadingPatients(true);
       try {
@@ -156,6 +165,7 @@ export function useAgendaPage(user) {
         setLoadingPatients(false);
       }
     }, 250);
+
     return () => clearTimeout(timeoutId);
   }, [patientTerm, createDialogOpen]);
 
@@ -163,24 +173,33 @@ export function useAgendaPage(user) {
     if (!createDialogOpen) {
       return;
     }
-    const trimmed = professionalTerm.trim();
-    if (trimmed.length < 1) {
-      setProfessionalOptions([]);
+
+    const slot = getSessionFormSlotQuery(form);
+    if (!slot) {
+      setProfessionalRoster([]);
+      setProfessionalAvailabilityMeta(null);
       return;
     }
+
     const timeoutId = setTimeout(async () => {
       setLoadingProfessionals(true);
       try {
-        const response = await searchAgendaProfessionals({ q: trimmed, limit: 8 });
-        setProfessionalOptions(response.items ?? []);
+        const response = await searchAgendaProfessionals({
+          ...slot,
+          availableOnly: "false",
+        });
+        setProfessionalRoster(response.items ?? []);
+        setProfessionalAvailabilityMeta(response.meta ?? null);
       } catch {
-        setProfessionalOptions([]);
+        setProfessionalRoster([]);
+        setProfessionalAvailabilityMeta(null);
       } finally {
         setLoadingProfessionals(false);
       }
     }, 250);
+
     return () => clearTimeout(timeoutId);
-  }, [professionalTerm, createDialogOpen]);
+  }, [createDialogOpen, form.startDate, form.startTime, form.durationMinutes]);
 
   function clearFieldError(field) {
     setFieldErrors((current) => {
@@ -222,9 +241,9 @@ export function useAgendaPage(user) {
     setForm(buildInitialSessionForm(sessionTypes, rooms));
     setFieldErrors(EMPTY_FIELD_ERRORS);
     setPatientTerm("");
-    setProfessionalTerm("");
     setPatientOptions([]);
-    setProfessionalOptions([]);
+    setProfessionalRoster([]);
+    setProfessionalAvailabilityMeta(null);
   }
 
   function closeCreateDialog() {
@@ -242,9 +261,9 @@ export function useAgendaPage(user) {
         }),
       );
       setPatientTerm("");
-      setProfessionalTerm("");
       setPatientOptions([]);
-      setProfessionalOptions([]);
+      setProfessionalRoster([]);
+      setProfessionalAvailabilityMeta(null);
       setFieldErrors(EMPTY_FIELD_ERRORS);
     } else {
       resetCreateForm();
@@ -319,8 +338,6 @@ export function useAgendaPage(user) {
       };
     });
     clearFieldError("patients");
-    setPatientTerm("");
-    setPatientOptions([]);
   }
 
   function removePatient(patientId) {
@@ -361,8 +378,6 @@ export function useAgendaPage(user) {
       };
     });
     clearFieldError("professionals");
-    setProfessionalTerm("");
-    setProfessionalOptions([]);
   }
 
   function removeProfessional(professionalId) {
@@ -471,9 +486,9 @@ export function useAgendaPage(user) {
     setPatientTerm,
     patientOptions,
     loadingPatients,
-    professionalTerm,
-    setProfessionalTerm,
-    professionalOptions,
+    participantSlotReady,
+    professionalRoster,
+    professionalAvailabilityMeta,
     loadingProfessionals,
     loadSessions,
     handleFormChange,

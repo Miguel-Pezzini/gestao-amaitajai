@@ -12,6 +12,9 @@ import {
 /** Horário inicial ao abrir o diálogo de nova sessão (alinhado ao início da grade). */
 export const DEFAULT_SESSION_START_TIME = `${String(OCCUPANCY_START_HOUR).padStart(2, "0")}:00`;
 
+/** Mínimo de caracteres para buscar paciente/profissional com disponibilidade no horário. */
+export const PARTICIPANT_SEARCH_MIN_LENGTH = 2;
+
 export const STATUS_OPTIONS = ["agendada", "realizada", "cancelada"];
 
 export const AGENDA_VIEW_MODES = {
@@ -109,12 +112,12 @@ export function getParticipantCountLabels(
 
   const patients =
     limits.minPatients === limits.maxPatients
-      ? `${patientCount}/${limits.maxPatients} pacientes`
-      : `${patientCount} de ${limits.minPatients}–${limits.maxPatients} pacientes`;
+      ? `${patientCount}/${limits.maxPatients}`
+      : `${patientCount}/${limits.minPatients}–${limits.maxPatients}`;
   const professionals =
     limits.minProfessionals === limits.maxProfessionals
-      ? `${professionalCount}/${limits.maxProfessionals} profissionais`
-      : `${professionalCount} de ${limits.minProfessionals}–${limits.maxProfessionals} profissionais`;
+      ? `${professionalCount}/${limits.maxProfessionals}`
+      : `${professionalCount}/${limits.minProfessionals}–${limits.maxProfessionals}`;
 
   return { patients, professionals };
 }

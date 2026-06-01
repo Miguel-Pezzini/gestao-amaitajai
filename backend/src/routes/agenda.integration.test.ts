@@ -264,6 +264,273 @@ describe("Agenda integration", () => {
       expect(response.status).toBe(200);
       expect(response.body.items).toEqual([]);
     });
+
+    it("retorna resumo de disponibilidade sem listar todos os profissionais", async () => {
+      const { adminCookie, paciente, profissional, room, sessionType } = await seedAgendaBase();
+      await createUser({
+        name: "Profissional Livre",
+        email: `prof-livre-${Date.now()}@agenda.test`,
+        password: "prof123456",
+        role: "tecnico",
+      });
+
+      const startAt = "2026-06-05T14:00:00.000Z";
+      await request(app)
+        .post("/api/agenda/sessions")
+        .set("Cookie", adminCookie)
+        .send(
+          buildSessionPayload({
+            sessionTypeId: sessionType._id.toString(),
+            roomId: room._id.toString(),
+            patientIds: [paciente._id.toString()],
+            professionalIds: [profissional._id.toString()],
+            startAt,
+            durationMinutes: 30,
+          }),
+        );
+
+      const summary = await request(app)
+        .get("/api/agenda/lookups/professionals")
+        .set("Cookie", adminCookie)
+        .query({
+          startAt,
+          durationMinutes: 30,
+          summaryOnly: "true",
+        });
+
+      expect(summary.status).toBe(200);
+      expect(summary.body.items).toEqual([]);
+      expect(summary.body.meta.availableCount).toBeGreaterThanOrEqual(1);
+      expect(summary.body.meta.totalCount).toBeGreaterThanOrEqual(2);
+    });
+
+    it("busca profissionais disponíveis por termo no intervalo", async () => {
+      const { adminCookie, paciente, profissional, room, sessionType } = await seedAgendaBase();
+      const profissionalLivre = await createUser({
+        name: "Profissional Livre",
+        email: `prof-livre-${Date.now()}@agenda.test`,
+        password: "prof123456",
+        role: "tecnico",
+      });
+
+      const startAt = "2026-06-05T14:00:00.000Z";
+      await request(app)
+        .post("/api/agenda/sessions")
+        .set("Cookie", adminCookie)
+        .send(
+          buildSessionPayload({
+            sessionTypeId: sessionType._id.toString(),
+            roomId: room._id.toString(),
+            patientIds: [paciente._id.toString()],
+            professionalIds: [profissional._id.toString()],
+            startAt,
+            durationMinutes: 30,
+          }),
+        );
+
+      const availableOnly = await request(app)
+        .get("/api/agenda/lookups/professionals")
+        .set("Cookie", adminCookie)
+        .query({
+          startAt,
+          durationMinutes: 30,
+          availableOnly: "true",
+          q: "Livre",
+        });
+
+      expect(availableOnly.status).toBe(200);
+      expect(availableOnly.body.meta.requiresSearch).toBeFalsy();
+      expect(
+        availableOnly.body.items.some(
+          (item: { _id: string }) => item._id === profissionalLivre._id.toString(),
+        ),
+      ).toBe(true);
+      expect(
+        availableOnly.body.items.some(
+          (item: { _id: string }) => item._id === profissional._id.toString(),
+        ),
+      ).toBe(false);
+    });
+
+    it("lista todos os profissionais com status no horário sem termo de busca", async () => {
+      const { adminCookie, profissional } = await seedAgendaBase();
+
+      const response = await request(app)
+        .get("/api/agenda/lookups/professionals")
+        .set("Cookie", adminCookie)
+        .query({
+          startAt: "2026-06-05T14:00:00.000Z",
+          durationMinutes: 30,
+          availableOnly: "false",
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.items.length).toBeGreaterThanOrEqual(1);
+      expect(
+        response.body.items.some(
+          (item: { _id: string; isAvailable: boolean }) =>
+            item._id === profissional._id.toString() && item.isAvailable === true,
+        ),
+      ).toBe(true);
+    });
+
+    it("marca profissional ocupado quando availableOnly é false", async () => {
+      const { adminCookie, paciente, profissional, room, sessionType } = await seedAgendaBase();
+      const startAt = "2026-06-06T15:00:00.000Z";
+
+      await request(app)
+        .post("/api/agenda/sessions")
+        .set("Cookie", adminCookie)
+        .send(
+          buildSessionPayload({
+            sessionTypeId: sessionType._id.toString(),
+            roomId: room._id.toString(),
+            patientIds: [paciente._id.toString()],
+            professionalIds: [profissional._id.toString()],
+            startAt,
+          }),
+        );
+
+      const response = await request(app)
+        .get("/api/agenda/lookups/professionals")
+        .set("Cookie", adminCookie)
+        .query({
+          startAt,
+          durationMinutes: 30,
+          availableOnly: "false",
+          q: "Profissional",
+        });
+
+      expect(response.status).toBe(200);
+      const busy = response.body.items.find(
+        (item: { _id: string }) => item._id === profissional._id.toString(),
+      );
+      expect(busy).toBeTruthy();
+      expect(busy.isAvailable).toBe(false);
+      expect(busy.conflictSession).toBeTruthy();
+      expect(busy.conflictSession.sessionTypeName).toBe("PSICOPED");
+    });
+
+    it("ignora sessão cancelada na disponibilidade", async () => {
+      const { adminCookie, paciente, profissional, room, sessionType } = await seedAgendaBase();
+      const startAt = "2026-06-07T16:00:00.000Z";
+
+      const created = await request(app)
+        .post("/api/agenda/sessions")
+        .set("Cookie", adminCookie)
+        .send(
+          buildSessionPayload({
+            sessionTypeId: sessionType._id.toString(),
+            roomId: room._id.toString(),
+            patientIds: [paciente._id.toString()],
+            professionalIds: [profissional._id.toString()],
+            startAt,
+          }),
+        );
+      expect(created.status).toBe(201);
+
+      await request(app)
+        .patch(`/api/agenda/sessions/${created.body.session._id}/cancel`)
+        .set("Cookie", adminCookie)
+        .send({ cancelReason: "Teste cancelamento disponibilidade" });
+
+      const response = await request(app)
+        .get("/api/agenda/lookups/professionals")
+        .set("Cookie", adminCookie)
+        .query({
+          startAt,
+          durationMinutes: 30,
+          availableOnly: "false",
+          q: "Profissional",
+        });
+
+      const professional = response.body.items.find(
+        (item: { _id: string }) => item._id === profissional._id.toString(),
+      );
+      expect(professional.isAvailable).toBe(true);
+      expect(professional.conflictSession).toBeNull();
+    });
+
+    it("exclui a própria sessão do conflito com excludeSessionId", async () => {
+      const { adminCookie, paciente, profissional, room, sessionType } = await seedAgendaBase();
+      const startAt = "2026-06-08T11:00:00.000Z";
+
+      const created = await request(app)
+        .post("/api/agenda/sessions")
+        .set("Cookie", adminCookie)
+        .send(
+          buildSessionPayload({
+            sessionTypeId: sessionType._id.toString(),
+            roomId: room._id.toString(),
+            patientIds: [paciente._id.toString()],
+            professionalIds: [profissional._id.toString()],
+            startAt,
+          }),
+        );
+      expect(created.status).toBe(201);
+
+      const response = await request(app)
+        .get("/api/agenda/lookups/professionals")
+        .set("Cookie", adminCookie)
+        .query({
+          startAt,
+          durationMinutes: 30,
+          availableOnly: "false",
+          q: "Profissional",
+          excludeSessionId: created.body.session._id,
+        });
+
+      const professional = response.body.items.find(
+        (item: { _id: string }) => item._id === profissional._id.toString(),
+      );
+      expect(professional.isAvailable).toBe(true);
+    });
+
+    it("busca pacientes disponíveis por termo no intervalo informado", async () => {
+      const { adminCookie, paciente, profissional, room, sessionType } = await seedAgendaBase();
+      const pacienteLivre = await Patient.create({
+        fullName: "Paciente Livre",
+        birthDate: new Date("2017-03-03"),
+        guardianName: "Responsavel Livre",
+        phone: "(47) 99999-0099",
+        fundingSource: "Municipal",
+        isActive: true,
+      });
+
+      const startAt = "2026-06-09T12:00:00.000Z";
+      await request(app)
+        .post("/api/agenda/sessions")
+        .set("Cookie", adminCookie)
+        .send(
+          buildSessionPayload({
+            sessionTypeId: sessionType._id.toString(),
+            roomId: room._id.toString(),
+            patientIds: [paciente._id.toString()],
+            professionalIds: [profissional._id.toString()],
+            startAt,
+          }),
+        );
+
+      const response = await request(app)
+        .get("/api/agenda/lookups/patients")
+        .set("Cookie", adminCookie)
+        .query({
+          startAt,
+          durationMinutes: 30,
+          availableOnly: "true",
+          q: "Livre",
+        });
+
+      expect(response.status).toBe(200);
+      expect(
+        response.body.items.some(
+          (item: { _id: string }) => item._id === pacienteLivre._id.toString(),
+        ),
+      ).toBe(true);
+      expect(
+        response.body.items.some((item: { _id: string }) => item._id === paciente._id.toString()),
+      ).toBe(false);
+    });
   });
 
   describe("sessões — criação e validação", () => {

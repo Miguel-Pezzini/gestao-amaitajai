@@ -31,6 +31,12 @@ import {
 } from "../validators/agenda/session-type.validator.js";
 import { validateSessionModalitySettingUpdate } from "../validators/agenda/session-modality-setting.validator.js";
 import {
+  AVAILABILITY_MIN_SEARCH_LENGTH,
+  buildNameSearchMatcher,
+  hasAvailabilitySearchTerm,
+  parseAvailabilityLookupQuery,
+} from "../validators/agenda/availability.validator.js";
+import {
   normalizeSessionInput,
   type SessionPayload,
   validateCancelSession,
@@ -39,6 +45,10 @@ import {
   validateSessionModality,
   validateUpdateSession,
 } from "../validators/agenda/session.validator.js";
+import {
+  buildSessionOverlapFilter,
+  indexConflictsByParticipantId,
+} from "./agenda-availability.helpers.js";
 import type { Types } from "mongoose";
 
 type AuthenticatedUser = {
@@ -66,7 +76,12 @@ const SESSION_FORMAT_LABELS: Record<SessionModality, string> = {
 };
 
 export class AgendaService {
-  async searchPatients(query: { q?: unknown; limit?: unknown }) {
+  async searchPatients(query: Record<string, unknown>) {
+    const availability = parseAvailabilityLookupQuery(query);
+    if (availability) {
+      return this.listPatientsAvailability(availability);
+    }
+
     const term = normalizeText(query.q);
     if (!term) {
       return { items: [] };
@@ -86,7 +101,12 @@ export class AgendaService {
     return { items };
   }
 
-  async searchProfessionals(query: { q?: unknown; limit?: unknown }) {
+  async searchProfessionals(query: Record<string, unknown>) {
+    const availability = parseAvailabilityLookupQuery(query);
+    if (availability) {
+      return this.listProfessionalsAvailability(availability);
+    }
+
     const term = normalizeText(query.q);
     if (!term) {
       return { items: [] };
@@ -105,6 +125,217 @@ export class AgendaService {
       .lean();
 
     return { items };
+  }
+
+  private async listProfessionalsAvailability(
+    input: NonNullable<ReturnType<typeof parseAvailabilityLookupQuery>>,
+  ) {
+    if (input.summaryOnly) {
+      return this.getProfessionalsAvailabilitySummary(input);
+    }
+
+    const matcher = buildNameSearchMatcher(input.q);
+    const userFilter: Record<string, unknown> = {
+      isActive: true,
+      role: { $in: USER_ROLES as unknown as UserRole[] },
+    };
+    if (matcher) {
+      userFilter.$or = [{ name: matcher }, { email: matcher }];
+    }
+
+    const listLimit = matcher ? input.limit : 200;
+    const professionals = await User.find(userFilter)
+      .sort({ name: 1 })
+      .limit(listLimit)
+      .select("_id name email role")
+      .lean();
+
+    const professionalIds = professionals.map((item) => item._id);
+    const overlapFilter = buildSessionOverlapFilter({
+      startAt: input.startAt,
+      endAt: input.endAt,
+      excludeSessionId: input.excludeSessionId,
+    });
+
+    const overlappingSessions =
+      professionalIds.length === 0
+        ? []
+        : await Session.find({
+            ...overlapFilter,
+            professionalIds: { $in: professionalIds },
+          })
+            .select("startAt endAt modality sessionTypeId roomId professionalIds patientIds")
+            .populate("sessionTypeId", "name")
+            .populate("roomId", "name")
+            .lean();
+
+    const conflictsById = indexConflictsByParticipantId(
+      overlappingSessions as Parameters<typeof indexConflictsByParticipantId>[0],
+      "professionalIds",
+    );
+
+    const items = professionals.map((professional) => {
+      const id = professional._id.toString();
+      const conflictSession = conflictsById.get(id) ?? null;
+      return {
+        ...professional,
+        isAvailable: conflictSession === null,
+        conflictSession,
+      };
+    });
+
+    const filteredItems = input.availableOnly
+      ? items.filter((item) => item.isAvailable)
+      : items;
+
+    return {
+      items: filteredItems,
+      meta: this.buildAvailabilityMeta(input, {
+        totalCount: items.length,
+        availableCount: items.filter((item) => item.isAvailable).length,
+      }),
+    };
+  }
+
+  private async getProfessionalsAvailabilitySummary(
+    input: NonNullable<ReturnType<typeof parseAvailabilityLookupQuery>>,
+  ) {
+    const baseFilter = {
+      isActive: true,
+      role: { $in: USER_ROLES as unknown as UserRole[] },
+    };
+    const overlapFilter = buildSessionOverlapFilter({
+      startAt: input.startAt,
+      endAt: input.endAt,
+      excludeSessionId: input.excludeSessionId,
+    });
+
+    const [totalCount, busyProfessionalIds] = await Promise.all([
+      User.countDocuments(baseFilter),
+      Session.distinct("professionalIds", overlapFilter),
+    ]);
+
+    const availableCount = await User.countDocuments({
+      ...baseFilter,
+      _id: { $nin: busyProfessionalIds },
+    });
+
+    return {
+      items: [],
+      meta: this.buildAvailabilityMeta(input, { totalCount, availableCount }),
+    };
+  }
+
+  private async listPatientsAvailability(
+    input: NonNullable<ReturnType<typeof parseAvailabilityLookupQuery>>,
+  ) {
+    if (input.summaryOnly) {
+      return this.getPatientsAvailabilitySummary(input);
+    }
+
+    if (!hasAvailabilitySearchTerm(input.q)) {
+      return {
+        items: [],
+        meta: this.buildAvailabilityMeta(input, { totalCount: 0, availableCount: 0 }, true),
+      };
+    }
+
+    const matcher = buildNameSearchMatcher(input.q);
+    const patientFilter: Record<string, unknown> = { isActive: true };
+    if (matcher) {
+      patientFilter.$or = [{ fullName: matcher }, { guardianName: matcher }];
+    }
+
+    const patients = await Patient.find(patientFilter)
+      .sort({ fullName: 1 })
+      .limit(input.limit)
+      .select("_id fullName guardianName fundingSource")
+      .lean();
+
+    const patientIds = patients.map((item) => item._id);
+    const overlapFilter = buildSessionOverlapFilter({
+      startAt: input.startAt,
+      endAt: input.endAt,
+      excludeSessionId: input.excludeSessionId,
+    });
+
+    const overlappingSessions =
+      patientIds.length === 0
+        ? []
+        : await Session.find({
+            ...overlapFilter,
+            patientIds: { $in: patientIds },
+          })
+            .select("startAt endAt modality sessionTypeId roomId professionalIds patientIds")
+            .populate("sessionTypeId", "name")
+            .populate("roomId", "name")
+            .lean();
+
+    const conflictsById = indexConflictsByParticipantId(
+      overlappingSessions as Parameters<typeof indexConflictsByParticipantId>[0],
+      "patientIds",
+    );
+
+    const items = patients.map((patient) => {
+      const id = patient._id.toString();
+      const conflictSession = conflictsById.get(id) ?? null;
+      return {
+        ...patient,
+        isAvailable: conflictSession === null,
+        conflictSession,
+      };
+    });
+
+    const filteredItems = input.availableOnly ? items.filter((item) => item.isAvailable) : items;
+
+    return {
+      items: filteredItems,
+      meta: this.buildAvailabilityMeta(input, {
+        totalCount: items.length,
+        availableCount: items.filter((item) => item.isAvailable).length,
+      }),
+    };
+  }
+
+  private async getPatientsAvailabilitySummary(
+    input: NonNullable<ReturnType<typeof parseAvailabilityLookupQuery>>,
+  ) {
+    const baseFilter = { isActive: true };
+    const overlapFilter = buildSessionOverlapFilter({
+      startAt: input.startAt,
+      endAt: input.endAt,
+      excludeSessionId: input.excludeSessionId,
+    });
+
+    const [totalCount, busyPatientIds] = await Promise.all([
+      Patient.countDocuments(baseFilter),
+      Session.distinct("patientIds", overlapFilter),
+    ]);
+
+    const availableCount = await Patient.countDocuments({
+      ...baseFilter,
+      _id: { $nin: busyPatientIds },
+    });
+
+    return {
+      items: [],
+      meta: this.buildAvailabilityMeta(input, { totalCount, availableCount }),
+    };
+  }
+
+  private buildAvailabilityMeta(
+    input: NonNullable<ReturnType<typeof parseAvailabilityLookupQuery>>,
+    counts: { totalCount: number; availableCount: number },
+    requiresSearch = false,
+  ) {
+    return {
+      startAt: input.startAt.toISOString(),
+      endAt: input.endAt.toISOString(),
+      totalCount: counts.totalCount,
+      availableCount: counts.availableCount,
+      requiresSearch,
+      minSearchLength: AVAILABILITY_MIN_SEARCH_LENGTH,
+    };
   }
 
   async listRooms() {
@@ -569,14 +800,11 @@ export class AgendaService {
     professionalIds: string[];
     excludeSessionId?: string;
   }) {
-    const overlapFilter: Record<string, unknown> = {
-      status: { $ne: "cancelada" },
-      startAt: { $lt: params.endAt },
-      endAt: { $gt: params.startAt },
-    };
-    if (params.excludeSessionId) {
-      overlapFilter._id = { $ne: params.excludeSessionId };
-    }
+    const overlapFilter = buildSessionOverlapFilter({
+      startAt: params.startAt,
+      endAt: params.endAt,
+      excludeSessionId: params.excludeSessionId,
+    });
 
     const [roomConflict, professionalConflict, patientConflict] = await Promise.all([
       Session.exists({ ...overlapFilter, roomId: params.roomId }),

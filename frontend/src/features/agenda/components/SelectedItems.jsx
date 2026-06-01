@@ -1,6 +1,6 @@
 export function SelectedItems({ items, onRemove }) {
   if (items.length === 0) {
-    return <p className="text-xs text-muted-foreground">Nenhum selecionado.</p>;
+    return null;
   }
 
   return (

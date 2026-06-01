@@ -397,3 +397,61 @@ export function formatSessionDateTime(value) {
     timeStyle: "short",
   }).format(parsed);
 }
+
+const AVAILABILITY_TIME_FORMATTER = new Intl.DateTimeFormat("pt-BR", {
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
+export function getSessionFormSlotQuery(form) {
+  const durationMinutes = Number.parseInt(String(form.durationMinutes ?? ""), 10);
+  if (!form.startDate || !form.startTime || !Number.isFinite(durationMinutes) || durationMinutes <= 0) {
+    return null;
+  }
+
+  const startAt = new Date(combineStartDateTime(form.startDate, form.startTime));
+  if (Number.isNaN(startAt.getTime())) {
+    return null;
+  }
+
+  return {
+    startAt: startAt.toISOString(),
+    durationMinutes,
+  };
+}
+
+export function formatAvailabilityRangeLabel(meta) {
+  if (!meta?.startAt || !meta?.endAt) {
+    return "";
+  }
+  const start = new Date(meta.startAt);
+  const end = new Date(meta.endAt);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    return "";
+  }
+  return `${AVAILABILITY_TIME_FORMATTER.format(start)} às ${AVAILABILITY_TIME_FORMATTER.format(end)}`;
+}
+
+export function formatAvailabilityBadge(meta) {
+  if (!meta || meta.requiresSearch) {
+    return "";
+  }
+  const count = meta.availableCount ?? 0;
+  return `${count} livre${count === 1 ? "" : "s"}`;
+}
+
+export function formatConflictSessionLabel(conflictSession) {
+  if (!conflictSession) {
+    return "";
+  }
+  const parts = ["Ocupado"];
+  const typeName = conflictSession.sessionTypeName?.trim();
+  const roomName = conflictSession.roomName?.trim();
+  if (typeName) {
+    parts.push(typeName);
+  }
+  if (roomName) {
+    parts.push(roomName);
+  }
+  return parts.join(" · ");
+}
