@@ -1,7 +1,7 @@
 import "dotenv/config";
 
 const required = [
-  "MONGODB_URI",
+  "DATABASE_URL",
   "PORT",
   "JWT_SECRET",
   "ADMIN_EMAIL",
@@ -25,7 +25,7 @@ const cookieSameSite = cookieSameSiteRaw as (typeof cookieSameSiteOptions)[numbe
 
 export const env = {
   port: Number(process.env.PORT),
-  mongodbUri: process.env.MONGODB_URI as string,
+  databaseUrl: process.env.DATABASE_URL as string,
   corsOrigin: process.env.CORS_ORIGIN ?? "http://localhost:5173",
   nodeEnv: process.env.NODE_ENV ?? "development",
   isProduction: (process.env.NODE_ENV ?? "development") === "production",

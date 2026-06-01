@@ -1,27 +1,26 @@
-import type { Types } from "mongoose";
-import type { SessionModality } from "../models/session-type.model.js";
+import type { SessionModality } from "../domain/agenda.js";
 
-export type SessionOverlapFilter = {
-  status: { $ne: "cancelada" };
-  startAt: { $lt: Date };
-  endAt: { $gt: Date };
-  _id?: { $ne: string };
+export type SessionOverlapWhere = {
+  status: { not: "cancelada" };
+  startAt: { lt: Date };
+  endAt: { gt: Date };
+  id?: { not: string };
 };
 
-export function buildSessionOverlapFilter(params: {
+export function buildSessionOverlapWhere(params: {
   startAt: Date;
   endAt: Date;
   excludeSessionId?: string;
-}): SessionOverlapFilter {
-  const filter: SessionOverlapFilter = {
-    status: { $ne: "cancelada" },
-    startAt: { $lt: params.endAt },
-    endAt: { $gt: params.startAt },
+}): SessionOverlapWhere {
+  const where: SessionOverlapWhere = {
+    status: { not: "cancelada" },
+    startAt: { lt: params.endAt },
+    endAt: { gt: params.startAt },
   };
   if (params.excludeSessionId) {
-    filter._id = { $ne: params.excludeSessionId };
+    where.id = { not: params.excludeSessionId };
   }
-  return filter;
+  return where;
 }
 
 export type ConflictSessionSummary = {
@@ -34,33 +33,24 @@ export type ConflictSessionSummary = {
 };
 
 export type PopulatedConflictSession = {
-  _id: Types.ObjectId;
+  id: string;
   startAt: Date;
   endAt: Date;
   modality: SessionModality | string;
-  sessionTypeId?: Types.ObjectId | { name?: string } | null;
-  roomId?: Types.ObjectId | { name?: string } | null;
-  professionalIds: Types.ObjectId[];
-  patientIds: Types.ObjectId[];
+  sessionType: { name: string } | null;
+  room: { name: string } | null;
+  professionalIds: string[];
+  patientIds: string[];
 };
-
-function readPopulatedName(
-  value: Types.ObjectId | { name?: string } | null | undefined,
-): string {
-  if (!value || typeof value !== "object" || !("name" in value)) {
-    return "";
-  }
-  return value.name?.trim() ?? "";
-}
 
 export function formatConflictSession(session: PopulatedConflictSession): ConflictSessionSummary {
   return {
-    _id: session._id.toString(),
+    _id: session.id,
     startAt: session.startAt.toISOString(),
     endAt: session.endAt.toISOString(),
     modality: session.modality,
-    sessionTypeName: readPopulatedName(session.sessionTypeId),
-    roomName: readPopulatedName(session.roomId),
+    sessionTypeName: session.sessionType?.name?.trim() ?? "",
+    roomName: session.room?.name?.trim() ?? "",
   };
 }
 
@@ -73,12 +63,33 @@ export function indexConflictsByParticipantId(
   for (const session of sessions) {
     const summary = formatConflictSession(session);
     for (const participantId of session[participantField]) {
-      const key = participantId.toString();
-      if (!conflicts.has(key)) {
-        conflicts.set(key, summary);
+      if (!conflicts.has(participantId)) {
+        conflicts.set(participantId, summary);
       }
     }
   }
 
   return conflicts;
+}
+
+export function mapOverlapSessionToConflictShape(session: {
+  id: string;
+  startAt: Date;
+  endAt: Date;
+  modality: string;
+  sessionType: { name: string } | null;
+  room: { name: string } | null;
+  professionals: Array<{ professionalId: string }>;
+  patients: Array<{ patientId: string }>;
+}): PopulatedConflictSession {
+  return {
+    id: session.id,
+    startAt: session.startAt,
+    endAt: session.endAt,
+    modality: session.modality,
+    sessionType: session.sessionType,
+    room: session.room,
+    professionalIds: session.professionals.map((row) => row.professionalId),
+    patientIds: session.patients.map((row) => row.patientId),
+  };
 }

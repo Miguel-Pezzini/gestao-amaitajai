@@ -2,7 +2,7 @@ import { ValidationError } from "../../errors/http-errors.js";
 import {
   SESSION_MODALITIES,
   type SessionModality,
-} from "../../models/session-type.model.js";
+} from "../../domain/agenda.js";
 import { normalizeText } from "./agenda.utils.js";
 
 export function validateSessionModalitySettingUpdate(

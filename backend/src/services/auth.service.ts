@@ -2,7 +2,7 @@ import bcrypt from "bcryptjs";
 import jwt, { type SignOptions } from "jsonwebtoken";
 import type { CookieOptions } from "express";
 import { env } from "../config/env.js";
-import { User } from "../models/user.model.js";
+import { prisma } from "../db/prisma.js";
 
 const SALT_ROUNDS = env.bcryptSaltRounds;
 
@@ -12,7 +12,9 @@ interface AccessTokenPayload {
 
 export async function ensureInitialAdminUser(): Promise<void> {
   const adminEmail = env.adminEmail.toLowerCase().trim();
-  const existingUser = await User.findOne({ email: adminEmail }).lean();
+  const existingUser = await prisma.user.findUnique({
+    where: { email: adminEmail },
+  });
 
   if (existingUser) {
     return;
@@ -20,12 +22,14 @@ export async function ensureInitialAdminUser(): Promise<void> {
 
   const passwordHash = await bcrypt.hash(env.adminPassword, SALT_ROUNDS);
 
-  await User.create({
-    name: env.adminName,
-    email: adminEmail,
-    passwordHash,
-    role: "administrador",
-    isActive: true,
+  await prisma.user.create({
+    data: {
+      name: env.adminName,
+      email: adminEmail,
+      passwordHash,
+      role: "administrador",
+      isActive: true,
+    },
   });
 
   console.log(`Usuário admin inicial criado: ${adminEmail}`);
@@ -33,7 +37,7 @@ export async function ensureInitialAdminUser(): Promise<void> {
 
 export async function validateCredentials(email: string, password: string) {
   const normalizedEmail = email.toLowerCase().trim();
-  const user = await User.findOne({ email: normalizedEmail });
+  const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
 
   if (!user) {
     return null;

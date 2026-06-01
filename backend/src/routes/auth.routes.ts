@@ -29,12 +29,12 @@ router.post("/auth/login", async (req: Request, res: Response) => {
     return;
   }
 
-  const token = generateAccessToken(user._id.toString());
+  const token = generateAccessToken(user.id);
   res.cookie(env.jwtCookieName, token, buildAuthCookieOptions());
 
   res.status(200).json({
     user: {
-      id: user._id,
+      id: user.id,
       name: user.name,
       email: user.email,
       role: user.role,

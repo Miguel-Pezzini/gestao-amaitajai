@@ -1,7 +1,7 @@
 import { ValidationError } from "../../errors/http-errors.js";
 import {
   escapeRegex,
-  isObjectId,
+  isUuid,
   normalizeText,
   parseDate,
   parseLimit,
@@ -57,7 +57,7 @@ export function parseAvailabilityLookupQuery(
   }
 
   const excludeSessionId = normalizeText(query.excludeSessionId);
-  if (excludeSessionId && !isObjectId(excludeSessionId)) {
+  if (excludeSessionId && !isUuid(excludeSessionId)) {
     throw new ValidationError("Sessão inválida para exclusão de conflito.");
   }
 

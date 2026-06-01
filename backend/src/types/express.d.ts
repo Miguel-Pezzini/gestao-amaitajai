@@ -1,8 +1,7 @@
-import type { Types } from "mongoose";
-import type { UserRole } from "../models/user.model.js";
+import type { UserRole } from "../domain/agenda.js";
 
 export interface AuthUser {
-  _id: Types.ObjectId;
+  _id: string;
   name: string;
   email: string;
   role: UserRole;

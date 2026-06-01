@@ -1,5 +1,5 @@
 import { ValidationError } from "../../errors/http-errors.js";
-import { isObjectId, normalizeText } from "./agenda.utils.js";
+import { isUuid, normalizeText } from "./agenda.utils.js";
 
 export function validateCreateRoom(payload: { name?: unknown }): { name: string } {
   const name = normalizeText(payload.name);
@@ -13,7 +13,7 @@ export function validateUpdateRoom(
   roomId: string,
   payload: { name?: unknown },
 ): { name?: string } {
-  if (!isObjectId(roomId)) {
+  if (!isUuid(roomId)) {
     throw new ValidationError("Identificador de sala inválido.");
   }
   if (payload.name === undefined) {
@@ -28,7 +28,7 @@ export function validateUpdateRoom(
 }
 
 export function validateRoomId(roomId: string): void {
-  if (!isObjectId(roomId)) {
+  if (!isUuid(roomId)) {
     throw new ValidationError("Identificador de sala inválido.");
   }
 }

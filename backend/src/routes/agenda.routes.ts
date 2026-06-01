@@ -1,5 +1,4 @@
 import { Router, type Request, type Response } from "express";
-import mongoose from "mongoose";
 import { AppError } from "../errors/app-error.js";
 import { validateIsActive } from "../validators/agenda/room.validator.js";
 import { requireAuth } from "../middlewares/auth.middleware.js";
@@ -15,14 +14,6 @@ function getRouteId(param: string | string[]): string {
 function handleServiceError(res: Response, error: unknown): void {
   if (error instanceof AppError) {
     res.status(error.statusCode).json({ message: error.message, code: error.name });
-    return;
-  }
-
-  if (error instanceof mongoose.Error.ValidationError) {
-    const firstMessage = Object.values(error.errors)[0]?.message;
-    res.status(400).json({
-      message: firstMessage ?? "Revise os dados informados para a sessão.",
-    });
     return;
   }
 

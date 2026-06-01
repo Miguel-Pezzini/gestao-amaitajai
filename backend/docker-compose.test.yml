@@ -1,24 +1,21 @@
 services:
-  mongodb_test:
-    image: mongo:7
-    container_name: ${MONGO_TEST_CONTAINER_NAME}
+  postgres_test:
+    image: postgres:16-alpine
+    container_name: ${POSTGRES_TEST_CONTAINER_NAME}
     restart: unless-stopped
     ports:
-      - "${MONGO_TEST_PORT:-27018}:27017"
+      - "${POSTGRES_TEST_PORT:-5433}:5432"
     environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_TEST_INITDB_ROOT_USERNAME:-admin}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_TEST_INITDB_ROOT_PASSWORD:-changeme}
-      MONGO_INITDB_DATABASE: ${MONGO_TEST_INITDB_DATABASE:-gestao_amaitajai_test}
+      POSTGRES_USER: ${POSTGRES_TEST_USER:-admin}
+      POSTGRES_PASSWORD: ${POSTGRES_TEST_PASSWORD:-changeme}
+      POSTGRES_DB: ${POSTGRES_TEST_DB:-gestao_amaitajai_test}
     volumes:
-      - mongodb_test_data:/data/db
+      - postgres_test_data:/var/lib/postgresql/data
     healthcheck:
       test:
         [
-          "CMD",
-          "mongosh",
-          "--quiet",
-          "--eval",
-          "db.adminCommand('ping').ok",
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_TEST_USER:-admin} -d ${POSTGRES_TEST_DB:-gestao_amaitajai_test}",
         ]
       interval: 10s
       timeout: 5s
@@ -26,4 +23,4 @@ services:
       start_period: 20s
 
 volumes:
-  mongodb_test_data:
+  postgres_test_data:

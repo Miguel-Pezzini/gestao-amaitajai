@@ -1,23 +1,32 @@
-import mongoose from "mongoose";
+import { Prisma, type SessionStatus as PrismaSessionStatus } from "@prisma/client";
 import {
   ConflictError,
   ForbiddenError,
   NotFoundError,
   ValidationError,
 } from "../errors/http-errors.js";
-import { Patient } from "../models/patient.model.js";
-import { Room } from "../models/room.model.js";
-import { SessionModalitySetting } from "../models/session-modality-setting.model.js";
-import { Session } from "../models/session.model.js";
-import { SessionType, type SessionModality } from "../models/session-type.model.js";
-import { USER_ROLES, type UserRole, User } from "../models/user.model.js";
+import { prisma } from "../db/prisma.js";
+import { isPrismaUniqueViolation } from "../db/errors.js";
+import {
+  serializeSessionForList,
+  serializeSessionPlain,
+  serializeSessionRecord,
+  withMongoId,
+  withMongoIdList,
+} from "../db/serialize.js";
+import {
+  SESSION_MODALITIES,
+  USER_ROLES,
+  type SessionModality,
+  type UserRole,
+} from "../domain/agenda.js";
 import {
   duplicateRoomMessage,
-  escapeRegex,
-  isMongoDuplicateKeyError,
+  containsInsensitive,
   normalizeText,
   parseDate,
   parseLimit,
+  isUuid,
 } from "../validators/agenda/agenda.utils.js";
 import {
   validateCreateRoom,
@@ -32,7 +41,6 @@ import {
 import { validateSessionModalitySettingUpdate } from "../validators/agenda/session-modality-setting.validator.js";
 import {
   AVAILABILITY_MIN_SEARCH_LENGTH,
-  buildNameSearchMatcher,
   hasAvailabilitySearchTerm,
   parseAvailabilityLookupQuery,
 } from "../validators/agenda/availability.validator.js";
@@ -46,13 +54,13 @@ import {
   validateUpdateSession,
 } from "../validators/agenda/session.validator.js";
 import {
-  buildSessionOverlapFilter,
+  buildSessionOverlapWhere,
   indexConflictsByParticipantId,
+  mapOverlapSessionToConflictShape,
 } from "./agenda-availability.helpers.js";
-import type { Types } from "mongoose";
 
 type AuthenticatedUser = {
-  _id: Types.ObjectId;
+  _id: string;
   role: UserRole;
 };
 
@@ -75,6 +83,28 @@ const SESSION_FORMAT_LABELS: Record<SessionModality, string> = {
   grupo: "Grupo",
 };
 
+const SESSION_LIST_INCLUDE = {
+  sessionType: { select: { id: true, name: true, slug: true } },
+  room: { select: { id: true, name: true } },
+  patients: {
+    include: { patient: { select: { id: true, fullName: true, fundingSource: true } } },
+  },
+  professionals: {
+    include: { professional: { select: { id: true, name: true, email: true, role: true } } },
+  },
+} satisfies Prisma.SessionInclude;
+
+const OVERLAP_SESSION_SELECT = {
+  id: true,
+  startAt: true,
+  endAt: true,
+  modality: true,
+  sessionType: { select: { name: true } },
+  room: { select: { name: true } },
+  professionals: { select: { professionalId: true } },
+  patients: { select: { patientId: true } },
+} satisfies Prisma.SessionSelect;
+
 export class AgendaService {
   async searchPatients(query: Record<string, unknown>) {
     const availability = parseAvailabilityLookupQuery(query);
@@ -88,17 +118,17 @@ export class AgendaService {
     }
 
     const limit = parseLimit(query.limit);
-    const matcher = new RegExp(escapeRegex(term), "i");
-    const items = await Patient.find({
-      isActive: true,
-      $or: [{ fullName: matcher }, { guardianName: matcher }],
-    })
-      .sort({ fullName: 1 })
-      .limit(limit)
-      .select("_id fullName guardianName fundingSource")
-      .lean();
+    const rows = await prisma.patient.findMany({
+      where: {
+        isActive: true,
+        OR: [{ fullName: containsInsensitive(term) }, { guardianName: containsInsensitive(term) }],
+      },
+      orderBy: { fullName: "asc" },
+      take: limit,
+      select: { id: true, fullName: true, guardianName: true, fundingSource: true },
+    });
 
-    return { items };
+    return { items: withMongoIdList(rows) };
   }
 
   async searchProfessionals(query: Record<string, unknown>) {
@@ -113,18 +143,18 @@ export class AgendaService {
     }
 
     const limit = parseLimit(query.limit);
-    const matcher = new RegExp(escapeRegex(term), "i");
-    const items = await User.find({
-      isActive: true,
-      role: { $in: USER_ROLES as unknown as UserRole[] },
-      $or: [{ name: matcher }, { email: matcher }],
-    })
-      .sort({ name: 1 })
-      .limit(limit)
-      .select("_id name email role")
-      .lean();
+    const rows = await prisma.user.findMany({
+      where: {
+        isActive: true,
+        role: { in: [...USER_ROLES] },
+        OR: [{ name: containsInsensitive(term) }, { email: containsInsensitive(term) }],
+      },
+      orderBy: { name: "asc" },
+      take: limit,
+      select: { id: true, name: true, email: true, role: true },
+    });
 
-    return { items };
+    return { items: withMongoIdList(rows) };
   }
 
   private async listProfessionalsAvailability(
@@ -134,24 +164,27 @@ export class AgendaService {
       return this.getProfessionalsAvailabilitySummary(input);
     }
 
-    const matcher = buildNameSearchMatcher(input.q);
-    const userFilter: Record<string, unknown> = {
+    const userWhere: Prisma.UserWhereInput = {
       isActive: true,
-      role: { $in: USER_ROLES as unknown as UserRole[] },
+      role: { in: [...USER_ROLES] },
     };
-    if (matcher) {
-      userFilter.$or = [{ name: matcher }, { email: matcher }];
+    if (input.q) {
+      userWhere.OR = [
+        { name: containsInsensitive(input.q) },
+        { email: containsInsensitive(input.q) },
+      ];
     }
 
-    const listLimit = matcher ? input.limit : 200;
-    const professionals = await User.find(userFilter)
-      .sort({ name: 1 })
-      .limit(listLimit)
-      .select("_id name email role")
-      .lean();
+    const listLimit = input.q ? input.limit : 200;
+    const professionals = await prisma.user.findMany({
+      where: userWhere,
+      orderBy: { name: "asc" },
+      take: listLimit,
+      select: { id: true, name: true, email: true, role: true },
+    });
 
-    const professionalIds = professionals.map((item) => item._id);
-    const overlapFilter = buildSessionOverlapFilter({
+    const professionalIds = professionals.map((item) => item.id);
+    const overlapWhere = buildSessionOverlapWhere({
       startAt: input.startAt,
       endAt: input.endAt,
       excludeSessionId: input.excludeSessionId,
@@ -160,25 +193,23 @@ export class AgendaService {
     const overlappingSessions =
       professionalIds.length === 0
         ? []
-        : await Session.find({
-            ...overlapFilter,
-            professionalIds: { $in: professionalIds },
-          })
-            .select("startAt endAt modality sessionTypeId roomId professionalIds patientIds")
-            .populate("sessionTypeId", "name")
-            .populate("roomId", "name")
-            .lean();
+        : await prisma.session.findMany({
+            where: {
+              ...overlapWhere,
+              professionals: { some: { professionalId: { in: professionalIds } } },
+            },
+            select: OVERLAP_SESSION_SELECT,
+          });
 
     const conflictsById = indexConflictsByParticipantId(
-      overlappingSessions as Parameters<typeof indexConflictsByParticipantId>[0],
+      overlappingSessions.map(mapOverlapSessionToConflictShape),
       "professionalIds",
     );
 
     const items = professionals.map((professional) => {
-      const id = professional._id.toString();
-      const conflictSession = conflictsById.get(id) ?? null;
+      const conflictSession = conflictsById.get(professional.id) ?? null;
       return {
-        ...professional,
+        ...withMongoId(professional),
         isAvailable: conflictSession === null,
         conflictSession,
       };
@@ -200,24 +231,31 @@ export class AgendaService {
   private async getProfessionalsAvailabilitySummary(
     input: NonNullable<ReturnType<typeof parseAvailabilityLookupQuery>>,
   ) {
-    const baseFilter = {
+    const baseFilter: Prisma.UserWhereInput = {
       isActive: true,
-      role: { $in: USER_ROLES as unknown as UserRole[] },
+      role: { in: [...USER_ROLES] },
     };
-    const overlapFilter = buildSessionOverlapFilter({
+    const overlapWhere = buildSessionOverlapWhere({
       startAt: input.startAt,
       endAt: input.endAt,
       excludeSessionId: input.excludeSessionId,
     });
 
-    const [totalCount, busyProfessionalIds] = await Promise.all([
-      User.countDocuments(baseFilter),
-      Session.distinct("professionalIds", overlapFilter),
+    const [totalCount, busyLinks] = await Promise.all([
+      prisma.user.count({ where: baseFilter }),
+      prisma.sessionProfessional.findMany({
+        where: { session: overlapWhere },
+        distinct: ["professionalId"],
+        select: { professionalId: true },
+      }),
     ]);
 
-    const availableCount = await User.countDocuments({
-      ...baseFilter,
-      _id: { $nin: busyProfessionalIds },
+    const busyProfessionalIds = busyLinks.map((row) => row.professionalId);
+    const availableCount = await prisma.user.count({
+      where: {
+        ...baseFilter,
+        id: { notIn: busyProfessionalIds },
+      },
     });
 
     return {
@@ -240,20 +278,23 @@ export class AgendaService {
       };
     }
 
-    const matcher = buildNameSearchMatcher(input.q);
-    const patientFilter: Record<string, unknown> = { isActive: true };
-    if (matcher) {
-      patientFilter.$or = [{ fullName: matcher }, { guardianName: matcher }];
-    }
+    const patientWhere: Prisma.PatientWhereInput = {
+      isActive: true,
+      OR: [
+        { fullName: containsInsensitive(input.q) },
+        { guardianName: containsInsensitive(input.q) },
+      ],
+    };
 
-    const patients = await Patient.find(patientFilter)
-      .sort({ fullName: 1 })
-      .limit(input.limit)
-      .select("_id fullName guardianName fundingSource")
-      .lean();
+    const patients = await prisma.patient.findMany({
+      where: patientWhere,
+      orderBy: { fullName: "asc" },
+      take: input.limit,
+      select: { id: true, fullName: true, guardianName: true, fundingSource: true },
+    });
 
-    const patientIds = patients.map((item) => item._id);
-    const overlapFilter = buildSessionOverlapFilter({
+    const patientIds = patients.map((item) => item.id);
+    const overlapWhere = buildSessionOverlapWhere({
       startAt: input.startAt,
       endAt: input.endAt,
       excludeSessionId: input.excludeSessionId,
@@ -262,25 +303,23 @@ export class AgendaService {
     const overlappingSessions =
       patientIds.length === 0
         ? []
-        : await Session.find({
-            ...overlapFilter,
-            patientIds: { $in: patientIds },
-          })
-            .select("startAt endAt modality sessionTypeId roomId professionalIds patientIds")
-            .populate("sessionTypeId", "name")
-            .populate("roomId", "name")
-            .lean();
+        : await prisma.session.findMany({
+            where: {
+              ...overlapWhere,
+              patients: { some: { patientId: { in: patientIds } } },
+            },
+            select: OVERLAP_SESSION_SELECT,
+          });
 
     const conflictsById = indexConflictsByParticipantId(
-      overlappingSessions as Parameters<typeof indexConflictsByParticipantId>[0],
+      overlappingSessions.map(mapOverlapSessionToConflictShape),
       "patientIds",
     );
 
     const items = patients.map((patient) => {
-      const id = patient._id.toString();
-      const conflictSession = conflictsById.get(id) ?? null;
+      const conflictSession = conflictsById.get(patient.id) ?? null;
       return {
-        ...patient,
+        ...withMongoId(patient),
         isAvailable: conflictSession === null,
         conflictSession,
       };
@@ -300,21 +339,28 @@ export class AgendaService {
   private async getPatientsAvailabilitySummary(
     input: NonNullable<ReturnType<typeof parseAvailabilityLookupQuery>>,
   ) {
-    const baseFilter = { isActive: true };
-    const overlapFilter = buildSessionOverlapFilter({
+    const baseFilter: Prisma.PatientWhereInput = { isActive: true };
+    const overlapWhere = buildSessionOverlapWhere({
       startAt: input.startAt,
       endAt: input.endAt,
       excludeSessionId: input.excludeSessionId,
     });
 
-    const [totalCount, busyPatientIds] = await Promise.all([
-      Patient.countDocuments(baseFilter),
-      Session.distinct("patientIds", overlapFilter),
+    const [totalCount, busyLinks] = await Promise.all([
+      prisma.patient.count({ where: baseFilter }),
+      prisma.sessionPatient.findMany({
+        where: { session: overlapWhere },
+        distinct: ["patientId"],
+        select: { patientId: true },
+      }),
     ]);
 
-    const availableCount = await Patient.countDocuments({
-      ...baseFilter,
-      _id: { $nin: busyPatientIds },
+    const busyPatientIds = busyLinks.map((row) => row.patientId);
+    const availableCount = await prisma.patient.count({
+      where: {
+        ...baseFilter,
+        id: { notIn: busyPatientIds },
+      },
     });
 
     return {
@@ -339,8 +385,8 @@ export class AgendaService {
   }
 
   async listRooms() {
-    const items = await Room.find().sort({ name: 1 }).lean();
-    return { items };
+    const items = await prisma.room.findMany({ orderBy: { name: "asc" } });
+    return { items: withMongoIdList(items) };
   }
 
   async createRoom(payload: { name?: unknown }) {
@@ -350,25 +396,26 @@ export class AgendaService {
 
   async updateRoom(roomId: string, payload: { name?: unknown }) {
     const updates = validateUpdateRoom(roomId, payload);
-    const room = await this.findRoomOrThrow(roomId);
-    if (updates.name) {
-      room.name = updates.name;
-    }
-    return this.persistRoomSave(room);
+    await this.findRoomOrThrow(roomId);
+    return this.persistRoomUpdate(roomId, updates.name);
   }
 
   async updateRoomStatus(roomId: string, isActive: boolean) {
     validateRoomId(roomId);
-    const room = await Room.findByIdAndUpdate(roomId, { isActive }, { new: true }).lean();
-    if (!room) {
+    try {
+      const room = await prisma.room.update({
+        where: { id: roomId },
+        data: { isActive },
+      });
+      return { room: withMongoId(room) };
+    } catch {
       throw new NotFoundError("Sala não encontrada.");
     }
-    return { room };
   }
 
   async listSessionTypes() {
-    const items = await SessionType.find().sort({ name: 1 }).lean();
-    return { items };
+    const items = await prisma.sessionType.findMany({ orderBy: { name: "asc" } });
+    return { items: withMongoIdList(items) };
   }
 
   async createSessionType(payload: {
@@ -379,8 +426,8 @@ export class AgendaService {
     allowedModalities?: unknown;
   }) {
     const input = validateCreateSessionType(payload);
-    const sessionType = await SessionType.create(input);
-    return { sessionType };
+    const sessionType = await prisma.sessionType.create({ data: input });
+    return { sessionType: withMongoId(sessionType) };
   }
 
   async updateSessionType(
@@ -393,38 +440,37 @@ export class AgendaService {
       allowedModalities?: unknown;
     },
   ) {
-    const sessionType = await this.findSessionTypeOrThrow(sessionTypeId);
-    validateUpdateSessionType(sessionTypeId, payload, sessionType);
-    await sessionType.save();
-    return { sessionType };
+    const existing = await this.findSessionTypeOrThrow(sessionTypeId);
+    const updates = validateUpdateSessionType(sessionTypeId, payload, existing);
+    const sessionType = await prisma.sessionType.update({
+      where: { id: sessionTypeId },
+      data: updates,
+    });
+    return { sessionType: withMongoId(sessionType) };
   }
 
   async updateSessionTypeStatus(sessionTypeId: string, isActive: boolean) {
     validateSessionTypeId(sessionTypeId);
-    const sessionType = await SessionType.findByIdAndUpdate(
-      sessionTypeId,
-      { isActive },
-      { new: true },
-    ).lean();
-
-    if (!sessionType) {
+    try {
+      const sessionType = await prisma.sessionType.update({
+        where: { id: sessionTypeId },
+        data: { isActive },
+      });
+      return { sessionType: withMongoId(sessionType) };
+    } catch {
       throw new NotFoundError("Tipo de sessão não encontrado.");
     }
-
-    return { sessionType };
   }
 
   async listSessions(query: Record<string, unknown>, currentUser: AuthenticatedUser) {
-    const filter = this.buildSessionListFilter(query, currentUser);
-    const items = await Session.find(filter)
-      .sort({ startAt: 1 })
-      .populate("sessionTypeId", "name slug")
-      .populate("roomId", "name")
-      .populate("patientIds", "fullName fundingSource")
-      .populate("professionalIds", "name email role")
-      .lean();
+    const where = this.buildSessionListWhere(query, currentUser);
+    const sessions = await prisma.session.findMany({
+      where,
+      orderBy: { startAt: "asc" },
+      include: SESSION_LIST_INCLUDE,
+    });
 
-    return { items };
+    return { items: sessions.map(serializeSessionForList) };
   }
 
   async createSession(payload: SessionPayload, currentUser: AuthenticatedUser) {
@@ -449,22 +495,32 @@ export class AgendaService {
       professionalIds: normalized.professionalIds,
     });
 
-    const session = await Session.create({
-      sessionTypeId: normalized.sessionTypeId,
-      modality: normalized.modality,
-      roomId: normalized.roomId,
-      startAt,
-      endAt,
-      durationMinutes: normalized.durationMinutes,
-      status: "agendada",
-      patientIds: normalized.patientIds,
-      professionalIds: normalized.professionalIds,
-      notes: normalized.notes,
-      createdBy: currentUser._id,
-      updatedBy: currentUser._id,
+    const session = await prisma.session.create({
+      data: {
+        sessionTypeId: normalized.sessionTypeId,
+        modality: normalized.modality,
+        roomId: normalized.roomId,
+        startAt,
+        endAt,
+        durationMinutes: normalized.durationMinutes,
+        status: "agendada",
+        notes: normalized.notes,
+        createdById: currentUser._id,
+        updatedById: currentUser._id,
+        patients: {
+          create: normalized.patientIds.map((patientId) => ({ patientId })),
+        },
+        professionals: {
+          create: normalized.professionalIds.map((professionalId) => ({ professionalId })),
+        },
+      },
+      include: {
+        patients: { select: { patientId: true } },
+        professionals: { select: { professionalId: true } },
+      },
     });
 
-    return { session };
+    return { session: serializeSessionPlain(session) };
   }
 
   async updateSession(
@@ -476,13 +532,13 @@ export class AgendaService {
     validateUpdateSession(sessionId, existing.status);
 
     const normalized = normalizeSessionInput(payload, {
-      sessionTypeId: existing.sessionTypeId.toString(),
+      sessionTypeId: existing.sessionTypeId,
       modality: existing.modality as SessionModality,
-      roomId: existing.roomId.toString(),
+      roomId: existing.roomId,
       startAt: existing.startAt,
       durationMinutes: existing.durationMinutes,
-      patientIds: existing.patientIds.map((id) => id.toString()),
-      professionalIds: existing.professionalIds.map((id) => id.toString()),
+      patientIds: existing.patients.map((row) => row.patientId),
+      professionalIds: existing.professionals.map((row) => row.professionalId),
       notes: existing.notes,
     });
     validateSession(normalized);
@@ -506,9 +562,33 @@ export class AgendaService {
       excludeSessionId: sessionId,
     });
 
-    this.applySessionUpdates(existing, normalized, startAt, endAt, currentUser);
-    await existing.save();
-    return { session: existing };
+    const session = await prisma.$transaction(async (tx) => {
+      await tx.sessionPatient.deleteMany({ where: { sessionId } });
+      await tx.sessionProfessional.deleteMany({ where: { sessionId } });
+
+      return tx.session.update({
+        where: { id: sessionId },
+        data: {
+          sessionTypeId: normalized.sessionTypeId,
+          modality: normalized.modality,
+          roomId: normalized.roomId,
+          startAt,
+          endAt,
+          durationMinutes: normalized.durationMinutes,
+          notes: normalized.notes,
+          updatedById: currentUser._id,
+          patients: {
+            create: normalized.patientIds.map((patientId) => ({ patientId })),
+          },
+          professionals: {
+            create: normalized.professionalIds.map((professionalId) => ({ professionalId })),
+          },
+        },
+        include: SESSION_LIST_INCLUDE,
+      });
+    });
+
+    return { session: serializeSessionRecord(session) };
   }
 
   async cancelSession(
@@ -518,40 +598,50 @@ export class AgendaService {
   ) {
     const { cancelReason } = validateCancelSession(sessionId, payload);
 
-    const session = await Session.findByIdAndUpdate(
-      sessionId,
-      {
-        status: "cancelada",
-        cancelReason,
-        cancelledAt: new Date(),
-        updatedBy: currentUser._id,
-      },
-      { new: true, runValidators: true },
-    ).lean();
-
-    if (!session) {
+    try {
+      const session = await prisma.session.update({
+        where: { id: sessionId },
+        data: {
+          status: "cancelada",
+          cancelReason,
+          cancelledAt: new Date(),
+          updatedById: currentUser._id,
+        },
+        include: {
+          patients: { select: { patientId: true } },
+          professionals: { select: { professionalId: true } },
+        },
+      });
+      return { session: serializeSessionPlain(session) };
+    } catch {
       throw new NotFoundError("Sessão não encontrada.");
     }
-
-    return { session };
   }
 
   async completeSession(sessionId: string, currentUser: AuthenticatedUser) {
-    const session = await this.findSessionOrThrow(sessionId);
-    validateCompleteSession(sessionId, session.status);
-    this.assertTechnicianCanComplete(session, currentUser);
+    const existing = await this.findSessionOrThrow(sessionId);
+    validateCompleteSession(sessionId, existing.status);
+    this.assertTechnicianCanComplete(existing, currentUser);
 
-    session.status = "realizada";
-    session.updatedBy = currentUser._id;
-    await session.save();
+    const session = await prisma.session.update({
+      where: { id: sessionId },
+      data: {
+        status: "realizada",
+        updatedById: currentUser._id,
+      },
+      include: {
+        patients: { select: { patientId: true } },
+        professionals: { select: { professionalId: true } },
+      },
+    });
 
-    return { session };
+    return { session: serializeSessionPlain(session) };
   }
 
   async listSessionModalitySettings() {
     await this.ensureSessionModalitySettings();
-    const items = await SessionModalitySetting.find().sort({ modality: 1 }).lean();
-    return { items };
+    const items = await prisma.sessionModalitySetting.findMany({ orderBy: { modality: "asc" } });
+    return { items: withMongoIdList(items) };
   }
 
   async updateSessionModalitySetting(
@@ -566,50 +656,50 @@ export class AgendaService {
   ) {
     await this.ensureSessionModalitySettings();
     const input = validateSessionModalitySettingUpdate(modality, payload);
-    const setting = await SessionModalitySetting.findOne({ modality: input.modality });
-    if (!setting) {
+    try {
+      const setting = await prisma.sessionModalitySetting.update({
+        where: { modality: input.modality },
+        data: {
+          minPatients: input.minPatients,
+          maxPatients: input.maxPatients,
+          minProfessionals: input.minProfessionals,
+          maxProfessionals: input.maxProfessionals,
+          ...(input.isActive !== undefined ? { isActive: input.isActive } : {}),
+        },
+      });
+      return { setting: withMongoId(setting) };
+    } catch {
       throw new NotFoundError("Tipo de sessão não encontrado.");
     }
-
-    setting.minPatients = input.minPatients;
-    setting.maxPatients = input.maxPatients;
-    setting.minProfessionals = input.minProfessionals;
-    setting.maxProfessionals = input.maxProfessionals;
-    if (input.isActive !== undefined) {
-      setting.isActive = input.isActive;
-    }
-    await setting.save();
-
-    return { setting };
   }
 
-  private buildSessionListFilter(
+  private buildSessionListWhere(
     query: Record<string, unknown>,
     currentUser: AuthenticatedUser,
-  ): Record<string, unknown> {
-    const filter: Record<string, unknown> = {};
+  ): Prisma.SessionWhereInput {
+    const where: Prisma.SessionWhereInput = {};
     const status = normalizeText(query.status);
     if (status && ["agendada", "realizada", "cancelada"].includes(status)) {
-      filter.status = status;
+      where.status = status as PrismaSessionStatus;
     }
 
     const startAt = parseDate(query.startAt);
     const endAt = parseDate(query.endAt);
     if (startAt && endAt) {
-      filter.startAt = { $lt: endAt };
-      filter.endAt = { $gt: startAt };
+      where.startAt = { lt: endAt };
+      where.endAt = { gt: startAt };
     }
 
     const professionalId = normalizeText(query.professionalId);
-    if (professionalId && mongoose.Types.ObjectId.isValid(professionalId) && currentUser.role === "administrador") {
-      filter.professionalIds = professionalId;
+    if (professionalId && isUuid(professionalId) && currentUser.role === "administrador") {
+      where.professionals = { some: { professionalId } };
     }
 
     if (currentUser.role === "tecnico") {
-      filter.professionalIds = currentUser._id;
+      where.professionals = { some: { professionalId: currentUser._id } };
     }
 
-    return filter;
+    return where;
   }
 
   private computeSessionEndAt(startAt: Date, durationMinutes: number): Date {
@@ -618,22 +708,30 @@ export class AgendaService {
 
   private async persistRoomCreate(name: string) {
     try {
-      const room = await Room.create({ name });
-      return { room };
+      const room = await prisma.room.create({ data: { name } });
+      return { room: withMongoId(room) };
     } catch (error) {
-      if (isMongoDuplicateKeyError(error)) {
+      if (isPrismaUniqueViolation(error)) {
         throw new ConflictError(duplicateRoomMessage(error));
       }
       throw error;
     }
   }
 
-  private async persistRoomSave(room: InstanceType<typeof Room>) {
+  private async persistRoomUpdate(roomId: string, name?: string) {
+    if (!name) {
+      const room = await prisma.room.findUniqueOrThrow({ where: { id: roomId } });
+      return { room: withMongoId(room) };
+    }
+
     try {
-      await room.save();
-      return { room };
+      const room = await prisma.room.update({
+        where: { id: roomId },
+        data: { name },
+      });
+      return { room: withMongoId(room) };
     } catch (error) {
-      if (isMongoDuplicateKeyError(error)) {
+      if (isPrismaUniqueViolation(error)) {
         throw new ConflictError(duplicateRoomMessage(error));
       }
       throw error;
@@ -641,7 +739,7 @@ export class AgendaService {
   }
 
   private async findRoomOrThrow(roomId: string) {
-    const room = await Room.findById(roomId);
+    const room = await prisma.room.findUnique({ where: { id: roomId } });
     if (!room) {
       throw new NotFoundError("Sala não encontrada.");
     }
@@ -649,7 +747,7 @@ export class AgendaService {
   }
 
   private async findSessionTypeOrThrow(sessionTypeId: string) {
-    const sessionType = await SessionType.findById(sessionTypeId);
+    const sessionType = await prisma.sessionType.findUnique({ where: { id: sessionTypeId } });
     if (!sessionType) {
       throw new NotFoundError("Tipo de sessão não encontrado.");
     }
@@ -657,7 +755,13 @@ export class AgendaService {
   }
 
   private async findSessionOrThrow(sessionId: string) {
-    const session = await Session.findById(sessionId);
+    const session = await prisma.session.findUnique({
+      where: { id: sessionId },
+      include: {
+        patients: { select: { patientId: true } },
+        professionals: { select: { professionalId: true } },
+      },
+    });
     if (!session) {
       throw new NotFoundError("Sessão não encontrada.");
     }
@@ -665,27 +769,24 @@ export class AgendaService {
   }
 
   private async ensureSessionModalitySettings() {
-    const operations = (Object.keys(DEFAULT_SESSION_MODALITY_SETTINGS) as SessionModality[]).map(
-      (modality) => ({
-        updateOne: {
-          filter: { modality },
-          update: {
-            $setOnInsert: {
-              modality,
-              ...DEFAULT_SESSION_MODALITY_SETTINGS[modality],
-              isActive: true,
-            },
+    await Promise.all(
+      ([...SESSION_MODALITIES] as SessionModality[]).map((modality) =>
+        prisma.sessionModalitySetting.upsert({
+          where: { modality },
+          create: {
+            modality,
+            ...DEFAULT_SESSION_MODALITY_SETTINGS[modality],
+            isActive: true,
           },
-          upsert: true,
-        },
-      }),
+          update: {},
+        }),
+      ),
     );
-    await SessionModalitySetting.bulkWrite(operations);
   }
 
   private async getSessionModalityLimits(modality: SessionModality): Promise<SessionValidationLimits> {
     await this.ensureSessionModalitySettings();
-    const setting = await SessionModalitySetting.findOne({ modality }).lean();
+    const setting = await prisma.sessionModalitySetting.findUnique({ where: { modality } });
     if (setting) {
       return {
         minPatients: setting.minPatients,
@@ -733,13 +834,17 @@ export class AgendaService {
 
   private async loadSessionReferences(input: ReturnType<typeof normalizeSessionInput>) {
     const [sessionType, room, patientsCount, professionalsCount] = await Promise.all([
-      SessionType.findById(input.sessionTypeId).lean(),
-      Room.findById(input.roomId).lean(),
-      Patient.countDocuments({ _id: { $in: input.patientIds }, isActive: true }),
-      User.countDocuments({
-        _id: { $in: input.professionalIds },
-        role: { $in: USER_ROLES as unknown as UserRole[] },
-        isActive: true,
+      prisma.sessionType.findUnique({ where: { id: input.sessionTypeId } }),
+      prisma.room.findUnique({ where: { id: input.roomId } }),
+      prisma.patient.count({
+        where: { id: { in: input.patientIds }, isActive: true },
+      }),
+      prisma.user.count({
+        where: {
+          id: { in: input.professionalIds },
+          role: { in: [...USER_ROLES] },
+          isActive: true,
+        },
       }),
     ]);
 
@@ -761,31 +866,12 @@ export class AgendaService {
     return { sessionType, room };
   }
 
-  private applySessionUpdates(
-    existing: InstanceType<typeof Session>,
-    normalized: ReturnType<typeof normalizeSessionInput>,
-    startAt: Date,
-    endAt: Date,
-    currentUser: AuthenticatedUser,
-  ): void {
-    existing.sessionTypeId = new mongoose.Types.ObjectId(normalized.sessionTypeId);
-    existing.modality = normalized.modality;
-    existing.roomId = new mongoose.Types.ObjectId(normalized.roomId);
-    existing.startAt = startAt;
-    existing.endAt = endAt;
-    existing.durationMinutes = normalized.durationMinutes;
-    existing.patientIds = normalized.patientIds.map((id) => new mongoose.Types.ObjectId(id));
-    existing.professionalIds = normalized.professionalIds.map((id) => new mongoose.Types.ObjectId(id));
-    existing.notes = normalized.notes;
-    existing.updatedBy = currentUser._id;
-  }
-
   private assertTechnicianCanComplete(
-    session: InstanceType<typeof Session>,
+    session: { professionals: Array<{ professionalId: string }> },
     currentUser: AuthenticatedUser,
   ): void {
-    const isOwnerProfessional = session.professionalIds.some(
-      (professionalId) => professionalId.toString() === currentUser._id.toString(),
+    const isOwnerProfessional = session.professionals.some(
+      (row) => row.professionalId === currentUser._id,
     );
     if (currentUser.role === "tecnico" && !isOwnerProfessional) {
       throw new ForbiddenError("Técnico só pode concluir a própria sessão.");
@@ -800,16 +886,26 @@ export class AgendaService {
     professionalIds: string[];
     excludeSessionId?: string;
   }) {
-    const overlapFilter = buildSessionOverlapFilter({
+    const overlapWhere = buildSessionOverlapWhere({
       startAt: params.startAt,
       endAt: params.endAt,
       excludeSessionId: params.excludeSessionId,
     });
 
     const [roomConflict, professionalConflict, patientConflict] = await Promise.all([
-      Session.exists({ ...overlapFilter, roomId: params.roomId }),
-      Session.exists({ ...overlapFilter, professionalIds: { $in: params.professionalIds } }),
-      Session.exists({ ...overlapFilter, patientIds: { $in: params.patientIds } }),
+      prisma.session.findFirst({ where: { ...overlapWhere, roomId: params.roomId } }),
+      prisma.session.findFirst({
+        where: {
+          ...overlapWhere,
+          professionals: { some: { professionalId: { in: params.professionalIds } } },
+        },
+      }),
+      prisma.session.findFirst({
+        where: {
+          ...overlapWhere,
+          patients: { some: { patientId: { in: params.patientIds } } },
+        },
+      }),
     ]);
 
     if (roomConflict) {

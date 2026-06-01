@@ -2,10 +2,9 @@ import bcrypt from "bcryptjs";
 import request from "supertest";
 import { expect } from "vitest";
 import app from "../app.js";
-import { Patient } from "../models/patient.model.js";
-import { Room } from "../models/room.model.js";
-import { SessionType } from "../models/session-type.model.js";
-import { User, type UserRole } from "../models/user.model.js";
+import { prisma } from "../db/prisma.js";
+import { withMongoId } from "../db/serialize.js";
+import type { UserRole } from "../domain/agenda.js";
 
 const SALT_ROUNDS = Number(process.env.BCRYPT_SALT_ROUNDS ?? 4);
 
@@ -16,13 +15,16 @@ export async function createUser(params: {
   role: UserRole;
 }) {
   const passwordHash = await bcrypt.hash(params.password, SALT_ROUNDS);
-  return User.create({
-    name: params.name,
-    email: params.email,
-    passwordHash,
-    role: params.role,
-    isActive: true,
+  const user = await prisma.user.create({
+    data: {
+      name: params.name,
+      email: params.email,
+      passwordHash,
+      role: params.role,
+      isActive: true,
+    },
   });
+  return withMongoId(user);
 }
 
 export async function loginAndGetCookie(email: string, password: string) {
@@ -47,27 +49,81 @@ export async function seedAgendaBase() {
     password: "prof123456",
     role: "tecnico",
   });
-  const paciente = await Patient.create({
-    fullName: "Paciente Teste",
-    birthDate: new Date("2018-01-01"),
-    guardianName: "Responsavel",
-    phone: "(47) 99999-0001",
-    fundingSource: "Municipal",
-    isActive: true,
-  });
-  const room = await Room.create({ name: "Sala Teste", isActive: true });
-  const sessionType = await SessionType.create({
-    name: "PSICOPED",
-    slug: `psicoped-${Date.now()}`,
-    defaultDurationMinutes: 30,
-    isDurationFlexible: false,
-    allowedModalities: ["individual"],
-    isActive: true,
-  });
+  const paciente = withMongoId(
+    await prisma.patient.create({
+      data: {
+        fullName: "Paciente Teste",
+        birthDate: new Date("2018-01-01"),
+        guardianName: "Responsavel",
+        phone: "(47) 99999-0001",
+        fundingSource: "Municipal",
+        isActive: true,
+      },
+    }),
+  );
+  const room = withMongoId(
+    await prisma.room.create({
+      data: { name: "Sala Teste", isActive: true },
+    }),
+  );
+  const sessionType = withMongoId(
+    await prisma.sessionType.create({
+      data: {
+        name: "PSICOPED",
+        slug: `psicoped-${Date.now()}`,
+        defaultDurationMinutes: 30,
+        isDurationFlexible: false,
+        allowedModalities: ["individual"],
+        isActive: true,
+      },
+    }),
+  );
 
   const adminCookie = await loginAndGetCookie(admin.email, adminPassword);
 
   return { admin, adminPassword, profissional, paciente, room, sessionType, adminCookie };
+}
+
+export async function createPatient(data: {
+  fullName: string;
+  birthDate: Date;
+  guardianName: string;
+  phone: string;
+  fundingSource: "Municipal" | "Estadual" | "Particular";
+  isActive?: boolean;
+}) {
+  return withMongoId(
+    await prisma.patient.create({
+      data: { isActive: true, ...data },
+    }),
+  );
+}
+
+export async function createRoom(data: { name: string; isActive?: boolean }) {
+  return withMongoId(
+    await prisma.room.create({
+      data: { isActive: true, ...data },
+    }),
+  );
+}
+
+export async function createSessionType(data: {
+  name: string;
+  slug: string;
+  defaultDurationMinutes: number;
+  isDurationFlexible?: boolean;
+  allowedModalities: Array<"individual" | "dupla" | "grupo">;
+  isActive?: boolean;
+}) {
+  return withMongoId(
+    await prisma.sessionType.create({
+      data: {
+        isDurationFlexible: false,
+        isActive: true,
+        ...data,
+      },
+    }),
+  );
 }
 
 export function buildSessionPayload(params: {
