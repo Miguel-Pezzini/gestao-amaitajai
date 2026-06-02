@@ -1,29 +1,40 @@
-# Backend
+# Backend — API Gestão AMA Itajaí
 
-API Express com PostgreSQL (Prisma), escrita em **TypeScript**.
+API REST em **Express 5** e **TypeScript**, com **Prisma** e **PostgreSQL**. Responsável por autenticação, cadastro de pacientes, agenda de sessões e cadastros gerais.
+
+Para contexto do projeto e setup completo, veja o [`README.md`](../README.md) na raiz.
+
+---
 
 ## Pré-requisitos
 
 - Node.js 20+
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (PostgreSQL local)
+- Docker (PostgreSQL local)
 
-## Configuração
+---
 
-```powershell
+## Primeira configuração
+
+```bash
 cd backend
-copy .env.example .env
+cp .env.example .env
 npm install
 docker compose up -d
 npm run db:migrate
+npm run db:seed:session-types   # opcional: tipos de sessão iniciais
 ```
 
 ## Desenvolvimento
 
-```powershell
+```bash
 npm run dev
 ```
 
-API em `http://localhost:3000` · health check: `GET /api/health`
+- Base URL: `http://localhost:3000`
+- Health check: `GET /api/health`
+- Rotas autenticadas exigem cookie de sessão (definido no login)
+
+---
 
 ## Scripts
 
@@ -35,35 +46,131 @@ API em `http://localhost:3000` · health check: `GET /api/health`
 | `npm run typecheck` | Verifica tipos sem gerar arquivos |
 | `npm run db:migrate` | Cria/aplica migrations em desenvolvimento |
 | `npm run db:migrate:deploy` | Aplica migrations (CI/produção) |
+| `npm run db:seed:session-types` | Seed de tipos de sessão |
 | `npm test` | Sobe Postgres de teste, aplica migrations e roda Vitest |
 
-## Estrutura
+---
+
+## Estrutura de pastas
 
 ```
-prisma/          # schema e migrations
-src/
-  config/        # variáveis de ambiente e conexão
-  db/            # Prisma client e serialização da API (_id)
-  domain/        # enums e constantes de negócio
-  middlewares/   # autenticação
-  routes/        # rotas HTTP
-  services/      # regras de negócio
-  validators/    # validação de entrada
-  types/         # declarações TypeScript (ex.: Express Request)
-  app.ts         # Express
-  index.ts       # entrada
-dist/            # saída do `tsc` (gerado)
+backend/
+├── prisma/
+│   ├── schema.prisma      # Modelos e enums
+│   └── migrations/        # Histórico SQL
+├── src/
+│   ├── config/            # env, conexão
+│   ├── db/                # Prisma client, serialização (_id)
+│   ├── domain/            # Enums e constantes de negócio (agenda)
+│   ├── errors/            # AppError e erros HTTP
+│   ├── middlewares/       # auth, requireAdmin
+│   ├── routes/            # Rotas Express por domínio
+│   ├── services/          # Regras de negócio
+│   ├── validators/        # Validação de entrada (agenda, etc.)
+│   ├── types/             # Augmentação do Express Request
+│   ├── app.ts
+│   └── index.ts
+├── scripts/               # Seeds e utilitários
+└── test-with-postgres.sh  # Orquestra testes com Docker
 ```
+
+### Camadas (como pensar o código)
+
+1. **`routes/`** — recebe HTTP, chama service, trata `AppError`.
+2. **`validators/`** — normaliza e valida body/query; lança erro 400 se inválido.
+3. **`services/`** — regras de negócio, transações Prisma, conflitos de agenda.
+4. **`db/serialize.ts`** — converte `id` do Prisma para `_id` na resposta JSON.
+
+Evite lógica pesada nas rotas; mantenha services focados por domínio.
+
+---
+
+## Rotas principais
+
+Todas abaixo de `/api` (prefixo configurado em `app.ts`).
+
+| Prefixo | Autenticação | Descrição |
+|---|---|---|
+| `/auth` | Público (login) / autenticado (logout, me) | Sessão JWT em cookie httpOnly |
+| `/patients` | Autenticado | CRUD de pacientes |
+| `/users` | Admin | Funcionários e perfis |
+| `/agenda` | Autenticado | Sessões, lookups, salas, modalidades, tipos |
+| `/health` | Público | Status da API |
+
+Detalhes de payload e regras de sessão: [`../docs/MODELAGEM-DADOS-AGENDA.md`](../docs/MODELAGEM-DADOS-AGENDA.md).
+
+### Autorização
+
+- `requireAuth` — usuário logado
+- `requireAdmin` — perfil `administrador`
+
+Técnico autenticado acessa agenda, mas o service restringe alterações (ex.: só marca `realizada` na própria sessão).
+
+---
+
+## Modelo de dados (resumo)
+
+Definido em `prisma/schema.prisma`:
+
+| Entidade | Papel |
+|---|---|
+| `User` | Funcionário (`administrador` \| `tecnico`) |
+| `Patient` | Paciente com `FundingSource` |
+| `Room` | Sala de atendimento |
+| `SessionType` | Tipo (PSICOPED, INTENSIVO, etc.) |
+| `Session` | Sessão agendada com status `agendada` \| `realizada` \| `cancelada` |
+| `SessionPatient` / `SessionProfessional` | N:N pacientes e profissionais na sessão |
+| `SessionModalitySetting` | Limites min/max por modalidade |
+
+---
+
+## Testes
+
+```bash
+npm test
+```
+
+- Usa `docker-compose.test.yml` para subir um Postgres isolado.
+- Testes de integração em `src/routes/*.integration.test.ts` (ex.: agenda).
+- Ao adicionar endpoint novo com regra de negócio, prefira teste de integração cobrindo sucesso e erro esperado.
+
+---
 
 ## PostgreSQL local (Docker)
 
-Parar (mantém dados): `docker compose down`  
-Remover dados: `docker compose down -v`
+Parar (mantém dados):
 
-### Shell do Postgres
+```bash
+docker compose down
+```
 
-```powershell
+Remover volume de dados:
+
+```bash
+docker compose down -v
+```
+
+Shell interativo:
+
+```bash
 docker compose exec postgres psql -U admin -d gestao_amaitajai
 ```
 
-(Ajuste usuário e senha conforme o seu `.env`.)
+(Ajuste usuário e banco conforme seu `.env`.)
+
+---
+
+## Variáveis de ambiente
+
+Copie `.env.example` para `.env`. Campos típicos:
+
+- `DATABASE_URL` — conexão PostgreSQL
+- `JWT_SECRET` — assinatura do token de sessão
+- `CORS_ORIGIN` — origem do frontend (ex.: `http://localhost:5173`)
+- `PORT` — porta da API (padrão 3000)
+
+---
+
+## Skills para agentes de IA
+
+Convenções específicas deste backend: [`skills/README.md`](skills/README.md).
