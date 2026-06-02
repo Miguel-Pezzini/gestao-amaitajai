@@ -1,12 +1,11 @@
 import bcrypt from "bcryptjs";
 import request from "supertest";
 import { expect } from "vitest";
-import app from "../app.js";
-import { prisma } from "../db/prisma.js";
-import { withMongoId } from "../db/serialize.js";
-import type { UserRole } from "../domain/agenda.js";
-
-const SALT_ROUNDS = Number(process.env.BCRYPT_SALT_ROUNDS ?? 4);
+import app from "../../../src/app.js";
+import { env } from "../../../src/config/env.js";
+import { prisma } from "../../../src/db/prisma.js";
+import { withMongoId } from "../../../src/db/serialize.js";
+import type { UserRole } from "../../../src/domain/agenda.js";
 
 export async function createUser(params: {
   name: string;
@@ -14,7 +13,7 @@ export async function createUser(params: {
   password: string;
   role: UserRole;
 }) {
-  const passwordHash = await bcrypt.hash(params.password, SALT_ROUNDS);
+  const passwordHash = await bcrypt.hash(params.password, env.bcryptSaltRounds);
   const user = await prisma.user.create({
     data: {
       name: params.name,

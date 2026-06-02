@@ -1,12 +1,12 @@
 import express from "express";
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import app from "../app.js";
+import app from "../../src/app.js";
 import {
   connectDatabase,
   disconnectDatabase,
-} from "../config/database.js";
-import { createLoginRateLimiter } from "../middlewares/login-rate-limit.middleware.js";
+} from "../../src/config/database.js";
+import { createLoginRateLimiter } from "../../src/middlewares/login-rate-limit.middleware.js";
 
 describe("API security hardening", () => {
   beforeAll(async () => {

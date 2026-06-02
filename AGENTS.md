@@ -25,7 +25,7 @@ Para cada feature ou fix, seguir este ciclo:
    - O que deve funcionar.
    - O que deve falhar (erro esperado).
 2. **Escrever/ajustar teste primeiro**
-   - Backend: integração e/ou unitário (Vitest).
+   - Backend: integração em `backend/tests/integration/` e unitários em `backend/tests/unit/` (Vitest).
    - Frontend: se houver testes, adicionar/ajustar antes da implementação.
 3. **Rodar testes e confirmar falha inicial** (red).
 4. **Implementar a menor mudança possível**.
@@ -39,7 +39,9 @@ Para cada feature ou fix, seguir este ciclo:
 
 No diretório `backend/`:
 
-- `npm test`
+- `npm test` — integração (Postgres de teste) + unitários, se existirem
+- `npm run test:integration` — mesmo que `npm test` (só pasta `tests/integration/`)
+- `npm run test:unit` — só `tests/unit/` (sem Docker)
 - `npm run typecheck`
 
 ### Frontend

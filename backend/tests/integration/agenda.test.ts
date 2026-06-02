@@ -1,12 +1,12 @@
 import request from "supertest";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import app from "../app.js";
+import app from "../../src/app.js";
 import {
   connectDatabase,
   disconnectDatabase,
   resetDatabaseForTests,
-} from "../config/database.js";
-import { prisma } from "../db/prisma.js";
+} from "../../src/config/database.js";
+import { prisma } from "../../src/db/prisma.js";
 import { randomUUID } from "node:crypto";
 import {
   buildSessionPayload,
@@ -16,7 +16,7 @@ import {
   createUser,
   loginAndGetCookie,
   seedAgendaBase,
-} from "./agenda.integration.helpers.js";
+} from "./helpers/test-helpers.js";
 
 describe("Agenda integration", () => {
   beforeAll(async () => {

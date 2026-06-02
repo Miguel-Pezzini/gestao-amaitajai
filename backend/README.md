@@ -126,13 +126,31 @@ Definido em `prisma/schema.prisma`:
 
 ## Testes
 
-```bash
-npm test
+Estrutura na raiz do backend:
+
+```
+tests/
+├── setup.ts              # env de teste (NODE_ENV=test, TEST_DATABASE_URL)
+├── integration/          # API + PostgreSQL (Supertest)
+│   ├── helpers/          # createUser, loginAndGetCookie, seedAgendaBase, …
+│   ├── auth.test.ts
+│   ├── patients.test.ts
+│   ├── authorization.test.ts
+│   ├── agenda.test.ts
+│   └── security.test.ts
+└── unit/                 # validators e funções puras (sem Docker)
 ```
 
-- Usa `docker-compose.test.yml` para subir um Postgres isolado.
-- Testes de integração em `src/routes/*.integration.test.ts` (ex.: agenda).
-- Ao adicionar endpoint novo com regra de negócio, prefira teste de integração cobrindo sucesso e erro esperado.
+```bash
+npm test                  # integração (sobe Postgres de teste) + unit
+npm run test:integration  # alias de npm test
+npm run test:unit         # só tests/unit/
+npm run test:watch        # vitest em modo watch
+```
+
+- Integração usa `docker-compose.test.yml` para Postgres isolado (`test-with-postgres.sh`). Arquivos rodam em série (`fileParallelism: false`) por compartilharem o mesmo banco.
+- Ao adicionar endpoint com regra de negócio, prefira teste em `tests/integration/` cobrindo sucesso e erro esperado.
+- Helpers compartilhados: `tests/integration/helpers/test-helpers.ts`.
 
 ---
 

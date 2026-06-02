@@ -140,7 +140,7 @@ A configuração de menu e rotas protegidas está em `frontend/src/config/module
 | Onde | Comando | Para quê |
 |---|---|---|
 | `backend/` | `npm run dev` | API com hot reload |
-| `backend/` | `npm test` | Testes de integração |
+| `backend/` | `npm test` | Testes (`tests/integration/` + `tests/unit/`) |
 | `backend/` | `npm run typecheck` | Verificar tipos |
 | `frontend/` | `npm run dev` | App com hot reload |
 | `frontend/` | `npm run build` | Validar build de produção |
@@ -180,7 +180,7 @@ No frontend, priorizar componentes em `frontend/src/components/ui/` (shadcn/ui) 
 
 1. Atualize sua branch com `main` e crie uma branch para a tarefa.
 2. Leia a documentação do módulo em `docs/` se for agenda ou cadastro.
-3. **Backend:** escreva ou ajuste teste em `*.integration.test.ts` antes da implementação quando fizer sentido.
+3. **Backend:** escreva ou ajuste teste em `backend/tests/integration/` (ou `tests/unit/`) antes da implementação quando fizer sentido.
 4. **Frontend:** rode `npm run build` ao finalizar.
 5. Atualize `TODO.md` se a tarefa mudar o status de algo listado.
 6. Para features da agenda, registre em `docs/features/` conforme [`docs/PROTOCOLO-IA.md`](docs/PROTOCOLO-IA.md).

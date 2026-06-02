@@ -1,6 +1,6 @@
-import "dotenv/config";
-
 process.env.NODE_ENV = "test";
+
+import "dotenv/config";
 
 const requiredTestEnv = [
   "JWT_SECRET",
