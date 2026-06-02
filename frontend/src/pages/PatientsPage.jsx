@@ -468,7 +468,7 @@ export function PatientsPage() {
               </select>
             </div>
             <Button
-              className="w-full bg-ama-cyan text-ama-blue-dark hover:bg-ama-cyan/90 sm:col-span-2 sm:w-auto"
+              className="justify-self-start bg-ama-cyan px-6 text-ama-blue-dark shadow-sm hover:bg-ama-cyan/90 sm:col-span-2 sm:justify-self-end"
               onClick={loadPatients}
               disabled={loading}
             >

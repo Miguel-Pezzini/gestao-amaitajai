@@ -152,7 +152,7 @@ export function AppLayout() {
         ) : null}
 
         <div className="flex-1 px-4 py-4 sm:px-6 sm:py-6 md:px-8">
-          <div className="mx-auto w-full min-w-0 max-w-6xl">
+          <div className="w-full min-w-0">
             <Outlet />
           </div>
         </div>
