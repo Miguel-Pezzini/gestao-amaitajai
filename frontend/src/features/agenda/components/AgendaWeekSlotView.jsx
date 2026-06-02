@@ -3,7 +3,7 @@ import { AgendaWeekSlotChip } from "@/features/agenda/components/AgendaWeekSlotC
 import { CalendarDayNumber } from "@/features/agenda/components/CalendarDayNumber";
 import {
   buildWeekDays,
-  formatWeekdayShort,
+  formatWeekdayLong,
   isToday,
   isWeekend,
   toCalendarKey,
@@ -33,18 +33,17 @@ function weekDayHeaderClass(today) {
 function WeekDayHeader({ date, onOpenDay }) {
   const today = isToday(date);
   const weekend = isWeekend(date);
-  const weekday = formatWeekdayShort(date);
+  const weekday = formatWeekdayLong(date);
 
   const content = (
     <div className="flex flex-col items-center gap-1 py-1">
       <span
         className={cn(
-          "text-[11px] font-semibold uppercase sm:text-xs",
+          "text-[11px] font-semibold capitalize sm:text-xs",
           weekend ? "text-muted-foreground/50" : today ? "text-ama-blue" : "text-ama-blue-dark",
         )}
       >
-        <span className="sm:hidden">{weekday.charAt(0)}</span>
-        <span className="hidden sm:inline">{weekday}</span>
+        {weekday}
       </span>
       <CalendarDayNumber date={date} className="!size-7 !text-xs sm:!size-8 sm:!text-sm" />
     </div>
@@ -115,7 +114,7 @@ function WeekSlotCell({ date, timeKey, sessions, onOpenSession, onOpenCreate, is
           type="button"
           className="flex h-8 w-full items-center text-left transition hover:bg-ama-light/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ama-blue/40"
           onClick={handleCreate}
-          aria-label={`Agendar sessão ${formatWeekdayShort(date)} às ${timeKey}`}
+          aria-label={`Agendar sessão ${formatWeekdayLong(date)} às ${timeKey}`}
           title={`Agendar às ${timeKey}`}
         />
       </td>
@@ -129,7 +128,7 @@ function WeekSlotCell({ date, timeKey, sessions, onOpenSession, onOpenCreate, is
           type="button"
           className="absolute inset-0 z-0 transition hover:bg-ama-light/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ama-blue/40"
           onClick={handleCreate}
-          aria-label={`Agendar sessão ${formatWeekdayShort(date)} às ${timeKey}`}
+          aria-label={`Agendar sessão ${formatWeekdayLong(date)} às ${timeKey}`}
           title={`Agendar às ${timeKey}`}
         />
       ) : null}

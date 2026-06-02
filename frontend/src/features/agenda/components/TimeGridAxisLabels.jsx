@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 
 export function TimeGridAxisLabels() {
   const labels = buildTimeAxisLabels();
+  const lastLabelIndex = labels.length - 1;
 
   return (
     <div
@@ -14,11 +15,16 @@ export function TimeGridAxisLabels() {
       }}
       aria-hidden="true"
     >
-      {labels.map((item) => (
+      {labels.map((item, index) => (
         <span
           key={item.label}
           className={cn(
-            "absolute right-1 -translate-y-1/2 tabular-nums text-muted-foreground",
+            "absolute right-1 tabular-nums text-muted-foreground",
+            index === 0
+              ? "translate-y-0"
+              : index === lastLabelIndex
+                ? "-translate-y-full"
+                : "-translate-y-1/2",
             item.isHour
               ? "text-[10px] font-semibold sm:text-xs"
               : "text-[9px] opacity-80 sm:text-[10px]",

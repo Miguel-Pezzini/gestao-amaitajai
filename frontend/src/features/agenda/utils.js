@@ -57,6 +57,10 @@ export function formatWeekdayShort(date) {
   return new Intl.DateTimeFormat(undefined, { weekday: "short" }).format(date);
 }
 
+export function formatWeekdayLong(date) {
+  return new Intl.DateTimeFormat("pt-BR", { weekday: "long" }).format(date);
+}
+
 /** Cabeçalho domingo → sábado; dias úteis (seg–sex) no centro. */
 export const WEEKDAY_HEADERS = ["dom", "seg", "ter", "qua", "qui", "sex", "sab"];
 

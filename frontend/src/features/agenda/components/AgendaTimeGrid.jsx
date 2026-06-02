@@ -22,24 +22,23 @@ import {
   prepareAgendaDaySideBySideBlocks,
   prepareAgendaTimeGridBlocks,
 } from "@/features/agenda/utils/timeGridLayout";
-import { formatWeekdayShort, isToday, isWeekend, toCalendarKey } from "@/features/agenda/utils";
+import { formatWeekdayLong, isToday, isWeekend, toCalendarKey } from "@/features/agenda/utils";
 import { cn } from "@/lib/utils";
 
 function TimeGridDayHeader({ date, onOpenDay }) {
   const today = isToday(date);
   const weekend = isWeekend(date);
-  const weekday = formatWeekdayShort(date);
+  const weekday = formatWeekdayLong(date);
 
   const content = (
     <>
       <span
         className={cn(
-          "text-[11px] font-semibold uppercase sm:text-xs",
+          "text-[11px] font-semibold capitalize sm:text-xs",
           weekend ? "text-muted-foreground/50" : today ? "text-ama-blue" : "text-ama-blue-dark",
         )}
       >
-        <span className="sm:hidden">{weekday.charAt(0)}</span>
-        <span className="hidden sm:inline">{weekday}</span>
+        {weekday}
       </span>
       <span
         className={cn(
@@ -157,8 +156,8 @@ function TimeGridDayColumn({
           weekend
             ? undefined
             : canCreateOnGrid
-              ? `Agendar em ${formatWeekdayShort(date)}. Clique em um horário vazio.`
-              : `Sessões de ${formatWeekdayShort(date)}. Clique para ver o dia.`
+              ? `Agendar em ${formatWeekdayLong(date)}. Clique em um horário vazio.`
+              : `Sessões de ${formatWeekdayLong(date)}. Clique para ver o dia.`
         }
       >
         <TimeGridSlotLines />

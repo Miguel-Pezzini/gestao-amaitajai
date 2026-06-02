@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { CardContent } from "@/components/ui/card";
 import { AgendaTimeGrid } from "@/features/agenda/components/AgendaTimeGrid";
 import { CalendarDayNumber } from "@/features/agenda/components/CalendarDayNumber";
-import { formatWeekdayShort, isToday } from "@/features/agenda/utils";
+import { formatWeekdayLong, isToday } from "@/features/agenda/utils";
 import { cn } from "@/lib/utils";
 
 export function AgendaDayView({
@@ -28,7 +28,7 @@ export function AgendaDayView({
           <CalendarDayNumber date={referenceDate} className="!size-9 !text-base sm:!size-10" />
           <div>
             <p className="text-sm font-semibold capitalize text-ama-blue-dark">
-              {formatWeekdayShort(referenceDate)}
+              {formatWeekdayLong(referenceDate)}
             </p>
             {today ? (
               <p className="text-xs font-medium text-ama-blue">Hoje</p>
