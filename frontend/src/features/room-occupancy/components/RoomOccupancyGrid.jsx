@@ -17,7 +17,7 @@ import {
   formatHourLabel,
   prepareOccupancyGridBlocks,
 } from "@/features/room-occupancy/utils";
-import { formatWeekdayShort, isToday, toCalendarKey } from "@/features/agenda/utils";
+import { formatWeekdayLong, isToday, toCalendarKey } from "@/features/agenda/utils";
 import { cn } from "@/lib/utils";
 
 function DayColumnHeader({ date }) {
@@ -31,7 +31,7 @@ function DayColumnHeader({ date }) {
       )}
     >
       <p className="text-xs font-semibold uppercase text-muted-foreground">
-        {formatWeekdayShort(date)}
+        {formatWeekdayLong(date)}
       </p>
       <p className={cn("text-sm font-semibold capitalize", today && "text-ama-blue")}>
         {new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit" }).format(date)}
@@ -54,7 +54,7 @@ function DayColumn({ date, sessions, onOpenSession }) {
       <div
         className="relative"
         style={{ height: `${AGENDA_TIME_GRID_HEIGHT_PX}px` }}
-        aria-label={`Ocupação ${formatWeekdayShort(date)}`}
+        aria-label={`Ocupação ${formatWeekdayLong(date)}`}
       >
         <TimeGridSlotLines />
 
@@ -80,7 +80,7 @@ function DayColumn({ date, sessions, onOpenSession }) {
 
 function DaySummary({ date, sessions }) {
   const gaps = computeDayFreeGaps(sessions);
-  const weekday = formatWeekdayShort(date);
+  const weekday = formatWeekdayLong(date);
 
   if (sessions.length === 0 && gaps.length === 1) {
     return (

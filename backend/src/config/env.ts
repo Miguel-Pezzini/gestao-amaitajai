@@ -23,12 +23,17 @@ if (!cookieSameSiteOptions.includes(cookieSameSiteRaw as (typeof cookieSameSiteO
 }
 const cookieSameSite = cookieSameSiteRaw as (typeof cookieSameSiteOptions)[number];
 
+const nodeEnv = process.env.NODE_ENV ?? "development";
+
 export const env = {
   port: Number(process.env.PORT),
   databaseUrl: process.env.DATABASE_URL as string,
   corsOrigin: process.env.CORS_ORIGIN ?? "http://localhost:5173",
-  nodeEnv: process.env.NODE_ENV ?? "development",
-  isProduction: (process.env.NODE_ENV ?? "development") === "production",
+  nodeEnv,
+  isProduction: nodeEnv === "production",
+  isTest: nodeEnv === "test",
+  loginRateLimitWindowMs: Number(process.env.LOGIN_RATE_LIMIT_WINDOW_MS ?? 15 * 60 * 1000),
+  loginRateLimitMax: Number(process.env.LOGIN_RATE_LIMIT_MAX ?? 10),
   jwtSecret: process.env.JWT_SECRET as string,
   jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? "8h",
   jwtCookieName: process.env.JWT_COOKIE_NAME ?? "ama_access_token",

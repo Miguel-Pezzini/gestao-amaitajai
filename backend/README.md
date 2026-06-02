@@ -160,6 +160,14 @@ docker compose exec postgres psql -U admin -d gestao_amaitajai
 
 ---
 
+## Segurança da API
+
+- **Helmet** — headers HTTP padrão (`X-Content-Type-Options`, `X-Frame-Options`, etc.).
+- **Rate limit no login** — `POST /api/auth/login` limitado por IP (padrão: 10 tentativas / 15 min). Desativado em `NODE_ENV=test`.
+- **Health com banco** — `GET /api/health` retorna `{ status, database }`; responde `503` se o PostgreSQL não responder.
+- **Erros centralizados** — middleware global trata `AppError` e oculta detalhes internos em produção.
+- **Produção atrás de proxy** — `trust proxy` habilitado quando `NODE_ENV=production` (Railway, etc.) para o rate limit usar o IP real.
+
 ## Variáveis de ambiente
 
 Copie `.env.example` para `.env`. Campos típicos:
@@ -168,6 +176,7 @@ Copie `.env.example` para `.env`. Campos típicos:
 - `JWT_SECRET` — assinatura do token de sessão
 - `CORS_ORIGIN` — origem do frontend (ex.: `http://localhost:5173`)
 - `PORT` — porta da API (padrão 3000)
+- `LOGIN_RATE_LIMIT_MAX` / `LOGIN_RATE_LIMIT_WINDOW_MS` — limite de tentativas de login
 
 ---
 
