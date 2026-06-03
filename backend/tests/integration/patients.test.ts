@@ -1,13 +1,9 @@
 import request from "supertest";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import app from "../../src/app.js";
-import {
-  connectDatabase,
-  disconnectDatabase,
-  resetDatabaseForTests,
-} from "../../src/config/database.js";
 import { randomUUID } from "node:crypto";
 import { createUser, loginAndGetCookie } from "./helpers/test-helpers.js";
+import { useIntegrationTestDatabase } from "./helpers/integration-db.js";
 
 const validPatientPayload = {
   fullName: "João da Silva",
@@ -20,12 +16,9 @@ const validPatientPayload = {
 describe("Pacientes", () => {
   let adminCookie: string;
 
-  beforeAll(async () => {
-    await connectDatabase();
-  }, 15000);
+  useIntegrationTestDatabase();
 
   beforeEach(async () => {
-    await resetDatabaseForTests();
     const admin = await createUser({
       name: "Admin Pacientes",
       email: "admin@patients.test",
@@ -34,10 +27,6 @@ describe("Pacientes", () => {
     });
     adminCookie = await loginAndGetCookie(admin.email, "admin123456");
   });
-
-  afterAll(async () => {
-    await disconnectDatabase();
-  }, 15000);
 
   it("exige autenticação para listar pacientes", async () => {
     const response = await request(app).get("/api/patients");

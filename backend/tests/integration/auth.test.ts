@@ -1,26 +1,12 @@
 import request from "supertest";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import app from "../../src/app.js";
-import {
-  connectDatabase,
-  disconnectDatabase,
-  resetDatabaseForTests,
-} from "../../src/config/database.js";
 import { prisma } from "../../src/db/prisma.js";
 import { createUser, loginAndGetCookie } from "./helpers/test-helpers.js";
+import { useIntegrationTestDatabase } from "./helpers/integration-db.js";
 
 describe("Autenticação", () => {
-  beforeAll(async () => {
-    await connectDatabase();
-  }, 15000);
-
-  beforeEach(async () => {
-    await resetDatabaseForTests();
-  });
-
-  afterAll(async () => {
-    await disconnectDatabase();
-  }, 15000);
+  useIntegrationTestDatabase();
 
   it("autentica com credenciais válidas e define cookie de sessão", async () => {
     const password = "senha123456";

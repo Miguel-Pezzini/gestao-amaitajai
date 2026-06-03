@@ -1,24 +1,16 @@
 import request from "supertest";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import app from "../../src/app.js";
-import {
-  connectDatabase,
-  disconnectDatabase,
-  resetDatabaseForTests,
-} from "../../src/config/database.js";
 import { createUser, loginAndGetCookie } from "./helpers/test-helpers.js";
+import { useIntegrationTestDatabase } from "./helpers/integration-db.js";
 
 describe("Autorização por perfil", () => {
   let adminCookie: string;
   let tecnicoCookie: string;
 
-  beforeAll(async () => {
-    await connectDatabase();
-  }, 15000);
+  useIntegrationTestDatabase();
 
   beforeEach(async () => {
-    await resetDatabaseForTests();
-
     const admin = await createUser({
       name: "Admin Authz",
       email: "admin@authz.test",
@@ -35,10 +27,6 @@ describe("Autorização por perfil", () => {
     adminCookie = await loginAndGetCookie(admin.email, "admin123456");
     tecnicoCookie = await loginAndGetCookie(tecnico.email, "tech123456");
   });
-
-  afterAll(async () => {
-    await disconnectDatabase();
-  }, 15000);
 
   describe("funcionários (/users)", () => {
     it("exige autenticação", async () => {

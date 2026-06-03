@@ -1,11 +1,6 @@
 import request from "supertest";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import app from "../../src/app.js";
-import {
-  connectDatabase,
-  disconnectDatabase,
-  resetDatabaseForTests,
-} from "../../src/config/database.js";
 import { prisma } from "../../src/db/prisma.js";
 import { randomUUID } from "node:crypto";
 import {
@@ -17,19 +12,10 @@ import {
   loginAndGetCookie,
   seedAgendaBase,
 } from "./helpers/test-helpers.js";
+import { useIntegrationTestDatabase } from "./helpers/integration-db.js";
 
 describe("Agenda integration", () => {
-  beforeAll(async () => {
-    await connectDatabase();
-  }, 15000);
-
-  beforeEach(async () => {
-    await resetDatabaseForTests();
-  });
-
-  afterAll(async () => {
-    await disconnectDatabase();
-  }, 15000);
+  useIntegrationTestDatabase();
 
   describe("autenticação e autorização", () => {
     it("bloqueia criação de sala para técnico e permite para administrador", async () => {
