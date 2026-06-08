@@ -16,7 +16,6 @@ import { useSession } from "@/contexts/session-context";
 import { getGoogleLoginUrl, login } from "@/services/auth";
 
 const LOGIN_ERROR_MESSAGES = {
-  conta_pendente: "Sua conta foi criada e aguarda ativação pelo administrador.",
   conta_inativa: "Conta inativa. Entre em contato com a administração.",
   dominio_nao_permitido: "Use seu e-mail institucional @amaitajai.org.br.",
   google_auth_falhou: "Não foi possível concluir o login com Google. Tente novamente.",

@@ -43,7 +43,6 @@ export async function ensureInitialAdminUser(): Promise<void> {
 export type LoginFailureReason =
   | "invalid_credentials"
   | "dominio_nao_permitido"
-  | "conta_pendente"
   | "conta_inativa"
   | "senha_nao_configurada";
 
@@ -62,10 +61,6 @@ export async function validateCredentials(email: string, password: string) {
 
   if (!user) {
     return { user: null, reason: "invalid_credentials" as const };
-  }
-
-  if (user.accountStatus === "pendente") {
-    return { user: null, reason: "conta_pendente" as const };
   }
 
   if (user.accountStatus === "inativo") {
@@ -141,8 +136,6 @@ export function loginFailureMessage(reason: LoginFailureReason): string {
   switch (reason) {
     case "dominio_nao_permitido":
       return `Use seu e-mail institucional @${env.allowedEmailDomain}.`;
-    case "conta_pendente":
-      return "Sua conta aguarda ativação pelo administrador.";
     case "conta_inativa":
       return "Conta inativa. Entre em contato com a administração.";
     case "senha_nao_configurada":

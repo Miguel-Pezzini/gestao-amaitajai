@@ -215,11 +215,6 @@ export function UsuariosPage() {
     [users],
   );
 
-  const pendingCount = useMemo(
-    () => users.filter((item) => item.accountStatus === "pendente").length,
-    [users],
-  );
-
   function resetForm() {
     setForm(EMPTY_FORM);
     setEditingId("");
@@ -348,7 +343,7 @@ export function UsuariosPage() {
           <div className="min-w-0">
             <CardTitle className="text-base text-ama-blue-dark">Funcionários cadastrados</CardTitle>
             <CardDescription className="break-words">
-              {activeCount} ativos, {pendingCount} pendentes em {users.length} carregado(s).
+              {activeCount} ativos em {users.length} carregado(s).
             </CardDescription>
           </div>
 
@@ -386,7 +381,6 @@ export function UsuariosPage() {
                 onChange={(event) => setStatusFilter(event.target.value)}
               >
                 <option value="active">Apenas ativos</option>
-                <option value="pending">Apenas pendentes</option>
                 <option value="inactive">Apenas inativos</option>
                 <option value="all">Todos</option>
               </select>
@@ -445,31 +439,20 @@ export function UsuariosPage() {
                           >
                             Editar
                           </Button>
-                          {item.accountStatus === "pendente" ? (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className={entityListActionButtonClassName()}
-                              onClick={() => handleStatusChange(item, "ativo")}
-                            >
-                              Ativar
-                            </Button>
-                          ) : (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className={entityListActionButtonClassName()}
-                              onClick={() =>
-                                handleStatusChange(
-                                  item,
-                                  item.accountStatus === "ativo" ? "inativo" : "ativo",
-                                )
-                              }
-                              disabled={isSelf && item.accountStatus === "ativo"}
-                            >
-                              {item.accountStatus === "ativo" ? "Inativar" : "Reativar"}
-                            </Button>
-                          )}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className={entityListActionButtonClassName()}
+                            onClick={() =>
+                              handleStatusChange(
+                                item,
+                                item.accountStatus === "ativo" ? "inativo" : "ativo",
+                              )
+                            }
+                            disabled={isSelf && item.accountStatus === "ativo"}
+                          >
+                            {item.accountStatus === "ativo" ? "Inativar" : "Reativar"}
+                          </Button>
                         </>
                       }
                     >

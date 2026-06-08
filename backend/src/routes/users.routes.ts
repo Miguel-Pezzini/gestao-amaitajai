@@ -139,8 +139,6 @@ function buildWhere(queryParams: Request["query"]): Prisma.UserWhereInput {
     where.accountStatus = "ativo";
   } else if (status === "inactive") {
     where.accountStatus = "inativo";
-  } else if (status === "pending") {
-    where.accountStatus = "pendente";
   }
 
   return where;
@@ -157,11 +155,6 @@ const userSelect = {
 } as const;
 
 router.use("/users", requireAuth, requireAdmin);
-
-router.get("/users/pending-count", async (_req: Request, res: Response) => {
-  const total = await prisma.user.count({ where: { accountStatus: "pendente" } });
-  res.status(200).json({ total });
-});
 
 router.get("/users", async (req: Request, res: Response) => {
   const page = parsePositiveInt(req.query.page, 1);

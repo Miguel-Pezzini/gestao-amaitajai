@@ -17,7 +17,7 @@ export interface GoogleUserProfile {
 
 export class GoogleAuthError extends Error {
   constructor(
-    readonly code: "dominio_nao_permitido" | "conta_pendente" | "conta_inativa" | "oauth_nao_configurado",
+    readonly code: "dominio_nao_permitido" | "conta_inativa" | "oauth_nao_configurado",
     message?: string,
   ) {
     super(message ?? code);
@@ -99,13 +99,15 @@ export async function findOrProvisionGoogleUser(profile: GoogleUserProfile) {
   if (existingUser) {
     const needsGoogleId = !existingUser.googleId;
     const needsEmail = existingUser.email !== normalizedEmail;
+    const needsActivation = existingUser.accountStatus === "pendente";
 
-    if (needsGoogleId || needsEmail) {
+    if (needsGoogleId || needsEmail || needsActivation) {
       return prisma.user.update({
         where: { id: existingUser.id },
         data: {
           ...(needsGoogleId ? { googleId: profile.googleId } : {}),
           ...(needsEmail ? { email: normalizedEmail } : {}),
+          ...(needsActivation ? { accountStatus: "ativo" } : {}),
         },
       });
     }
@@ -119,17 +121,13 @@ export async function findOrProvisionGoogleUser(profile: GoogleUserProfile) {
       email: normalizedEmail,
       googleId: profile.googleId,
       role: "tecnico",
-      accountStatus: "pendente",
+      accountStatus: "ativo",
       passwordHash: null,
     },
   });
 }
 
 export function assertUserCanAuthenticate(user: { accountStatus: string }): void {
-  if (user.accountStatus === "pendente") {
-    throw new GoogleAuthError("conta_pendente");
-  }
-
   if (user.accountStatus === "inativo") {
     throw new GoogleAuthError("conta_inativa");
   }

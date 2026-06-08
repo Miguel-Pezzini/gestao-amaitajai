@@ -19,8 +19,3 @@ export async function updateUserStatus(userId, accountStatus) {
   const { data } = await api.patch(`/users/${userId}/status`, { accountStatus });
   return data;
 }
-
-export async function getPendingUsersCount() {
-  const { data } = await getOnce("/users/pending-count");
-  return data;
-}

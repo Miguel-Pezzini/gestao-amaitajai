@@ -36,12 +36,8 @@ export async function requireAuth(
       return;
     }
 
-    if (user.accountStatus !== "ativo") {
-      const message =
-        user.accountStatus === "pendente"
-          ? "Conta pendente de ativação."
-          : "Conta inativa.";
-      res.status(403).json({ message });
+    if (user.accountStatus === "inativo") {
+      res.status(403).json({ message: "Conta inativa." });
       return;
     }
 

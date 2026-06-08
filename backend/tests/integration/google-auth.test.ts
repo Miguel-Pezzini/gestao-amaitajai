@@ -5,7 +5,6 @@ import { prisma } from "../../src/db/prisma.js";
 import {
   authenticateGoogleCode,
   findOrProvisionGoogleUser,
-  GoogleAuthError,
 } from "../../src/services/google-auth.service.js";
 import { createUser, loginAndGetCookie } from "./helpers/test-helpers.js";
 import { useIntegrationTestDatabase } from "./helpers/integration-db.js";
@@ -41,25 +40,6 @@ describe("Autenticação Google", () => {
     expect(response.body.code).toBe("dominio_nao_permitido");
   });
 
-  it("rejeita login por senha para conta pendente", async () => {
-    await prisma.user.create({
-      data: {
-        name: "Pendente",
-        email: "pendente@amaitajai.org.br",
-        passwordHash: null,
-        role: "tecnico",
-        accountStatus: "pendente",
-      },
-    });
-
-    const response = await request(app)
-      .post("/api/auth/login")
-      .send({ email: "pendente@amaitajai.org.br", password: "qualquer123" });
-
-    expect(response.status).toBe(401);
-    expect(response.body.code).toBe("conta_pendente");
-  });
-
   it("rejeita login por senha quando usuário não possui senha configurada", async () => {
     await prisma.user.create({
       data: {
@@ -80,7 +60,7 @@ describe("Autenticação Google", () => {
     expect(response.body.code).toBe("senha_nao_configurada");
   });
 
-  it("cria usuário pendente no primeiro login Google", async () => {
+  it("cria usuário ativo no primeiro login Google", async () => {
     const user = await findOrProvisionGoogleUser({
       googleId: "google-sub-2",
       email: "debora@amaitajai.org.br",
@@ -89,12 +69,12 @@ describe("Autenticação Google", () => {
     });
 
     expect(user.name).toBe("Debora");
-    expect(user.accountStatus).toBe("pendente");
+    expect(user.accountStatus).toBe("ativo");
     expect(user.passwordHash).toBeNull();
     expect(user.role).toBe("tecnico");
   });
 
-  it("permite login Google para usuário ativo e bloqueia pendente no callback", async () => {
+  it("permite login Google para usuário ativo e autoativa conta pendente existente", async () => {
     const activeUser = await createUser({
       name: "Ativo",
       email: "ativo@amaitajai.org.br",
@@ -121,25 +101,27 @@ describe("Autenticação Google", () => {
     expect(success.status).toBe(302);
     expect(success.headers.location).toBe("http://localhost:5173/");
 
-    const pendingUser = await findOrProvisionGoogleUser({
+    await prisma.user.create({
+      data: {
+        name: "Legado",
+        email: "legado@amaitajai.org.br",
+        passwordHash: null,
+        role: "tecnico",
+        accountStatus: "pendente",
+      },
+    });
+
+    const reactivated = await findOrProvisionGoogleUser({
       googleId: "google-sub-3",
-      email: "novo@amaitajai.org.br",
-      name: "novo usuario",
+      email: "legado@amaitajai.org.br",
+      name: "legado usuario",
       hostedDomain: "amaitajai.org.br",
     });
 
-    vi.mocked(authenticateGoogleCode).mockRejectedValueOnce(new GoogleAuthError("conta_pendente"));
-
-    const blocked = await request(app)
-      .get("/api/auth/google/callback?code=blocked&state=def")
-      .set("Cookie", ["ama_google_oauth_state=def"]);
-
-    expect(blocked.status).toBe(302);
-    expect(blocked.headers.location).toContain("error=conta_pendente");
-    expect(pendingUser.accountStatus).toBe("pendente");
+    expect(reactivated.accountStatus).toBe("ativo");
   });
 
-  it("permite administrador ativar usuário pendente", async () => {
+  it("permite administrador reativar usuário inativo", async () => {
     const adminPassword = "admin123456";
     const admin = await createUser({
       name: "Admin",
@@ -149,18 +131,18 @@ describe("Autenticação Google", () => {
     });
     const adminCookie = await loginAndGetCookie(admin.email, adminPassword);
 
-    const pending = await prisma.user.create({
+    const inactive = await prisma.user.create({
       data: {
-        name: "Pendente",
-        email: "ativar@amaitajai.org.br",
+        name: "Inativo",
+        email: "inativo@amaitajai.org.br",
         passwordHash: null,
         role: "tecnico",
-        accountStatus: "pendente",
+        accountStatus: "inativo",
       },
     });
 
     const response = await request(app)
-      .patch(`/api/users/${pending.id}/status`)
+      .patch(`/api/users/${inactive.id}/status`)
       .set("Cookie", adminCookie)
       .send({ accountStatus: "ativo" });
 
