@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { OAuth2Client } from "google-auth-library";
 import { env } from "../config/env.js";
-import { User } from "../models/user.model.js";
+import { prisma } from "../db/prisma.js";
 import {
   assertAllowedEmailDomain,
   formatGoogleDisplayName,
@@ -90,37 +90,38 @@ export async function findOrProvisionGoogleUser(profile: GoogleUserProfile) {
   validateGoogleProfile(profile);
 
   const normalizedEmail = normalizeEmail(profile.email);
-  const existingUser = await User.findOne({
-    $or: [{ email: normalizedEmail }, { googleId: profile.googleId }],
+  const existingUser = await prisma.user.findFirst({
+    where: {
+      OR: [{ email: normalizedEmail }, { googleId: profile.googleId }],
+    },
   });
 
   if (existingUser) {
-    let shouldSave = false;
+    const needsGoogleId = !existingUser.googleId;
+    const needsEmail = existingUser.email !== normalizedEmail;
 
-    if (!existingUser.googleId) {
-      existingUser.googleId = profile.googleId;
-      shouldSave = true;
-    }
-
-    if (existingUser.email !== normalizedEmail) {
-      existingUser.email = normalizedEmail;
-      shouldSave = true;
-    }
-
-    if (shouldSave) {
-      await existingUser.save();
+    if (needsGoogleId || needsEmail) {
+      return prisma.user.update({
+        where: { id: existingUser.id },
+        data: {
+          ...(needsGoogleId ? { googleId: profile.googleId } : {}),
+          ...(needsEmail ? { email: normalizedEmail } : {}),
+        },
+      });
     }
 
     return existingUser;
   }
 
-  return User.create({
-    name: formatGoogleDisplayName(profile.name),
-    email: normalizedEmail,
-    googleId: profile.googleId,
-    role: "tecnico",
-    accountStatus: "pendente",
-    passwordHash: null,
+  return prisma.user.create({
+    data: {
+      name: formatGoogleDisplayName(profile.name),
+      email: normalizedEmail,
+      googleId: profile.googleId,
+      role: "tecnico",
+      accountStatus: "pendente",
+      passwordHash: null,
+    },
   });
 }
 

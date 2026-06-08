@@ -1,8 +1,8 @@
 # Projeto de Extensão — Gestão AMA Itajaí
 
-Documento derivado do relatório formal de extensão da UNIVALI. Contém apenas o contexto necessário para orientar o desenvolvimento do sistema.
+Documento derivado do relatório formal de extensão da UNIVALI. Contém o contexto acadêmico e institucional do projeto.
 
-**Documentos relacionados:** [`REQUISITOS.md`](REQUISITOS.md) (requisitos detalhados, casos de uso, MVP) · [`TODO.md`](TODO.md) (lacunas entre requisitos e demandas da ONG)
+**Documentos relacionados:** [`TODO.md`](TODO.md) (o que está feito e pendente) · [`docs/`](docs/) (regras de negócio e modelagem técnica da agenda)
 
 ---
 
@@ -54,21 +54,38 @@ Desenvolver um **sistema web** para apoiar a gestão interna da AMA Itajaí, org
 | **Direto** | Profissionais da AMA: equipe administrativa, recepção e colaboradores envolvidos na organização de atendimentos e informações |
 | **Indireto** | Crianças/adolescentes atendidos e suas famílias, que dependem de um serviço organizado e eficiente |
 
-Perfis de usuário do sistema (detalhados em `REQUISITOS.md`): Recepcionista/Administrativo, Profissional Terapêutico, Gestor Institucional (futuro).
+**Perfis no sistema (implementados):**
+
+| Perfil | Papel |
+|---|---|
+| **Administrador** | Cadastro de pacientes, cadastros gerais, agenda completa, ocupação de salas |
+| **Técnico** | Visualiza a própria agenda e marca sessões como realizadas |
+
+Funcionalidades de gestão institucional (relatórios consolidados) e portal para famílias ficam no backlog — ver [`TODO.md`](TODO.md).
 
 ---
 
-## Escopo funcional (MVP)
+## Escopo funcional
 
-O relatório de extensão define o sistema de forma flexível para expansões futuras. O **escopo técnico do MVP** está detalhado em `REQUISITOS.md`:
+O escopo evoluiu após validação com a ONG (maio/2026). A documentação técnica vive em [`docs/REGRAS-NEGOCIO-AGENDA.md`](docs/REGRAS-NEGOCIO-AGENDA.md) e [`docs/MODELAGEM-DADOS-AGENDA.md`](docs/MODELAGEM-DADOS-AGENDA.md).
 
-- Cadastro de pacientes (com fonte de custeio)
-- Agenda visual (diária/semanal) por profissional
-- Presença, faltas e justificativas + impressão de listas
-- Check-in e painel de chegadas em tempo real
+### Já entregue no repositório
+
+- Cadastro de pacientes com fonte de custeio
+- Cadastros gerais (salas, modalidades, tipos de sessão, funcionários)
+- Agenda com sessões individuais, em dupla e em grupo
+- Controle de conflitos e cancelamento de sessões
+- Ocupação de salas
+
+### Próximos módulos do MVP
+
+- Presença e listas para impressão
+- Check-in e painel de chegadas
 - Fila de espera com prioridade
 
-**Fora do MVP (backlog):** prontuário, anamnese, plano terapêutico individual, relatórios financeiros, portal para responsáveis. Ver `REQUISITOS.md` e `TODO.md`.
+### Fora do escopo atual
+
+Prontuário, anamnese, plano terapêutico individual, relatórios financeiros, portal para responsáveis, login Google e assinatura digital. Detalhes em [`TODO.md`](TODO.md).
 
 ---
 
@@ -76,24 +93,22 @@ O relatório de extensão define o sistema de forma flexível para expansões fu
 
 | Camada | Tecnologia |
 |---|---|
-| **Frontend** | React (JavaScript) |
-| **Backend** | Express.js (JavaScript) |
-| **Banco de dados** | MongoDB |
+| **Frontend** | React (JavaScript), Vite, Tailwind CSS, shadcn/ui, React Router, Axios |
+| **Backend** | Express.js (TypeScript), Prisma |
+| **Banco de dados** | PostgreSQL |
 | **Dev local (DB)** | Docker Compose (`backend/docker-compose.yml`) |
-| **Estilização** | Tailwind CSS |
-| **Componentes** | shadcn/ui |
-| **HTTP** | Axios |
-| **Roteamento** | React Router |
 
 **Decisões arquiteturais:**
 
-- Arquitetura **cliente-servidor**
-- Persistência em **MongoDB** (NoSQL orientado a documentos)
+- Arquitetura **cliente-servidor** (monorepo com `frontend/` e `backend/`)
+- Persistência relacional em **PostgreSQL** via Prisma
 - Interface **responsiva** (desktop, tablet, celular)
 - Acesso via **navegadores modernos**, sem instalação local
-- Organização **modular** para manutenção e expansão
-- **Autenticação** e **controle de acesso por perfil**
-- **Validação de dados** no backend e frontend
+- Organização **modular** por domínio (rotas, services, validators no backend; features e pages no frontend)
+- **Autenticação** por sessão (cookie httpOnly) e **controle de acesso por perfil**
+- **Validação de dados** no backend (validators) e feedback no frontend
+
+> O documento acadêmico inicial citava MongoDB; o projeto migrou para PostgreSQL para melhor modelagem de agenda, relacionamentos e integridade referencial.
 
 ---
 
@@ -102,8 +117,8 @@ O relatório de extensão define o sistema de forma flexível para expansões fu
 1. Levantamento de requisitos junto à instituição (análise documental + comunicação direta)
 2. Planejamento de funcionalidades, páginas e dados
 3. Desenvolvimento incremental com priorização do MVP
-4. Testes e ajustes
-5. Documentação e análise de melhorias futuras
+4. Testes e ajustes (integração no backend com Vitest)
+5. Documentação viva em `docs/` e registro de features em `docs/features/`
 
 **Alinhamento ODS:** ODS 3 (Saúde e Bem-Estar) · ODS 10 (Redução das Desigualdades)
 
@@ -115,6 +130,8 @@ O relatório de extensão define o sistema de forma flexível para expansões fu
 |---|---|
 | **AMA Itajaí** | Participação em reuniões de planejamento; validação da solução ao longo do desenvolvimento (reuniões e demonstrações) |
 
+**Última validação registrada:** 27/05/2026 — perfis administrador/técnico, modalidades com limites, cadastro manual, cadastros gerais por administrador; login Google e assinatura digital postergados.
+
 ---
 
 ## Restrições e premissas
@@ -123,16 +140,14 @@ O relatório de extensão define o sistema de forma flexível para expansões fu
 - **Sem orçamento** para infraestrutura ou licenças pagas
 - Solução deve atender exigências de **prestação de contas** (presença, categorização por fonte de custeio)
 - Dados sensíveis de menores com TEA — considerar **LGPD** e acesso restrito por perfil
-- Modelo **híbrido** de presença (digital + assinatura física em papel) pode ser exigido por convênios — ver `TODO.md`
+- Modelo **híbrido** de presença (digital + assinatura física em papel) pode ser exigido por convênios — ver [`TODO.md`](TODO.md)
 
 ---
 
-## Guia rápido para a IA
+## Guia rápido para quem vai contribuir
 
-Ao implementar ou alterar o sistema, priorizar:
-
-1. **`REQUISITOS.md`** — fonte de verdade para RFs, RNFs, casos de uso e delimitação de escopo
-2. **`TODO.md`** — demandas da ONG ainda não cobertas ou parcialmente documentadas
-3. **Stack acima** — não introduzir frameworks divergentes sem motivo
-4. **MVP primeiro** — cadastro, agenda, presença, check-in, fila de espera
-5. **Perfis de acesso** — recepção (escrita) vs. profissional (leitura/agenda) vs. gestor (futuro)
+1. **Comece pelo [`README.md`](README.md)** — setup local e mapa do repositório
+2. **`TODO.md`** — status do que já existe e próximas entregas
+3. **`docs/`** — regras de negócio antes de alterar agenda ou cadastros
+4. **`AGENTS.md`** — ciclo TDD e comandos de validação para agentes de IA
+5. **MVP em seguida** — presença, check-in, fila de espera (rotas já preparadas no frontend, ainda desabilitadas no menu)

@@ -1,11 +1,10 @@
 import { Router, type Request, type Response } from "express";
-import mongoose from "mongoose";
+import type { Prisma } from "@prisma/client";
+import { prisma } from "../db/prisma.js";
+import { withMongoId, withMongoIdList } from "../db/serialize.js";
+import { FUNDING_SOURCES, type FundingSource } from "../domain/agenda.js";
+import { containsInsensitive, isUuid } from "../validators/agenda/agenda.utils.js";
 import { requireAuth } from "../middlewares/auth.middleware.js";
-import {
-  FUNDING_SOURCES,
-  Patient,
-  type FundingSource,
-} from "../models/patient.model.js";
 
 const router = Router();
 
@@ -74,9 +73,7 @@ function normalizePhone(value: unknown): string | null {
 
 function normalizeFundingSource(value: unknown): FundingSource | null {
   const raw = normalizeText(value);
-  const found = FUNDING_SOURCES.find(
-    (item) => item.toLowerCase() === raw.toLowerCase(),
-  );
+  const found = FUNDING_SOURCES.find((item) => item.toLowerCase() === raw.toLowerCase());
   return found ?? null;
 }
 
@@ -145,30 +142,30 @@ function validatePatientPayload(
   };
 }
 
-function buildFilters(queryParams: Request["query"]): Record<string, unknown> {
-  const filters: Record<string, unknown> = {};
+function buildWhere(queryParams: Request["query"]): Prisma.PatientWhereInput {
+  const where: Prisma.PatientWhereInput = {};
   const search = normalizeText(queryParams.search);
 
   if (search) {
-    filters.$or = [
-      { fullName: { $regex: search, $options: "i" } },
-      { guardianName: { $regex: search, $options: "i" } },
+    where.OR = [
+      { fullName: containsInsensitive(search) },
+      { guardianName: containsInsensitive(search) },
     ];
   }
 
   const fundingSource = normalizeFundingSource(queryParams.fundingSource);
   if (fundingSource) {
-    filters.fundingSource = fundingSource;
+    where.fundingSource = fundingSource;
   }
 
   const status = normalizeText(queryParams.status).toLowerCase();
   if (status === "active") {
-    filters.isActive = true;
+    where.isActive = true;
   } else if (status === "inactive") {
-    filters.isActive = false;
+    where.isActive = false;
   }
 
-  return filters;
+  return where;
 }
 
 router.use("/patients", requireAuth);
@@ -177,15 +174,20 @@ router.get("/patients", async (req: Request, res: Response) => {
   const page = parsePositiveInt(req.query.page, 1);
   const limit = Math.min(parsePositiveInt(req.query.limit, 20), 100);
   const skip = (page - 1) * limit;
-  const filters = buildFilters(req.query);
+  const where = buildWhere(req.query);
 
-  const [items, total] = await Promise.all([
-    Patient.find(filters).sort({ fullName: 1 }).skip(skip).limit(limit).lean(),
-    Patient.countDocuments(filters),
+  const [rows, total] = await Promise.all([
+    prisma.patient.findMany({
+      where,
+      orderBy: { fullName: "asc" },
+      skip,
+      take: limit,
+    }),
+    prisma.patient.count({ where }),
   ]);
 
   res.status(200).json({
-    items,
+    items: withMongoIdList(rows),
     pagination: {
       page,
       limit,
@@ -196,48 +198,54 @@ router.get("/patients", async (req: Request, res: Response) => {
 });
 
 router.post("/patients", async (req: Request, res: Response) => {
-  const { valid, errors, update } = validatePatientPayload(
-    (req.body ?? {}) as PatientPayload,
-  );
+  const { valid, errors, update } = validatePatientPayload((req.body ?? {}) as PatientPayload);
 
   if (!valid) {
     res.status(400).json({ message: errors[0], errors });
     return;
   }
 
-  const created = await Patient.create(update);
-  res.status(201).json({ patient: created });
+  const created = await prisma.patient.create({
+    data: {
+      fullName: update.fullName!,
+      birthDate: update.birthDate!,
+      guardianName: update.guardianName!,
+      phone: update.phone!,
+      fundingSource: update.fundingSource!,
+    },
+  });
+
+  res.status(201).json({ patient: withMongoId(created) });
 });
 
 router.get("/patients/:id", async (req: Request, res: Response) => {
   const id = getRouteId(req.params.id);
 
-  if (!mongoose.Types.ObjectId.isValid(id)) {
+  if (!isUuid(id)) {
     res.status(400).json({ message: "Identificador de paciente inválido." });
     return;
   }
 
-  const patient = await Patient.findById(id).lean();
+  const patient = await prisma.patient.findUnique({ where: { id } });
   if (!patient) {
     res.status(404).json({ message: "Paciente não encontrado." });
     return;
   }
 
-  res.status(200).json({ patient });
+  res.status(200).json({ patient: withMongoId(patient) });
 });
 
 router.patch("/patients/:id", async (req: Request, res: Response) => {
   const id = getRouteId(req.params.id);
 
-  if (!mongoose.Types.ObjectId.isValid(id)) {
+  if (!isUuid(id)) {
     res.status(400).json({ message: "Identificador de paciente inválido." });
     return;
   }
 
-  const { valid, errors, update } = validatePatientPayload(
-    (req.body ?? {}) as PatientPayload,
-    { partial: true },
-  );
+  const { valid, errors, update } = validatePatientPayload((req.body ?? {}) as PatientPayload, {
+    partial: true,
+  });
   if (!valid) {
     res.status(400).json({ message: errors[0], errors });
     return;
@@ -248,23 +256,21 @@ router.patch("/patients/:id", async (req: Request, res: Response) => {
     return;
   }
 
-  const patient = await Patient.findByIdAndUpdate(id, update, {
-    new: true,
-    runValidators: true,
-  }).lean();
-
-  if (!patient) {
+  try {
+    const patient = await prisma.patient.update({
+      where: { id },
+      data: update,
+    });
+    res.status(200).json({ patient: withMongoId(patient) });
+  } catch {
     res.status(404).json({ message: "Paciente não encontrado." });
-    return;
   }
-
-  res.status(200).json({ patient });
 });
 
 router.patch("/patients/:id/status", async (req: Request, res: Response) => {
   const id = getRouteId(req.params.id);
 
-  if (!mongoose.Types.ObjectId.isValid(id)) {
+  if (!isUuid(id)) {
     res.status(400).json({ message: "Identificador de paciente inválido." });
     return;
   }
@@ -275,18 +281,15 @@ router.patch("/patients/:id/status", async (req: Request, res: Response) => {
     return;
   }
 
-  const patient = await Patient.findByIdAndUpdate(
-    id,
-    { isActive },
-    { new: true, runValidators: true },
-  ).lean();
-
-  if (!patient) {
+  try {
+    const patient = await prisma.patient.update({
+      where: { id },
+      data: { isActive },
+    });
+    res.status(200).json({ patient: withMongoId(patient) });
+  } catch {
     res.status(404).json({ message: "Paciente não encontrado." });
-    return;
   }
-
-  res.status(200).json({ patient });
 });
 
 export default router;

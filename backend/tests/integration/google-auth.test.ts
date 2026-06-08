@@ -1,18 +1,18 @@
-import mongoose from "mongoose";
 import request from "supertest";
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import app from "../app.js";
-import { User } from "../models/user.model.js";
+import { describe, expect, it, vi } from "vitest";
+import app from "../../src/app.js";
+import { prisma } from "../../src/db/prisma.js";
 import {
   authenticateGoogleCode,
   findOrProvisionGoogleUser,
   GoogleAuthError,
-} from "../services/google-auth.service.js";
-import { createUser, loginAndGetCookie } from "./agenda.integration.helpers.js";
+} from "../../src/services/google-auth.service.js";
+import { createUser, loginAndGetCookie } from "./helpers/test-helpers.js";
+import { useIntegrationTestDatabase } from "./helpers/integration-db.js";
 
-vi.mock("../services/google-auth.service.js", async () => {
-  const actual = await vi.importActual<typeof import("../services/google-auth.service.js")>(
-    "../services/google-auth.service.js",
+vi.mock("../../src/services/google-auth.service.js", async () => {
+  const actual = await vi.importActual<typeof import("../../src/services/google-auth.service.js")>(
+    "../../src/services/google-auth.service.js",
   );
 
   return {
@@ -22,34 +22,8 @@ vi.mock("../services/google-auth.service.js", async () => {
   };
 });
 
-describe("Auth integration", () => {
-  beforeAll(async () => {
-    await mongoose.connect(process.env.TEST_MONGODB_URI as string, {
-      serverSelectionTimeoutMS: 2000,
-    });
-
-    const activeDbName = mongoose.connection.db?.databaseName;
-    if (!activeDbName?.startsWith("gestao_amaitajai_test_")) {
-      throw new Error("Os testes só podem rodar em banco dedicado de teste.");
-    }
-  }, 15000);
-
-  beforeEach(async () => {
-    vi.clearAllMocks();
-    const database = mongoose.connection.db;
-    if (!database) {
-      throw new Error("Conexão de banco indisponível para testes.");
-    }
-    await database.dropDatabase();
-  });
-
-  afterAll(async () => {
-    const database = mongoose.connection.db;
-    if (database?.databaseName.startsWith("gestao_amaitajai_test_")) {
-      await database.dropDatabase();
-    }
-    await mongoose.disconnect();
-  }, 15000);
+describe("Autenticação Google", () => {
+  useIntegrationTestDatabase();
 
   it("rejeita login por senha com domínio fora de amaitajai.org.br", async () => {
     await createUser({
@@ -68,12 +42,14 @@ describe("Auth integration", () => {
   });
 
   it("rejeita login por senha para conta pendente", async () => {
-    await User.create({
-      name: "Pendente",
-      email: "pendente@amaitajai.org.br",
-      passwordHash: null,
-      role: "tecnico",
-      accountStatus: "pendente",
+    await prisma.user.create({
+      data: {
+        name: "Pendente",
+        email: "pendente@amaitajai.org.br",
+        passwordHash: null,
+        role: "tecnico",
+        accountStatus: "pendente",
+      },
     });
 
     const response = await request(app)
@@ -85,13 +61,15 @@ describe("Auth integration", () => {
   });
 
   it("rejeita login por senha quando usuário não possui senha configurada", async () => {
-    await User.create({
-      name: "Google",
-      email: "google@amaitajai.org.br",
-      passwordHash: null,
-      googleId: "google-sub-1",
-      role: "tecnico",
-      accountStatus: "ativo",
+    await prisma.user.create({
+      data: {
+        name: "Google",
+        email: "google@amaitajai.org.br",
+        passwordHash: null,
+        googleId: "google-sub-1",
+        role: "tecnico",
+        accountStatus: "ativo",
+      },
     });
 
     const response = await request(app)
@@ -124,7 +102,17 @@ describe("Auth integration", () => {
       role: "tecnico",
     });
 
-    vi.mocked(authenticateGoogleCode).mockResolvedValueOnce(activeUser as never);
+    vi.mocked(authenticateGoogleCode).mockResolvedValueOnce({
+      id: activeUser._id,
+      name: activeUser.name,
+      email: activeUser.email,
+      role: activeUser.role,
+      accountStatus: "ativo",
+      passwordHash: "hash",
+      googleId: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
 
     const success = await request(app).get("/api/auth/google/callback?code=ok&state=abc").set("Cookie", [
       "ama_google_oauth_state=abc",
@@ -161,16 +149,18 @@ describe("Auth integration", () => {
     });
     const adminCookie = await loginAndGetCookie(admin.email, adminPassword);
 
-    const pending = await User.create({
-      name: "Pendente",
-      email: "ativar@amaitajai.org.br",
-      passwordHash: null,
-      role: "tecnico",
-      accountStatus: "pendente",
+    const pending = await prisma.user.create({
+      data: {
+        name: "Pendente",
+        email: "ativar@amaitajai.org.br",
+        passwordHash: null,
+        role: "tecnico",
+        accountStatus: "pendente",
+      },
     });
 
     const response = await request(app)
-      .patch(`/api/users/${pending._id.toString()}/status`)
+      .patch(`/api/users/${pending.id}/status`)
       .set("Cookie", adminCookie)
       .send({ accountStatus: "ativo" });
 

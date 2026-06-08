@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
-import { User } from "../models/user.model.js";
 import { env } from "../config/env.js";
+import { prisma } from "../db/prisma.js";
+import { withMongoId } from "../db/serialize.js";
 import { verifyAccessToken } from "../services/auth.service.js";
 
 export async function requireAuth(
@@ -17,7 +18,18 @@ export async function requireAuth(
     }
 
     const payload = verifyAccessToken(token);
-    const user = await User.findById(payload.sub).select("-passwordHash").lean();
+    const user = await prisma.user.findUnique({
+      where: { id: payload.sub },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        accountStatus: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
 
     if (!user) {
       res.status(401).json({ message: "Não autenticado." });
@@ -33,7 +45,7 @@ export async function requireAuth(
       return;
     }
 
-    req.user = user;
+    req.user = withMongoId(user);
     next();
   } catch {
     res.status(401).json({ message: "Token inválido ou expirado." });

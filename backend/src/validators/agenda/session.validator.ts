@@ -2,8 +2,8 @@ import { ValidationError } from "../../errors/http-errors.js";
 import {
   SESSION_MODALITIES,
   type SessionModality,
-} from "../../models/session-type.model.js";
-import { isObjectId, normalizeText, parseDate, parseUniqueIdArray } from "./agenda.utils.js";
+} from "../../domain/agenda.js";
+import { isUuid, normalizeText, parseDate, parseUniqueIdArray } from "./agenda.utils.js";
 
 const SESSION_FORMAT_LABELS: Record<SessionModality, string> = {
   individual: "Individual",
@@ -71,13 +71,13 @@ export function normalizeSessionInput(
 }
 
 export function validateSession(input: NormalizedSessionInput): void {
-  if (!isObjectId(input.sessionTypeId)) {
+  if (!isUuid(input.sessionTypeId)) {
     throw new ValidationError("Selecione uma modalidade de atendimento.");
   }
   if (!SESSION_MODALITIES.includes(input.modality)) {
     throw new ValidationError("Selecione um tipo de sessão válido (individual, dupla ou grupo).");
   }
-  if (!isObjectId(input.roomId)) {
+  if (!isUuid(input.roomId)) {
     throw new ValidationError("Selecione uma sala.");
   }
   if (!input.startAt) {
@@ -93,8 +93,8 @@ export function validateSession(input: NormalizedSessionInput): void {
     throw new ValidationError("Adicione ao menos um profissional à sessão.");
   }
   if (
-    !input.patientIds.every((id) => isObjectId(id)) ||
-    !input.professionalIds.every((id) => isObjectId(id))
+    !input.patientIds.every((id) => isUuid(id)) ||
+    !input.professionalIds.every((id) => isUuid(id))
   ) {
     throw new ValidationError("Paciente ou profissional selecionado é inválido.");
   }
@@ -114,7 +114,7 @@ export function validateSessionModality(
 }
 
 export function validateSessionId(sessionId: string): void {
-  if (!isObjectId(sessionId)) {
+  if (!isUuid(sessionId)) {
     throw new ValidationError("Identificador de sessão inválido.");
   }
 }

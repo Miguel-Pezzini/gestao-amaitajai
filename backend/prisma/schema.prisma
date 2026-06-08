@@ -1,0 +1,166 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  administrador
+  tecnico
+}
+
+enum UserAccountStatus {
+  pendente
+  ativo
+  inativo
+}
+
+enum FundingSource {
+  Municipal
+  Estadual
+  Particular
+}
+
+enum SessionModality {
+  individual
+  dupla
+  grupo
+}
+
+enum SessionStatus {
+  agendada
+  realizada
+  cancelada
+}
+
+model User {
+  id            String            @id @default(uuid()) @db.Uuid
+  name          String
+  email         String            @unique
+  passwordHash  String?
+  googleId      String?           @unique
+  role          UserRole          @default(tecnico)
+  accountStatus UserAccountStatus @default(ativo)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  sessionsCreated      Session[]              @relation("SessionCreatedBy")
+  sessionsUpdated      Session[]              @relation("SessionUpdatedBy")
+  sessionProfessionals SessionProfessional[]
+
+  @@index([role, accountStatus])
+}
+
+model Patient {
+  id            String        @id @default(uuid()) @db.Uuid
+  fullName      String
+  birthDate     DateTime      @db.Date
+  guardianName  String
+  phone         String
+  fundingSource FundingSource
+  isActive      Boolean       @default(true)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  sessionPatients SessionPatient[]
+
+  @@index([isActive, fullName])
+  @@index([fundingSource, isActive, fullName])
+}
+
+model Room {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sessions Session[]
+
+  @@index([isActive])
+}
+
+model SessionType {
+  id                     String            @id @default(uuid()) @db.Uuid
+  name                   String
+  slug                   String            @unique
+  defaultDurationMinutes Int
+  isDurationFlexible     Boolean           @default(false)
+  allowedModalities      SessionModality[]
+  isActive               Boolean           @default(true)
+  createdAt              DateTime          @default(now())
+  updatedAt              DateTime          @updatedAt
+
+  sessions Session[]
+
+  @@index([name])
+  @@index([isActive])
+}
+
+model Session {
+  id              String          @id @default(uuid()) @db.Uuid
+  sessionTypeId   String          @db.Uuid
+  modality        SessionModality
+  roomId          String          @db.Uuid
+  startAt         DateTime
+  endAt           DateTime
+  durationMinutes Int
+  status          SessionStatus   @default(agendada)
+  notes           String          @default("")
+  createdById     String          @db.Uuid
+  updatedById     String          @db.Uuid
+  cancelledAt     DateTime?
+  cancelReason    String          @default("")
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  sessionType   SessionType           @relation(fields: [sessionTypeId], references: [id])
+  room          Room                  @relation(fields: [roomId], references: [id])
+  createdBy     User                  @relation("SessionCreatedBy", fields: [createdById], references: [id])
+  updatedBy     User                  @relation("SessionUpdatedBy", fields: [updatedById], references: [id])
+  patients      SessionPatient[]
+  professionals SessionProfessional[]
+
+  @@index([startAt, endAt])
+  @@index([roomId, startAt, endAt])
+  @@index([status])
+}
+
+model SessionPatient {
+  sessionId String @db.Uuid
+  patientId String @db.Uuid
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  patient Patient @relation(fields: [patientId], references: [id])
+
+  @@id([sessionId, patientId])
+  @@index([patientId])
+}
+
+model SessionProfessional {
+  sessionId      String @db.Uuid
+  professionalId String @db.Uuid
+
+  session      Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  professional User    @relation(fields: [professionalId], references: [id])
+
+  @@id([sessionId, professionalId])
+  @@index([professionalId])
+}
+
+model SessionModalitySetting {
+  id               String          @id @default(uuid()) @db.Uuid
+  modality         SessionModality @unique
+  minPatients      Int
+  maxPatients      Int
+  minProfessionals Int
+  maxProfessionals Int
+  isActive         Boolean         @default(true)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  @@index([isActive])
+}

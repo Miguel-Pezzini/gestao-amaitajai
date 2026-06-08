@@ -1,4 +1,5 @@
-import mongoose from "mongoose";
+import { Prisma } from "@prisma/client";
+import { duplicateRoomMessage as buildDuplicateRoomMessage, isPrismaUniqueViolation } from "../../db/errors.js";
 
 export function normalizeText(value: unknown): string {
   return String(value ?? "").trim();
@@ -14,20 +15,11 @@ export function slugify(value: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
-export function isMongoDuplicateKeyError(
-  error: unknown,
-): error is { code: number; keyPattern?: Record<string, unknown> } {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    (error as { code: number }).code === 11000
-  );
-}
+export { isPrismaUniqueViolation };
 
-export function duplicateRoomMessage(error: { keyPattern?: Record<string, unknown> }): string {
-  if (error.keyPattern?.name) {
-    return "Já existe uma sala com este nome.";
+export function duplicateRoomMessage(error: unknown): string {
+  if (isPrismaUniqueViolation(error)) {
+    return buildDuplicateRoomMessage(error);
   }
   return "Sala já cadastrada.";
 }
@@ -48,9 +40,15 @@ export function parseUniqueIdArray(values: unknown): string[] {
     .filter((value, index, arr) => arr.indexOf(value) === index);
 }
 
-export function isObjectId(value: string): boolean {
-  return mongoose.Types.ObjectId.isValid(value);
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+export function isUuid(value: string): boolean {
+  return UUID_REGEX.test(value);
 }
+
+/** @deprecated use isUuid — mantido como alias durante a migração da API */
+export const isObjectId = isUuid;
 
 export function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -62,4 +60,8 @@ export function parseLimit(value: unknown, fallback = 10, max = 30): number {
     return fallback;
   }
   return Math.min(parsed, max);
+}
+
+export function containsInsensitive(term: string): Prisma.StringFilter {
+  return { contains: term, mode: "insensitive" };
 }

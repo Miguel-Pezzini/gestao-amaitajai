@@ -1,17 +1,19 @@
 import { Router, type Request, type Response } from "express";
+import type { Prisma } from "@prisma/client";
 import bcrypt from "bcryptjs";
-import mongoose from "mongoose";
 import { env } from "../config/env.js";
-import { requireAuth } from "../middlewares/auth.middleware.js";
-import { requireAdmin } from "../middlewares/authz.middleware.js";
+import { prisma } from "../db/prisma.js";
+import { withMongoId, withMongoIdList } from "../db/serialize.js";
 import {
   USER_ACCOUNT_STATUSES,
   USER_ROLES,
-  User,
   type UserAccountStatus,
   type UserRole,
-} from "../models/user.model.js";
+} from "../domain/agenda.js";
+import { containsInsensitive, isUuid } from "../validators/agenda/agenda.utils.js";
 import { isAllowedEmailDomain } from "../validators/auth/email-domain.validator.js";
+import { requireAuth } from "../middlewares/auth.middleware.js";
+import { requireAdmin } from "../middlewares/authz.middleware.js";
 
 const router = Router();
 
@@ -42,10 +44,6 @@ function normalizeAccountStatus(value: unknown): UserAccountStatus | null {
 function parsePositiveInt(value: unknown, fallback: number): number {
   const parsed = Number.parseInt(String(value), 10);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
-}
-
-function escapeRegex(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 interface UserPayload {
@@ -123,36 +121,45 @@ function validateUserPayload(
   };
 }
 
-function buildFilters(queryParams: Request["query"]): Record<string, unknown> {
-  const filters: Record<string, unknown> = {};
+function buildWhere(queryParams: Request["query"]): Prisma.UserWhereInput {
+  const where: Prisma.UserWhereInput = {};
   const search = normalizeText(queryParams.search);
 
   if (search) {
-    const matcher = new RegExp(escapeRegex(search), "i");
-    filters.$or = [{ name: matcher }, { email: matcher }];
+    where.OR = [{ name: containsInsensitive(search) }, { email: containsInsensitive(search) }];
   }
 
   const role = normalizeRole(queryParams.role);
   if (role) {
-    filters.role = role;
+    where.role = role;
   }
 
   const status = normalizeText(queryParams.status).toLowerCase();
   if (status === "active") {
-    filters.accountStatus = "ativo";
+    where.accountStatus = "ativo";
   } else if (status === "inactive") {
-    filters.accountStatus = "inativo";
+    where.accountStatus = "inativo";
   } else if (status === "pending") {
-    filters.accountStatus = "pendente";
+    where.accountStatus = "pendente";
   }
 
-  return filters;
+  return where;
 }
+
+const userSelect = {
+  id: true,
+  name: true,
+  email: true,
+  role: true,
+  accountStatus: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
 
 router.use("/users", requireAuth, requireAdmin);
 
 router.get("/users/pending-count", async (_req: Request, res: Response) => {
-  const total = await User.countDocuments({ accountStatus: "pendente" });
+  const total = await prisma.user.count({ where: { accountStatus: "pendente" } });
   res.status(200).json({ total });
 });
 
@@ -160,20 +167,21 @@ router.get("/users", async (req: Request, res: Response) => {
   const page = parsePositiveInt(req.query.page, 1);
   const limit = Math.min(parsePositiveInt(req.query.limit, 50), 100);
   const skip = (page - 1) * limit;
-  const filters = buildFilters(req.query);
+  const where = buildWhere(req.query);
 
-  const [items, total] = await Promise.all([
-    User.find(filters)
-      .sort({ name: 1 })
-      .skip(skip)
-      .limit(limit)
-      .select("-passwordHash")
-      .lean(),
-    User.countDocuments(filters),
+  const [rows, total] = await Promise.all([
+    prisma.user.findMany({
+      where,
+      orderBy: { name: "asc" },
+      skip,
+      take: limit,
+      select: userSelect,
+    }),
+    prisma.user.count({ where }),
   ]);
 
   res.status(200).json({
-    items,
+    items: withMongoIdList(rows),
     pagination: {
       page,
       limit,
@@ -193,29 +201,31 @@ router.post("/users", async (req: Request, res: Response) => {
     return;
   }
 
-  const existing = await User.findOne({ email: update.email }).lean();
+  const existing = await prisma.user.findUnique({ where: { email: update.email } });
   if (existing) {
     res.status(409).json({ message: "Já existe um funcionário com este e-mail." });
     return;
   }
 
   const passwordHash = await bcrypt.hash(update.passwordHash!, env.bcryptSaltRounds);
-  const created = await User.create({
-    name: update.name,
-    email: update.email,
-    role: update.role ?? "tecnico",
-    passwordHash,
-    accountStatus: "ativo",
+  const created = await prisma.user.create({
+    data: {
+      name: update.name!,
+      email: update.email!,
+      role: update.role ?? "tecnico",
+      passwordHash,
+      accountStatus: "ativo",
+    },
+    select: userSelect,
   });
 
-  const user = await User.findById(created._id).select("-passwordHash").lean();
-  res.status(201).json({ user });
+  res.status(201).json({ user: withMongoId(created) });
 });
 
 router.patch("/users/:id", async (req: Request, res: Response) => {
   const id = getRouteId(req.params.id);
 
-  if (!mongoose.Types.ObjectId.isValid(id)) {
+  if (!isUuid(id)) {
     res.status(400).json({ message: "Identificador de funcionário inválido." });
     return;
   }
@@ -235,40 +245,49 @@ router.patch("/users/:id", async (req: Request, res: Response) => {
   }
 
   if (update.email) {
-    const duplicate = await User.findOne({
-      email: update.email,
-      _id: { $ne: id },
-    }).lean();
+    const duplicate = await prisma.user.findFirst({
+      where: {
+        email: update.email,
+        id: { not: id },
+      },
+    });
     if (duplicate) {
       res.status(409).json({ message: "Já existe um funcionário com este e-mail." });
       return;
     }
   }
 
-  const updatePayload: UserUpdateFields = { ...update };
+  const data: {
+    name?: string;
+    email?: string;
+    passwordHash?: string;
+    role?: UserRole;
+  } = {
+    name: update.name,
+    email: update.email,
+    role: update.role,
+  };
+
   if (update.passwordHash) {
-    updatePayload.passwordHash = await bcrypt.hash(update.passwordHash, env.bcryptSaltRounds);
+    data.passwordHash = await bcrypt.hash(update.passwordHash, env.bcryptSaltRounds);
   }
 
-  const user = await User.findByIdAndUpdate(id, updatePayload, {
-    new: true,
-    runValidators: true,
-  })
-    .select("-passwordHash")
-    .lean();
-
-  if (!user) {
+  try {
+    const user = await prisma.user.update({
+      where: { id },
+      data,
+      select: userSelect,
+    });
+    res.status(200).json({ user: withMongoId(user) });
+  } catch {
     res.status(404).json({ message: "Funcionário não encontrado." });
-    return;
   }
-
-  res.status(200).json({ user });
 });
 
 router.patch("/users/:id/status", async (req: Request, res: Response) => {
   const id = getRouteId(req.params.id);
 
-  if (!mongoose.Types.ObjectId.isValid(id)) {
+  if (!isUuid(id)) {
     res.status(400).json({ message: "Identificador de funcionário inválido." });
     return;
   }
@@ -281,25 +300,21 @@ router.patch("/users/:id/status", async (req: Request, res: Response) => {
     return;
   }
 
-  if (req.user?._id.toString() === id && accountStatus === "inativo") {
+  if (req.user?._id === id && accountStatus === "inativo") {
     res.status(400).json({ message: "Você não pode inativar sua própria conta." });
     return;
   }
 
-  const user = await User.findByIdAndUpdate(
-    id,
-    { accountStatus },
-    { new: true, runValidators: true },
-  )
-    .select("-passwordHash")
-    .lean();
-
-  if (!user) {
+  try {
+    const user = await prisma.user.update({
+      where: { id },
+      data: { accountStatus },
+      select: userSelect,
+    });
+    res.status(200).json({ user: withMongoId(user) });
+  } catch {
     res.status(404).json({ message: "Funcionário não encontrado." });
-    return;
   }
-
-  res.status(200).json({ user });
 });
 
 export default router;

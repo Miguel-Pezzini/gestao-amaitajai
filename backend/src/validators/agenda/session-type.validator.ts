@@ -1,10 +1,6 @@
 import { ValidationError } from "../../errors/http-errors.js";
-import {
-  SESSION_MODALITIES,
-  SessionType,
-  type SessionModality,
-} from "../../models/session-type.model.js";
-import { isObjectId, normalizeText, parseUniqueIdArray, slugify } from "./agenda.utils.js";
+import { SESSION_MODALITIES, type SessionModality } from "../../domain/agenda.js";
+import { isUuid, normalizeText, parseUniqueIdArray, slugify } from "./agenda.utils.js";
 
 function parseAllowedModalities(value: unknown): SessionModality[] {
   return parseUniqueIdArray(value).filter((item) =>
@@ -51,18 +47,44 @@ export function validateUpdateSessionType(
     isDurationFlexible?: unknown;
     allowedModalities?: unknown;
   },
-  sessionType: InstanceType<typeof SessionType>,
-): void {
-  if (!isObjectId(sessionTypeId)) {
+  existing: {
+    slug: string;
+    name: string;
+    defaultDurationMinutes: number;
+    isDurationFlexible: boolean;
+    allowedModalities: SessionModality[];
+  },
+): {
+  name?: string;
+  defaultDurationMinutes?: number;
+  isDurationFlexible?: boolean;
+  allowedModalities?: SessionModality[];
+} {
+  if (!isUuid(sessionTypeId)) {
     throw new ValidationError("Identificador de tipo de sessão inválido.");
   }
+
+  const update: {
+    name?: string;
+    defaultDurationMinutes?: number;
+    isDurationFlexible?: boolean;
+    allowedModalities?: SessionModality[];
+  } = {};
+
+  const next = {
+    name: existing.name,
+    defaultDurationMinutes: existing.defaultDurationMinutes,
+    isDurationFlexible: existing.isDurationFlexible,
+    allowedModalities: [...existing.allowedModalities],
+  };
 
   if (payload.name !== undefined) {
     const name = normalizeText(payload.name);
     if (!name) {
       throw new ValidationError("Nome é obrigatório.");
     }
-    sessionType.name = name;
+    update.name = name;
+    next.name = name;
   }
 
   if (payload.defaultDurationMinutes !== undefined) {
@@ -70,11 +92,13 @@ export function validateUpdateSessionType(
     if (!Number.isFinite(defaultDurationMinutes) || defaultDurationMinutes <= 0) {
       throw new ValidationError("Duração padrão inválida.");
     }
-    sessionType.defaultDurationMinutes = defaultDurationMinutes;
+    update.defaultDurationMinutes = defaultDurationMinutes;
+    next.defaultDurationMinutes = defaultDurationMinutes;
   }
 
   if (payload.isDurationFlexible !== undefined) {
-    sessionType.isDurationFlexible = Boolean(payload.isDurationFlexible);
+    update.isDurationFlexible = Boolean(payload.isDurationFlexible);
+    next.isDurationFlexible = update.isDurationFlexible;
   }
 
   if (payload.allowedModalities !== undefined) {
@@ -82,19 +106,19 @@ export function validateUpdateSessionType(
     if (allowedModalities.length === 0) {
       throw new ValidationError("Informe ao menos uma modalidade permitida.");
     }
-    sessionType.allowedModalities = allowedModalities;
+    update.allowedModalities = allowedModalities;
+    next.allowedModalities = allowedModalities;
   }
 
-  if (
-    sessionType.slug === "tea-14-plus" &&
-    sessionType.allowedModalities.some((item) => item !== "grupo")
-  ) {
+  if (existing.slug === "tea-14-plus" && next.allowedModalities.some((item) => item !== "grupo")) {
     throw new ValidationError("Tipo tea-14-plus permite apenas modalidade grupo.");
   }
+
+  return update;
 }
 
 export function validateSessionTypeId(sessionTypeId: string): void {
-  if (!isObjectId(sessionTypeId)) {
+  if (!isUuid(sessionTypeId)) {
     throw new ValidationError("Identificador de tipo de sessão inválido.");
   }
 }

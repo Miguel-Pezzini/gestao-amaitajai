@@ -11,31 +11,20 @@ export function normalizeRole(role) {
   return normalized;
 }
 
-const CALENDAR_MODALITY_PALETTE = [
-  "bg-sky-50 text-sky-950",
-  "bg-cyan-50 text-cyan-950",
-  "bg-teal-50 text-teal-950",
-  "bg-indigo-50 text-indigo-950",
-  "bg-violet-50 text-violet-950",
-  "bg-rose-50 text-rose-950",
-  "bg-amber-50 text-amber-950",
-  "bg-emerald-50 text-emerald-950",
-];
-
-const SESSION_FORMAT_ACCENT = {
-  individual: "border-l-sky-500",
-  dupla: "border-l-violet-500",
-  grupo: "border-l-emerald-600",
+const SESSION_STATUS_CALENDAR_STYLES = {
+  agendada: {
+    container: "bg-amber-50 text-amber-950",
+    accent: "border-l-amber-500",
+  },
+  realizada: {
+    container: "bg-sky-50 text-sky-950",
+    accent: "border-l-sky-600",
+  },
+  cancelada: {
+    container: "bg-red-50 text-red-950",
+    accent: "border-l-red-500",
+  },
 };
-
-function hashString(value) {
-  let hash = 0;
-  for (let i = 0; i < value.length; i += 1) {
-    hash = (hash << 5) - hash + value.charCodeAt(i);
-    hash |= 0;
-  }
-  return Math.abs(hash);
-}
 
 export function formatDateTime(value) {
   if (!value) {
@@ -68,6 +57,10 @@ export function formatWeekdayShort(date) {
   return new Intl.DateTimeFormat(undefined, { weekday: "short" }).format(date);
 }
 
+export function formatWeekdayLong(date) {
+  return new Intl.DateTimeFormat("pt-BR", { weekday: "long" }).format(date);
+}
+
 /** Cabeçalho domingo → sábado; dias úteis (seg–sex) no centro. */
 export const WEEKDAY_HEADERS = ["dom", "seg", "ter", "qua", "qui", "sex", "sab"];
 
@@ -96,6 +89,57 @@ export function isSameCalendarDay(left, right) {
 
 export function isToday(date) {
   return isSameCalendarDay(date, new Date());
+}
+
+export function isPastCalendarDay(date) {
+  return toCalendarKey(date) < toCalendarKey(new Date());
+}
+
+export function summarizeDaySessions(sessions, date) {
+  const counts = {
+    agendada: 0,
+    realizada: 0,
+    cancelada: 0,
+  };
+
+  for (const session of sessions ?? []) {
+    const status = session?.status;
+    if (status === "realizada" || status === "cancelada" || status === "agendada") {
+      counts[status] += 1;
+    }
+  }
+
+  const total = sessions?.length ?? 0;
+  const hasPending = isPastCalendarDay(date) && counts.agendada > 0;
+  const isDayFinished = total > 0 && counts.agendada === 0;
+
+  return {
+    total,
+    ...counts,
+    hasPending,
+    isDayFinished,
+  };
+}
+
+export function formatMonthDaySummaryLabel(summary) {
+  if (!summary?.total) {
+    return "Sem sessões";
+  }
+
+  const parts = [
+    `${summary.total} ${summary.total === 1 ? "sessão" : "sessões"}`,
+    `${summary.realizada} realizada${summary.realizada === 1 ? "" : "s"}`,
+    `${summary.agendada} agendada${summary.agendada === 1 ? "" : "s"}`,
+    `${summary.cancelada} cancelada${summary.cancelada === 1 ? "" : "s"}`,
+  ];
+
+  if (summary.hasPending) {
+    parts.push("pendências de registro");
+  } else if (summary.isDayFinished) {
+    parts.push("dia encerrado");
+  }
+
+  return parts.join(", ");
 }
 
 export function isCurrentAgendaPeriod(referenceDate, viewMode) {
@@ -263,19 +307,13 @@ export function getSessionFormatLabel(modality) {
 }
 
 export function getCalendarSessionStyle(session) {
-  const modalityKey =
-    session?.sessionTypeId?.slug ??
-    session?.sessionTypeId?._id ??
-    session?.sessionTypeId ??
-    "default";
-  const paletteIndex = hashString(String(modalityKey)) % CALENDAR_MODALITY_PALETTE.length;
-  const container = CALENDAR_MODALITY_PALETTE[paletteIndex];
-  const accent = SESSION_FORMAT_ACCENT[session?.modality] ?? SESSION_FORMAT_ACCENT.individual;
+  const status = session?.status ?? "agendada";
+  const styles =
+    SESSION_STATUS_CALENDAR_STYLES[status] ?? SESSION_STATUS_CALENDAR_STYLES.agendada;
 
   return {
-    container,
-    accent,
-    cancelled: session?.status === "cancelada",
+    container: styles.container,
+    accent: styles.accent,
   };
 }
 
@@ -284,7 +322,8 @@ export function sessionCalendarTooltip(session) {
   const roomName = getSessionRoomName(session);
   const formatLabel = getSessionFormatLabel(session?.modality);
   const time = formatSessionTime(session?.startAt);
-  return `${time} · ${modalityName} · ${roomName} · ${formatLabel}`;
+  const statusLabel = getSessionStatusLabel(session?.status);
+  return `${time} · ${statusLabel} · ${modalityName} · ${roomName} · ${formatLabel}`;
 }
 
 export function sortSessionsByStart(sessions) {
@@ -361,4 +400,62 @@ export function formatSessionDateTime(value) {
     dateStyle: "long",
     timeStyle: "short",
   }).format(parsed);
+}
+
+const AVAILABILITY_TIME_FORMATTER = new Intl.DateTimeFormat("pt-BR", {
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
+export function getSessionFormSlotQuery(form) {
+  const durationMinutes = Number.parseInt(String(form.durationMinutes ?? ""), 10);
+  if (!form.startDate || !form.startTime || !Number.isFinite(durationMinutes) || durationMinutes <= 0) {
+    return null;
+  }
+
+  const startAt = new Date(combineStartDateTime(form.startDate, form.startTime));
+  if (Number.isNaN(startAt.getTime())) {
+    return null;
+  }
+
+  return {
+    startAt: startAt.toISOString(),
+    durationMinutes,
+  };
+}
+
+export function formatAvailabilityRangeLabel(meta) {
+  if (!meta?.startAt || !meta?.endAt) {
+    return "";
+  }
+  const start = new Date(meta.startAt);
+  const end = new Date(meta.endAt);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    return "";
+  }
+  return `${AVAILABILITY_TIME_FORMATTER.format(start)} às ${AVAILABILITY_TIME_FORMATTER.format(end)}`;
+}
+
+export function formatAvailabilityBadge(meta) {
+  if (!meta || meta.requiresSearch) {
+    return "";
+  }
+  const count = meta.availableCount ?? 0;
+  return `${count} livre${count === 1 ? "" : "s"}`;
+}
+
+export function formatConflictSessionLabel(conflictSession) {
+  if (!conflictSession) {
+    return "";
+  }
+  const parts = ["Ocupado"];
+  const typeName = conflictSession.sessionTypeName?.trim();
+  const roomName = conflictSession.roomName?.trim();
+  if (typeName) {
+    parts.push(typeName);
+  }
+  if (roomName) {
+    parts.push(roomName);
+  }
+  return parts.join(" · ");
 }
