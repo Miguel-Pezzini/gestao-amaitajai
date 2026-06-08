@@ -2,8 +2,8 @@ import "dotenv/config";
 import type { SessionModality } from "@prisma/client";
 import { prisma } from "../src/db/prisma.js";
 
-const INDIVIDUAL_DUPLA_GRUPO: SessionModality[] = ["individual", "dupla", "grupo"];
-const GRUPO_ONLY: SessionModality[] = ["grupo"];
+const INDIVIDUAL_DUPLA_GRUPO: SessionModality[] = ["INDIVIDUAL", "DUPLA", "GRUPO"];
+const GRUPO_ONLY: SessionModality[] = ["GRUPO"];
 
 /** Modalidades de atendimento (SessionType) conforme regras da ONG. */
 const SESSION_TYPES: Array<{

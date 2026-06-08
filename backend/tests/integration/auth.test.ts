@@ -14,7 +14,7 @@ describe("Autenticação", () => {
       name: "Maria Admin",
       email: "maria@auth.test",
       password,
-      role: "administrador",
+      role: "ADMINISTRADOR",
     });
 
     const response = await request(app)
@@ -24,7 +24,7 @@ describe("Autenticação", () => {
     expect(response.status).toBe(200);
     expect(response.body.user).toMatchObject({
       email: user.email,
-      role: "administrador",
+      role: "ADMINISTRADOR",
       isActive: true,
     });
     expect(response.headers["set-cookie"]?.[0]).toMatch(/ama_access_token=/);
@@ -43,7 +43,7 @@ describe("Autenticação", () => {
       name: "Tecnico",
       email: "tec@auth.test",
       password: "correta123",
-      role: "tecnico",
+      role: "TECNICO",
     });
 
     const wrongPassword = await request(app)
@@ -64,7 +64,7 @@ describe("Autenticação", () => {
       name: "Usuario Me",
       email: "me@auth.test",
       password,
-      role: "tecnico",
+      role: "TECNICO",
     });
 
     const withoutCookie = await request(app).get("/api/auth/me");
@@ -83,7 +83,7 @@ describe("Autenticação", () => {
       name: "Inativo",
       email: "inativo@auth.test",
       password,
-      role: "tecnico",
+      role: "TECNICO",
     });
 
     await prisma.user.update({
@@ -104,7 +104,7 @@ describe("Autenticação", () => {
       name: "Logout",
       email: "logout@auth.test",
       password,
-      role: "administrador",
+      role: "ADMINISTRADOR",
     });
 
     const cookie = await loginAndGetCookie(user.email, password);

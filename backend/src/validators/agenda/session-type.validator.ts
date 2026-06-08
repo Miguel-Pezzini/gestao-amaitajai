@@ -32,7 +32,7 @@ export function validateCreateSessionType(payload: {
   if (allowedModalities.length === 0) {
     throw new ValidationError("Informe ao menos uma modalidade permitida.");
   }
-  if (slug === "tea-14-plus" && allowedModalities.some((item) => item !== "grupo")) {
+  if (slug === "tea-14-plus" && allowedModalities.some((item) => item !== "GRUPO")) {
     throw new ValidationError("Tipo tea-14-plus permite apenas modalidade grupo.");
   }
 
@@ -110,7 +110,7 @@ export function validateUpdateSessionType(
     next.allowedModalities = allowedModalities;
   }
 
-  if (existing.slug === "tea-14-plus" && next.allowedModalities.some((item) => item !== "grupo")) {
+  if (existing.slug === "tea-14-plus" && next.allowedModalities.some((item) => item !== "GRUPO")) {
     throw new ValidationError("Tipo tea-14-plus permite apenas modalidade grupo.");
   }
 

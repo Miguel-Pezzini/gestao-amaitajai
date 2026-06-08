@@ -1,21 +1,21 @@
-export const MODALITY_OPTIONS = ["individual", "dupla", "grupo"];
+export const MODALITY_OPTIONS = ["INDIVIDUAL", "DUPLA", "GRUPO"];
 
-/** individual / dupla / grupo — exibido na UI como "tipo de sessão". */
+/** INDIVIDUAL / DUPLA / GRUPO — exibido na UI como "tipo de sessão". */
 export const MODALITY_LABELS = {
-  individual: "Individual",
-  dupla: "Dupla",
-  grupo: "Grupo",
+  INDIVIDUAL: "Individual",
+  DUPLA: "Dupla",
+  GRUPO: "Grupo",
 };
 
 /** Alias de domínio na UI (campo API `modality`). */
 export const SESSION_FORMAT_LABELS = MODALITY_LABELS;
 export const SESSION_FORMAT_OPTIONS = MODALITY_OPTIONS;
 
-export const USER_ROLE_OPTIONS = ["administrador", "tecnico"];
+export const USER_ROLE_OPTIONS = ["ADMINISTRADOR", "TECNICO"];
 
 export const USER_ROLE_LABELS = {
-  administrador: "Administrador",
-  tecnico: "Técnico",
+  ADMINISTRADOR: "Administrador",
+  TECNICO: "Técnico",
 };
 
 export function slugify(value) {

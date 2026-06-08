@@ -20,6 +20,8 @@ import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useSession } from "@/contexts/session-context";
+import { PatientProtocolsDialog } from "@/features/protocols/components/PatientProtocolsDialog";
+import { PendingProtocolBadge } from "@/features/protocols/components/PendingProtocolBadge";
 import {
   createPatient,
   listPatients,
@@ -27,14 +29,14 @@ import {
   updatePatientStatus,
 } from "@/services/patients";
 
-const FUNDING_OPTIONS = ["Municipal", "Estadual", "Particular"];
+const FUNDING_OPTIONS = ["MUNICIPAL", "ESTADUAL", "PARTICULAR"];
 
 const EMPTY_FORM = {
   fullName: "",
   birthDate: "",
   guardianName: "",
   phone: "",
-  fundingSource: "Municipal",
+  fundingSource: "MUNICIPAL",
 };
 
 function formatPhone(value) {
@@ -253,6 +255,8 @@ export function PatientsPage() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [fieldErrors, setFieldErrors] = useState({});
   const [formDialogOpen, setFormDialogOpen] = useState(false);
+  const [protocolsPatient, setProtocolsPatient] = useState(null);
+  const [protocolsDialogOpen, setProtocolsDialogOpen] = useState(false);
 
   const isEditing = Boolean(editingId);
 
@@ -310,7 +314,7 @@ export function PatientsPage() {
       birthDate: patient.birthDate ? String(patient.birthDate).slice(0, 10) : "",
       guardianName: patient.guardianName ?? "",
       phone: formatPhone(patient.phone ?? ""),
-      fundingSource: patient.fundingSource ?? "Municipal",
+      fundingSource: patient.fundingSource ?? "MUNICIPAL",
     });
     setFormDialogOpen(true);
   }
@@ -357,6 +361,16 @@ export function PatientsPage() {
     }
   }
 
+  function openProtocolsDialog(patient) {
+    setProtocolsPatient(patient);
+    setProtocolsDialogOpen(true);
+  }
+
+  function closeProtocolsDialog() {
+    setProtocolsDialogOpen(false);
+    setProtocolsPatient(null);
+  }
+
   async function handleToggleStatus(patient) {
     setError("");
     try {
@@ -389,6 +403,15 @@ export function PatientsPage() {
           {error}
         </p>
       ) : null}
+
+      <PatientProtocolsDialog
+        patient={protocolsPatient}
+        open={protocolsDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) closeProtocolsDialog();
+        }}
+        onChanged={loadPatients}
+      />
 
       <Dialog
         open={formDialogOpen}
@@ -488,7 +511,14 @@ export function PatientsPage() {
               {patients.map((patient) => (
                 <EntityListItem
                   key={patient._id}
-                  title={patient.fullName}
+                  title={
+                    <span className="inline-flex flex-wrap items-center gap-2">
+                      <span>{patient.fullName}</span>
+                      {patient.pendingProtocolCount > 0 ? (
+                        <PendingProtocolBadge count={patient.pendingProtocolCount} />
+                      ) : null}
+                    </span>
+                  }
                   badges={
                     <>
                       <EntityTagBadge>{patient.fundingSource}</EntityTagBadge>
@@ -505,6 +535,14 @@ export function PatientsPage() {
                   <EntityListItemFooterRow
                     actions={
                       <>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className={entityListActionButtonClassName()}
+                          onClick={() => openProtocolsDialog(patient)}
+                        >
+                          Protocolos
+                        </Button>
                         <Button
                           size="sm"
                           variant="outline"

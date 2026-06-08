@@ -10,7 +10,7 @@ const validPatientPayload = {
   birthDate: "2015-03-10",
   guardianName: "Maria da Silva",
   phone: "(47) 99999-1234",
-  fundingSource: "Municipal",
+  fundingSource: "MUNICIPAL",
 };
 
 describe("Pacientes", () => {
@@ -23,7 +23,7 @@ describe("Pacientes", () => {
       name: "Admin Pacientes",
       email: "admin@patients.test",
       password: "admin123456",
-      role: "administrador",
+      role: "ADMINISTRADOR",
     });
     adminCookie = await loginAndGetCookie(admin.email, "admin123456");
   });
@@ -41,7 +41,7 @@ describe("Pacientes", () => {
 
     expect(response.status).toBe(201);
     expect(response.body.patient.fullName).toBe(validPatientPayload.fullName);
-    expect(response.body.patient.fundingSource).toBe("Municipal");
+    expect(response.body.patient.fundingSource).toBe("MUNICIPAL");
     expect(response.body.patient.isActive).toBe(true);
   });
 

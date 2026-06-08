@@ -72,15 +72,15 @@ type SessionValidationLimits = {
 };
 
 const DEFAULT_SESSION_MODALITY_SETTINGS: Record<SessionModality, SessionValidationLimits> = {
-  individual: { minPatients: 1, maxPatients: 1, minProfessionals: 1, maxProfessionals: 1 },
-  dupla: { minPatients: 2, maxPatients: 2, minProfessionals: 2, maxProfessionals: 2 },
-  grupo: { minPatients: 1, maxPatients: 15, minProfessionals: 2, maxProfessionals: 4 },
+  INDIVIDUAL: { minPatients: 1, maxPatients: 1, minProfessionals: 1, maxProfessionals: 1 },
+  DUPLA: { minPatients: 2, maxPatients: 2, minProfessionals: 2, maxProfessionals: 2 },
+  GRUPO: { minPatients: 1, maxPatients: 15, minProfessionals: 2, maxProfessionals: 4 },
 };
 
 const SESSION_FORMAT_LABELS: Record<SessionModality, string> = {
-  individual: "Individual",
-  dupla: "Dupla",
-  grupo: "Grupo",
+  INDIVIDUAL: "Individual",
+  DUPLA: "Dupla",
+  GRUPO: "Grupo",
 };
 
 const SESSION_LIST_INCLUDE = {
@@ -503,7 +503,7 @@ export class AgendaService {
         startAt,
         endAt,
         durationMinutes: normalized.durationMinutes,
-        status: "agendada",
+        status: "AGENDADA",
         notes: normalized.notes,
         createdById: currentUser._id,
         updatedById: currentUser._id,
@@ -602,7 +602,7 @@ export class AgendaService {
       const session = await prisma.session.update({
         where: { id: sessionId },
         data: {
-          status: "cancelada",
+          status: "CANCELADA",
           cancelReason,
           cancelledAt: new Date(),
           updatedById: currentUser._id,
@@ -626,7 +626,7 @@ export class AgendaService {
     const session = await prisma.session.update({
       where: { id: sessionId },
       data: {
-        status: "realizada",
+        status: "REALIZADA",
         updatedById: currentUser._id,
       },
       include: {
@@ -678,8 +678,8 @@ export class AgendaService {
     currentUser: AuthenticatedUser,
   ): Prisma.SessionWhereInput {
     const where: Prisma.SessionWhereInput = {};
-    const status = normalizeText(query.status);
-    if (status && ["agendada", "realizada", "cancelada"].includes(status)) {
+    const status = normalizeText(query.status).toUpperCase();
+    if (status && ["AGENDADA", "REALIZADA", "CANCELADA"].includes(status)) {
       where.status = status as PrismaSessionStatus;
     }
 
@@ -691,11 +691,11 @@ export class AgendaService {
     }
 
     const professionalId = normalizeText(query.professionalId);
-    if (professionalId && isUuid(professionalId) && currentUser.role === "administrador") {
+    if (professionalId && isUuid(professionalId) && currentUser.role === "ADMINISTRADOR") {
       where.professionals = { some: { professionalId } };
     }
 
-    if (currentUser.role === "tecnico") {
+    if (currentUser.role === "TECNICO") {
       where.professionals = { some: { professionalId: currentUser._id } };
     }
 
@@ -873,7 +873,7 @@ export class AgendaService {
     const isOwnerProfessional = session.professionals.some(
       (row) => row.professionalId === currentUser._id,
     );
-    if (currentUser.role === "tecnico" && !isOwnerProfessional) {
+    if (currentUser.role === "TECNICO" && !isOwnerProfessional) {
       throw new ForbiddenError("Técnico só pode concluir a própria sessão.");
     }
   }

@@ -13,7 +13,7 @@ export function AgendaPage() {
   const agenda = useAgendaPage(user);
   const selectedSessionType = agenda.sessionTypes.find((item) => item._id === agenda.form.sessionTypeId);
   const modalityOptions =
-    selectedSessionType?.allowedModalities?.length ? selectedSessionType.allowedModalities : ["individual"];
+    selectedSessionType?.allowedModalities?.length ? selectedSessionType.allowedModalities : ["INDIVIDUAL"];
   const sessionLimits = buildSessionLimitsMap(agenda.sessionModalitySettings);
 
   return (

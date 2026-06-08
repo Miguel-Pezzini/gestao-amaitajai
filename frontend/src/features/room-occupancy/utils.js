@@ -80,7 +80,7 @@ export function filterOccupancySessions(sessions, roomId) {
   }
 
   return sessions.filter(
-    (session) => session.status !== "cancelada" && getSessionRoomId(session) === roomId,
+    (session) => session.status !== "CANCELADA" && getSessionRoomId(session) === roomId,
   );
 }
 

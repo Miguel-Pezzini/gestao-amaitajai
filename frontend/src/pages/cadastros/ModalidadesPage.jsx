@@ -36,7 +36,7 @@ const EMPTY_FORM = {
   name: "",
   defaultDurationMinutes: "60",
   isDurationFlexible: false,
-  allowedModalities: ["individual"],
+  allowedModalities: ["INDIVIDUAL"],
 };
 
 function SessionTypeForm({
@@ -149,7 +149,7 @@ function validateSessionTypeForm(form, existingSlug) {
   }
 
   const slug = existingSlug ?? slugify(name);
-  if (slug === "tea-14-plus" && form.allowedModalities.some((item) => item !== "grupo")) {
+  if (slug === "tea-14-plus" && form.allowedModalities.some((item) => item !== "GRUPO")) {
     errors.allowedModalities =
       "Esta modalidade permite apenas tipo de sessão em grupo.";
   }

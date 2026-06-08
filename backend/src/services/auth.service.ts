@@ -27,7 +27,7 @@ export async function ensureInitialAdminUser(): Promise<void> {
       name: env.adminName,
       email: adminEmail,
       passwordHash,
-      role: "administrador",
+      role: "ADMINISTRADOR",
       isActive: true,
     },
   });

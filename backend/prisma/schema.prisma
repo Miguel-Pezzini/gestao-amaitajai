@@ -8,26 +8,39 @@ datasource db {
 }
 
 enum UserRole {
-  administrador
-  tecnico
+  ADMINISTRADOR
+  TECNICO
 }
 
 enum FundingSource {
-  Municipal
-  Estadual
-  Particular
+  MUNICIPAL
+  ESTADUAL
+  PARTICULAR
 }
 
 enum SessionModality {
-  individual
-  dupla
-  grupo
+  INDIVIDUAL
+  DUPLA
+  GRUPO
 }
 
 enum SessionStatus {
-  agendada
-  realizada
-  cancelada
+  AGENDADA
+  REALIZADA
+  CANCELADA
+}
+
+enum ProtocolRequestType {
+  DOCUMENTO
+  TROCA_HORARIO
+  SEGUNDA_VIA
+  ENCAMINHAMENTO
+  CANCELAMENTO
+}
+
+enum ProtocolStatus {
+  PENDENTE
+  CONCLUIDO
 }
 
 model User {
@@ -35,7 +48,7 @@ model User {
   name         String
   email        String   @unique
   passwordHash String
-  role         UserRole @default(tecnico)
+  role         UserRole @default(TECNICO)
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -43,6 +56,8 @@ model User {
   sessionsCreated      Session[]              @relation("SessionCreatedBy")
   sessionsUpdated      Session[]              @relation("SessionUpdatedBy")
   sessionProfessionals SessionProfessional[]
+  protocolsCreated     PatientProtocol[]      @relation("ProtocolCreatedBy")
+  protocolsUpdated     PatientProtocol[]      @relation("ProtocolUpdatedBy")
 
   @@index([role, isActive])
 }
@@ -59,9 +74,31 @@ model Patient {
   updatedAt     DateTime      @updatedAt
 
   sessionPatients SessionPatient[]
+  protocols       PatientProtocol[]
 
   @@index([isActive, fullName])
   @@index([fundingSource, isActive, fullName])
+}
+
+model PatientProtocol {
+  id             String              @id @default(uuid()) @db.Uuid
+  protocolNumber Int                 @unique
+  patientId      String              @db.Uuid
+  requestType    ProtocolRequestType
+  status         ProtocolStatus      @default(PENDENTE)
+  notes          String              @default("")
+  createdById    String              @db.Uuid
+  updatedById    String              @db.Uuid
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  patient   Patient @relation(fields: [patientId], references: [id])
+  createdBy User    @relation("ProtocolCreatedBy", fields: [createdById], references: [id])
+  updatedBy User    @relation("ProtocolUpdatedBy", fields: [updatedById], references: [id])
+
+  @@index([patientId, status])
+  @@index([status, createdAt])
+  @@index([protocolNumber])
 }
 
 model Room {
@@ -101,7 +138,7 @@ model Session {
   startAt         DateTime
   endAt           DateTime
   durationMinutes Int
-  status          SessionStatus   @default(agendada)
+  status          SessionStatus   @default(AGENDADA)
   notes           String          @default("")
   createdById     String          @db.Uuid
   updatedById     String          @db.Uuid

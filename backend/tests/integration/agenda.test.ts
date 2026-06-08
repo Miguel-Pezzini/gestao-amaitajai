@@ -25,17 +25,17 @@ describe("Agenda integration", () => {
         name: "Admin",
         email: "admin@agenda.test",
         password: adminPassword,
-        role: "administrador",
+        role: "ADMINISTRADOR",
       });
       const tecnico = await createUser({
         name: "Tecnico",
         email: "tecnico@agenda.test",
         password: techPassword,
-        role: "tecnico",
+        role: "TECNICO",
       });
 
-      expect(admin.role).toBe("administrador");
-      expect(tecnico.role).toBe("tecnico");
+      expect(admin.role).toBe("ADMINISTRADOR");
+      expect(tecnico.role).toBe("TECNICO");
 
       const adminCookie = await loginAndGetCookie(admin.email, adminPassword);
       const tecnicoCookie = await loginAndGetCookie(tecnico.email, techPassword);
@@ -140,10 +140,10 @@ describe("Agenda integration", () => {
           name: "FONOAUDIOLOGIA",
           defaultDurationMinutes: 45,
           isDurationFlexible: true,
-          allowedModalities: ["individual", "grupo"],
+          allowedModalities: ["INDIVIDUAL", "GRUPO"],
         });
       expect(created.status).toBe(201);
-      expect(created.body.sessionType.allowedModalities).toContain("grupo");
+      expect(created.body.sessionType.allowedModalities).toContain("GRUPO");
     });
 
     it("rejeita tea-14-plus com modalidade diferente de grupo", async () => {
@@ -155,7 +155,7 @@ describe("Agenda integration", () => {
         .send({
           name: "TEA 14 Plus",
           defaultDurationMinutes: 60,
-          allowedModalities: ["individual"],
+          allowedModalities: ["INDIVIDUAL"],
         });
       expect(response.status).toBe(400);
       expect(response.body.message).toContain("tea-14-plus");
@@ -186,10 +186,10 @@ describe("Agenda integration", () => {
       const list = await request(app).get("/api/agenda/session-modalities").set("Cookie", adminCookie);
       expect(list.status).toBe(200);
       expect(list.body.items).toHaveLength(3);
-      expect(list.body.items.some((item: { modality: string }) => item.modality === "grupo")).toBe(true);
+      expect(list.body.items.some((item: { modality: string }) => item.modality === "GRUPO")).toBe(true);
 
       const updated = await request(app)
-        .patch("/api/agenda/session-modalities/grupo")
+        .patch("/api/agenda/session-modalities/GRUPO")
         .set("Cookie", adminCookie)
         .send({
           minPatients: 1,
@@ -246,7 +246,7 @@ describe("Agenda integration", () => {
         name: "Profissional Livre",
         email: `prof-livre-${Date.now()}@agenda.test`,
         password: "prof123456",
-        role: "tecnico",
+        role: "TECNICO",
       });
 
       const startAt = "2026-06-05T14:00:00.000Z";
@@ -285,7 +285,7 @@ describe("Agenda integration", () => {
         name: "Profissional Livre",
         email: `prof-livre-${Date.now()}@agenda.test`,
         password: "prof123456",
-        role: "tecnico",
+        role: "TECNICO",
       });
 
       const startAt = "2026-06-05T14:00:00.000Z";
@@ -468,7 +468,7 @@ describe("Agenda integration", () => {
         birthDate: new Date("2017-03-03"),
         guardianName: "Responsavel Livre",
         phone: "(47) 99999-0099",
-        fundingSource: "Municipal",
+        fundingSource: "MUNICIPAL",
         isActive: true,
       });
 
@@ -517,7 +517,7 @@ describe("Agenda integration", () => {
         birthDate: new Date("2017-02-02"),
         guardianName: "Responsavel 2",
         phone: "(47) 99999-0002",
-        fundingSource: "Estadual",
+        fundingSource: "ESTADUAL",
         isActive: true,
       });
 
@@ -587,7 +587,7 @@ describe("Agenda integration", () => {
                 name: "Outro Prof",
                 email: `outro-${Date.now()}@agenda.test`,
                 password: "x",
-                role: "tecnico",
+                role: "TECNICO",
               })
             )._id,
           ],
@@ -603,7 +603,7 @@ describe("Agenda integration", () => {
         slug: "fono-dupla-test",
         defaultDurationMinutes: 60,
         isDurationFlexible: false,
-        allowedModalities: ["dupla"],
+        allowedModalities: ["DUPLA"],
         isActive: true,
       });
 
@@ -616,7 +616,7 @@ describe("Agenda integration", () => {
             roomId: room._id,
             patientIds: [paciente._id],
             professionalIds: [profissional._id],
-            modality: "dupla",
+            modality: "DUPLA",
             durationMinutes: 60,
             startAt: "2026-05-06T15:00:00.000Z",
           }),
@@ -634,7 +634,7 @@ describe("Agenda integration", () => {
         birthDate: new Date("2017-02-02"),
         guardianName: "Responsavel 2",
         phone: "(47) 99999-0002",
-        fundingSource: "Estadual",
+        fundingSource: "ESTADUAL",
         isActive: true,
       });
       const paciente3 = await createPatient({
@@ -642,24 +642,24 @@ describe("Agenda integration", () => {
         birthDate: new Date("2017-03-03"),
         guardianName: "Responsavel 3",
         phone: "(47) 99999-0003",
-        fundingSource: "Estadual",
+        fundingSource: "ESTADUAL",
         isActive: true,
       });
       const profissional1 = await createUser({
         name: "Prof Limites 1",
         email: `prof-limites-1-${Date.now()}@agenda.test`,
         password: "prof123456",
-        role: "tecnico",
+        role: "TECNICO",
       });
       const profissional2 = await createUser({
         name: "Prof Limites 2",
         email: `prof-limites-2-${Date.now()}@agenda.test`,
         password: "prof123456",
-        role: "tecnico",
+        role: "TECNICO",
       });
 
       await request(app)
-        .patch("/api/agenda/session-modalities/grupo")
+        .patch("/api/agenda/session-modalities/GRUPO")
         .set("Cookie", adminCookie)
         .send({
           minPatients: 1,
@@ -674,7 +674,7 @@ describe("Agenda integration", () => {
         slug: `grupo-limites-${Date.now()}`,
         defaultDurationMinutes: 60,
         isDurationFlexible: false,
-        allowedModalities: ["grupo"],
+        allowedModalities: ["GRUPO"],
         isActive: true,
       });
 
@@ -687,7 +687,7 @@ describe("Agenda integration", () => {
             roomId: room._id,
             patientIds: [paciente._id, paciente2._id, paciente3._id],
             professionalIds: [profissional1._id, profissional2._id],
-            modality: "grupo",
+            modality: "GRUPO",
             durationMinutes: 60,
             startAt: "2026-06-10T13:00:00.000Z",
           }),
@@ -703,7 +703,7 @@ describe("Agenda integration", () => {
         name: "Profissional Grupo",
         email: `prof-grupo-${Date.now()}@agenda.test`,
         password: "prof123456",
-        role: "tecnico",
+        role: "TECNICO",
       });
 
       const response = await request(app)
@@ -715,7 +715,7 @@ describe("Agenda integration", () => {
             roomId: room._id,
             patientIds: [paciente._id],
             professionalIds: [profissional._id, profissional2._id],
-            modality: "grupo",
+            modality: "GRUPO",
           }),
         );
 
@@ -766,7 +766,7 @@ describe("Agenda integration", () => {
       const list = await request(app)
         .get("/api/agenda/sessions")
         .set("Cookie", adminCookie)
-        .query({ status: "agendada" });
+        .query({ status: "AGENDADA" });
       expect(list.status).toBe(200);
       expect(list.body.items.length).toBe(1);
     });
@@ -777,7 +777,7 @@ describe("Agenda integration", () => {
         name: "Outro",
         email: `outro2-${Date.now()}@agenda.test`,
         password: "outro123456",
-        role: "tecnico",
+        role: "TECNICO",
       });
 
       await request(app)
@@ -876,7 +876,7 @@ describe("Agenda integration", () => {
         .set("Cookie", adminCookie)
         .send({ cancelReason: "Reagendamento" });
       expect(cancelled.status).toBe(200);
-      expect(cancelled.body.session.status).toBe("cancelada");
+      expect(cancelled.body.session.status).toBe("CANCELADA");
     });
 
     it("permite técnico concluir somente sessão própria", async () => {
@@ -888,19 +888,19 @@ describe("Agenda integration", () => {
         name: "Admin",
         email: "admin3@agenda.test",
         password: adminPassword,
-        role: "administrador",
+        role: "ADMINISTRADOR",
       });
       const tecnicoA = await createUser({
         name: "Tecnico A",
         email: "tecnicoa@agenda.test",
         password: tecnicoApassword,
-        role: "tecnico",
+        role: "TECNICO",
       });
       const tecnicoB = await createUser({
         name: "Tecnico B",
         email: "tecnicob@agenda.test",
         password: tecnicoBpassword,
-        role: "tecnico",
+        role: "TECNICO",
       });
 
       const paciente = await createPatient({
@@ -908,7 +908,7 @@ describe("Agenda integration", () => {
         birthDate: new Date("2016-03-03"),
         guardianName: "Responsavel 3",
         phone: "(47) 99999-0003",
-        fundingSource: "Particular",
+        fundingSource: "PARTICULAR",
         isActive: true,
       });
       const room = await createRoom({ name: "Sala Sessao", isActive: true });
@@ -917,7 +917,7 @@ describe("Agenda integration", () => {
         slug: "intensivo",
         defaultDurationMinutes: 60,
         isDurationFlexible: true,
-        allowedModalities: ["individual"],
+        allowedModalities: ["INDIVIDUAL"],
         isActive: true,
       });
 
@@ -930,7 +930,7 @@ describe("Agenda integration", () => {
         .set("Cookie", adminCookie)
         .send({
           sessionTypeId: type._id,
-          modality: "individual",
+          modality: "INDIVIDUAL",
           roomId: room._id,
           startAt: "2026-06-02T14:00:00.000Z",
           durationMinutes: 60,
@@ -953,7 +953,7 @@ describe("Agenda integration", () => {
         .set("Cookie", tecnicoACookie)
         .send();
       expect(completed.status).toBe(200);
-      expect(completed.body.session.status).toBe("realizada");
+      expect(completed.body.session.status).toBe("REALIZADA");
     });
 
     it("impede concluir sessão cancelada", async () => {

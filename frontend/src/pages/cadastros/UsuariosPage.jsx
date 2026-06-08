@@ -35,7 +35,7 @@ const EMPTY_FORM = {
   name: "",
   email: "",
   password: "",
-  role: "tecnico",
+  role: "TECNICO",
 };
 
 function UserForm({ form, fieldErrors, saving, isEditing, onSubmit, onCancel, onFormChange }) {
@@ -238,7 +238,7 @@ export function UsuariosPage() {
       name: item.name ?? "",
       email: item.email ?? "",
       password: "",
-      role: item.role ?? "tecnico",
+      role: item.role ?? "TECNICO",
     });
     setFormDialogOpen(true);
   }

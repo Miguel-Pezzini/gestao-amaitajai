@@ -182,12 +182,29 @@ router.get("/patients", async (req: Request, res: Response) => {
       orderBy: { fullName: "asc" },
       skip,
       take: limit,
+      include: {
+        _count: {
+          select: {
+            protocols: {
+              where: { status: "PENDENTE" },
+            },
+          },
+        },
+      },
     }),
     prisma.patient.count({ where }),
   ]);
 
   res.status(200).json({
-    items: withMongoIdList(rows),
+    items: withMongoIdList(rows).map((patient) => {
+      const { _count, ...rest } = patient as typeof patient & {
+        _count?: { protocols: number };
+      };
+      return {
+        ...rest,
+        pendingProtocolCount: _count?.protocols ?? 0,
+      };
+    }),
     pagination: {
       page,
       limit,

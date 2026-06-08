@@ -15,7 +15,7 @@ function getParticipantLabel(session) {
   if (patients.length === 0) {
     return "Não informado";
   }
-  if (session.modality === "grupo") {
+  if (session.modality === "GRUPO") {
     return `Grupo: ${patients.map((item) => item.label).join(", ")}`;
   }
   if (patients.length === 1) {

@@ -34,7 +34,7 @@ const EMPTY_FIELD_ERRORS = {};
 export function useAgendaPage(user) {
   const toast = useToast();
   const role = normalizeRole(user?.role);
-  const isAdmin = role === "administrador";
+  const isAdmin = role === "ADMINISTRADOR";
 
   const [loading, setLoading] = useState(true);
   const [loadingCatalogs, setLoadingCatalogs] = useState(false);

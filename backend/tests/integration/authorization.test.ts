@@ -15,13 +15,13 @@ describe("Autorização por perfil", () => {
       name: "Admin Authz",
       email: "admin@authz.test",
       password: "admin123456",
-      role: "administrador",
+      role: "ADMINISTRADOR",
     });
     const tecnico = await createUser({
       name: "Tecnico Authz",
       email: "tecnico@authz.test",
       password: "tech123456",
-      role: "tecnico",
+      role: "TECNICO",
     });
 
     adminCookie = await loginAndGetCookie(admin.email, "admin123456");
@@ -50,6 +50,19 @@ describe("Autorização por perfil", () => {
   describe("pacientes (/patients)", () => {
     it("permite listagem ao técnico autenticado", async () => {
       const response = await request(app).get("/api/patients").set("Cookie", tecnicoCookie);
+      expect(response.status).toBe(200);
+      expect(Array.isArray(response.body.items)).toBe(true);
+    });
+  });
+
+  describe("protocolos (/protocols)", () => {
+    it("nega listagem ao técnico", async () => {
+      const response = await request(app).get("/api/protocols").set("Cookie", tecnicoCookie);
+      expect(response.status).toBe(403);
+    });
+
+    it("permite listagem ao administrador", async () => {
+      const response = await request(app).get("/api/protocols").set("Cookie", adminCookie);
       expect(response.status).toBe(200);
       expect(Array.isArray(response.body.items)).toBe(true);
     });

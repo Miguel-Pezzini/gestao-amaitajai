@@ -3,17 +3,17 @@ import { cn } from "@/lib/utils";
 
 const STATUS_ITEMS = [
   {
-    key: "agendada",
+    key: "AGENDADA",
     dotClass: "bg-amber-500",
     countClass: "text-amber-700",
   },
   {
-    key: "realizada",
+    key: "REALIZADA",
     dotClass: "bg-sky-600",
     countClass: "text-sky-700",
   },
   {
-    key: "cancelada",
+    key: "CANCELADA",
     dotClass: "bg-red-500",
     countClass: "text-red-600",
   },

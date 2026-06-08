@@ -11,4 +11,4 @@ export function requireRole(...roles: UserRole[]) {
   };
 }
 
-export const requireAdmin = requireRole("administrador");
+export const requireAdmin = requireRole("ADMINISTRADOR");

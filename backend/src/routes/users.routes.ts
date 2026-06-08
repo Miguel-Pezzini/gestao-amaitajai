@@ -24,7 +24,7 @@ function normalizeEmail(value: unknown): string {
 }
 
 function normalizeRole(value: unknown): UserRole | null {
-  const role = normalizeText(value).toLowerCase();
+  const role = normalizeText(value).toUpperCase();
   return USER_ROLES.includes(role as UserRole) ? (role as UserRole) : null;
 }
 
@@ -81,7 +81,7 @@ function validateUserPayload(
   if (!partial || payload.role !== undefined) {
     const role = normalizeRole(payload.role);
     if (!role) {
-      errors.push("Perfil inválido. Valores permitidos: administrador, tecnico.");
+      errors.push("Perfil inválido. Valores permitidos: ADMINISTRADOR, TECNICO.");
     } else {
       update.role = role;
     }
@@ -188,7 +188,7 @@ router.post("/users", async (req: Request, res: Response) => {
     data: {
       name: update.name!,
       email: update.email!,
-      role: update.role ?? "tecnico",
+      role: update.role ?? "TECNICO",
       passwordHash,
       isActive: true,
     },

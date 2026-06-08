@@ -4,7 +4,7 @@ export const CADASTROS_GROUP = {
   id: "cadastros",
   label: "Cadastros Gerais",
   routePrefix: "/cadastros",
-  requiredRoles: ["administrador"],
+  requiredRoles: ["ADMINISTRADOR"],
   order: 3,
 };
 
