@@ -108,8 +108,11 @@ export function buildAuthCookieOptions(): CookieOptions {
 }
 
 export function buildOAuthStateCookieOptions(): CookieOptions {
+  const authOptions = buildAuthCookieOptions();
   return {
-    ...buildAuthCookieOptions(),
+    ...authOptions,
+    // OAuth retorna via navegação cross-site (Google → callback); strict bloqueia o cookie.
+    sameSite: "lax",
     maxAge: 10 * 60 * 1000,
   };
 }

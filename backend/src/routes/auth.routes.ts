@@ -61,6 +61,11 @@ router.get(
     res.clearCookie(env.googleOAuthStateCookieName, buildOAuthStateCookieOptions());
 
     if (!code || !state || !storedState || state !== storedState) {
+      console.warn("Callback Google: state inválido ou cookie ausente.", {
+        hasCode: Boolean(code),
+        hasState: Boolean(state),
+        hasStoredState: Boolean(storedState),
+      });
       res.redirect(buildLoginRedirect("google_auth_falhou"));
       return;
     }
