@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { Badge } from "@/components/ui/badge";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -13,16 +13,33 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useSession } from "@/contexts/session-context";
-import { login } from "@/services/auth";
+import { getGoogleLoginUrl, login } from "@/services/auth";
+
+const LOGIN_ERROR_MESSAGES = {
+  conta_pendente: "Sua conta foi criada e aguarda ativação pelo administrador.",
+  conta_inativa: "Conta inativa. Entre em contato com a administração.",
+  dominio_nao_permitido: "Use seu e-mail institucional @amaitajai.org.br.",
+  google_auth_falhou: "Não foi possível concluir o login com Google. Tente novamente.",
+  google_nao_configurado: "Login Google ainda não está configurado neste ambiente.",
+};
 
 export function LoginPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { setUser } = useSession();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const queryError = searchParams.get("error");
+    if (queryError) {
+      setError(LOGIN_ERROR_MESSAGES[queryError] ?? "Não foi possível entrar. Tente novamente.");
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -41,6 +58,10 @@ export function LoginPage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  function handleGoogleLogin() {
+    window.location.href = getGoogleLoginUrl();
   }
 
   return (
@@ -95,21 +116,32 @@ export function LoginPage() {
               Entrar no sistema
             </CardTitle>
             <CardDescription>
-              Informe e-mail e senha cadastrados pela administração.
+              Use sua conta Google institucional ou e-mail e senha cadastrados.
             </CardDescription>
           </CardHeader>
 
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-5">
-              {error ? (
-                <CardDescription
-                  role="alert"
-                  className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
-                >
-                  {error}
-                </CardDescription>
-              ) : null}
+          <CardContent className="space-y-5">
+            {error ? (
+              <CardDescription
+                role="alert"
+                className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+              >
+                {error}
+              </CardDescription>
+            ) : null}
 
+            <GoogleSignInButton onClick={handleGoogleLogin} disabled={loading} />
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-border" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-white px-2 text-muted-foreground">ou</span>
+              </div>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-5">
               <div className="space-y-2">
                 <Label htmlFor="email">E-mail</Label>
                 <Input
@@ -117,7 +149,7 @@ export function LoginPage() {
                   name="email"
                   type="email"
                   autoComplete="email"
-                  placeholder="Insira seu e-mail"
+                  placeholder="nome@amaitajai.org.br"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
@@ -159,10 +191,11 @@ export function LoginPage() {
 
               <Button
                 type="submit"
-                className="h-11 w-full bg-ama-blue text-white hover:bg-ama-blue-dark"
+                variant="outline"
+                className="h-11 w-full"
                 disabled={loading}
               >
-                {loading ? "Entrando..." : "Entrar"}
+                {loading ? "Entrando..." : "Entrar com e-mail e senha"}
               </Button>
             </form>
           </CardContent>

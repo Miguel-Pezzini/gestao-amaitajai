@@ -4,8 +4,14 @@ import bcrypt from "bcryptjs";
 import { env } from "../config/env.js";
 import { prisma } from "../db/prisma.js";
 import { withMongoId, withMongoIdList } from "../db/serialize.js";
-import { USER_ROLES, type UserRole } from "../domain/agenda.js";
+import {
+  USER_ACCOUNT_STATUSES,
+  USER_ROLES,
+  type UserAccountStatus,
+  type UserRole,
+} from "../domain/agenda.js";
 import { containsInsensitive, isUuid } from "../validators/agenda/agenda.utils.js";
+import { isAllowedEmailDomain } from "../validators/auth/email-domain.validator.js";
 import { requireAuth } from "../middlewares/auth.middleware.js";
 import { requireAdmin } from "../middlewares/authz.middleware.js";
 
@@ -26,6 +32,13 @@ function normalizeEmail(value: unknown): string {
 function normalizeRole(value: unknown): UserRole | null {
   const role = normalizeText(value).toLowerCase();
   return USER_ROLES.includes(role as UserRole) ? (role as UserRole) : null;
+}
+
+function normalizeAccountStatus(value: unknown): UserAccountStatus | null {
+  const status = normalizeText(value).toLowerCase();
+  return USER_ACCOUNT_STATUSES.includes(status as UserAccountStatus)
+    ? (status as UserAccountStatus)
+    : null;
 }
 
 function parsePositiveInt(value: unknown, fallback: number): number {
@@ -73,6 +86,8 @@ function validateUserPayload(
     const email = normalizeEmail(payload.email);
     if (!email || !email.includes("@")) {
       errors.push("E-mail inválido.");
+    } else if (!isAllowedEmailDomain(email, env.allowedEmailDomain)) {
+      errors.push(`Use um e-mail institucional @${env.allowedEmailDomain}.`);
     } else {
       update.email = email;
     }
@@ -121,15 +136,32 @@ function buildWhere(queryParams: Request["query"]): Prisma.UserWhereInput {
 
   const status = normalizeText(queryParams.status).toLowerCase();
   if (status === "active") {
-    where.isActive = true;
+    where.accountStatus = "ativo";
   } else if (status === "inactive") {
-    where.isActive = false;
+    where.accountStatus = "inativo";
+  } else if (status === "pending") {
+    where.accountStatus = "pendente";
   }
 
   return where;
 }
 
+const userSelect = {
+  id: true,
+  name: true,
+  email: true,
+  role: true,
+  accountStatus: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
+
 router.use("/users", requireAuth, requireAdmin);
+
+router.get("/users/pending-count", async (_req: Request, res: Response) => {
+  const total = await prisma.user.count({ where: { accountStatus: "pendente" } });
+  res.status(200).json({ total });
+});
 
 router.get("/users", async (req: Request, res: Response) => {
   const page = parsePositiveInt(req.query.page, 1);
@@ -143,15 +175,7 @@ router.get("/users", async (req: Request, res: Response) => {
       orderBy: { name: "asc" },
       skip,
       take: limit,
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        isActive: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+      select: userSelect,
     }),
     prisma.user.count({ where }),
   ]);
@@ -190,17 +214,9 @@ router.post("/users", async (req: Request, res: Response) => {
       email: update.email!,
       role: update.role ?? "tecnico",
       passwordHash,
-      isActive: true,
+      accountStatus: "ativo",
     },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      role: true,
-      isActive: true,
-      createdAt: true,
-      updatedAt: true,
-    },
+    select: userSelect,
   });
 
   res.status(201).json({ user: withMongoId(created) });
@@ -260,15 +276,7 @@ router.patch("/users/:id", async (req: Request, res: Response) => {
     const user = await prisma.user.update({
       where: { id },
       data,
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        isActive: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+      select: userSelect,
     });
     res.status(200).json({ user: withMongoId(user) });
   } catch {
@@ -284,13 +292,15 @@ router.patch("/users/:id/status", async (req: Request, res: Response) => {
     return;
   }
 
-  const isActive = (req.body as { isActive?: unknown })?.isActive;
-  if (typeof isActive !== "boolean") {
-    res.status(400).json({ message: "O campo isActive deve ser booleano." });
+  const accountStatus = normalizeAccountStatus((req.body as { accountStatus?: unknown })?.accountStatus);
+  if (!accountStatus || accountStatus === "pendente") {
+    res.status(400).json({
+      message: "O campo accountStatus deve ser 'ativo' ou 'inativo'.",
+    });
     return;
   }
 
-  if (req.user?._id === id && !isActive) {
+  if (req.user?._id === id && accountStatus === "inativo") {
     res.status(400).json({ message: "Você não pode inativar sua própria conta." });
     return;
   }
@@ -298,16 +308,8 @@ router.patch("/users/:id/status", async (req: Request, res: Response) => {
   try {
     const user = await prisma.user.update({
       where: { id },
-      data: { isActive },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        isActive: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+      data: { accountStatus },
+      select: userSelect,
     });
     res.status(200).json({ user: withMongoId(user) });
   } catch {

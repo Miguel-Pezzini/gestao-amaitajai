@@ -145,7 +145,7 @@ export class AgendaService {
     const limit = parseLimit(query.limit);
     const rows = await prisma.user.findMany({
       where: {
-        isActive: true,
+        accountStatus: "ativo",
         role: { in: [...USER_ROLES] },
         OR: [{ name: containsInsensitive(term) }, { email: containsInsensitive(term) }],
       },
@@ -165,7 +165,7 @@ export class AgendaService {
     }
 
     const userWhere: Prisma.UserWhereInput = {
-      isActive: true,
+      accountStatus: "ativo",
       role: { in: [...USER_ROLES] },
     };
     if (input.q) {
@@ -232,7 +232,7 @@ export class AgendaService {
     input: NonNullable<ReturnType<typeof parseAvailabilityLookupQuery>>,
   ) {
     const baseFilter: Prisma.UserWhereInput = {
-      isActive: true,
+      accountStatus: "ativo",
       role: { in: [...USER_ROLES] },
     };
     const overlapWhere = buildSessionOverlapWhere({
@@ -843,7 +843,7 @@ export class AgendaService {
         where: {
           id: { in: input.professionalIds },
           role: { in: [...USER_ROLES] },
-          isActive: true,
+          accountStatus: "ativo",
         },
       }),
     ]);

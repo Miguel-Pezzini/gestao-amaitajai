@@ -20,7 +20,7 @@ export async function createUser(params: {
       email: params.email,
       passwordHash,
       role: params.role,
-      isActive: true,
+      accountStatus: "ativo",
     },
   });
   return withMongoId(user);

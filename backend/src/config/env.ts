@@ -29,6 +29,7 @@ export const env = {
   port: Number(process.env.PORT),
   databaseUrl: process.env.DATABASE_URL as string,
   corsOrigin: process.env.CORS_ORIGIN ?? "http://localhost:5173",
+  frontendUrl: process.env.FRONTEND_URL ?? process.env.CORS_ORIGIN ?? "http://localhost:5173",
   nodeEnv,
   isProduction: nodeEnv === "production",
   isTest: nodeEnv === "test",
@@ -43,4 +44,16 @@ export const env = {
   adminPassword: process.env.ADMIN_PASSWORD as string,
   bcryptSaltRounds: Number(process.env.BCRYPT_SALT_ROUNDS ?? 12),
   cookieSameSite,
+  allowedEmailDomain: (process.env.ALLOWED_EMAIL_DOMAIN ?? "amaitajai.org.br")
+    .trim()
+    .toLowerCase()
+    .replace(/^@/, ""),
+  googleClientId: process.env.GOOGLE_CLIENT_ID ?? "",
+  googleClientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
+  googleRedirectUri:
+    process.env.GOOGLE_REDIRECT_URI ?? "http://localhost:3000/api/auth/google/callback",
+  googleOAuthStateCookieName: process.env.GOOGLE_OAUTH_STATE_COOKIE_NAME ?? "ama_google_oauth_state",
+  get googleAuthEnabled(): boolean {
+    return Boolean(this.googleClientId && this.googleClientSecret);
+  },
 };
