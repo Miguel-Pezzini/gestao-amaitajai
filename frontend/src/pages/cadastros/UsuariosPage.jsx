@@ -212,7 +212,7 @@ export function UsuariosPage() {
   }, []);
 
   const activeCount = useMemo(
-    () => users.filter((item) => item.accountStatus === "ativo").length,
+    () => users.filter((item) => item.accountStatus === "ATIVO").length,
     [users],
   );
 
@@ -425,7 +425,7 @@ export function UsuariosPage() {
                         <EntityTagBadge>
                           {USER_ROLE_LABELS[item.role] ?? item.role}
                         </EntityTagBadge>
-                        <EntityStatusBadge status={item.accountStatus ?? "ativo"} />
+                        <EntityStatusBadge status={item.accountStatus ?? "ATIVO"} />
                       </>
                     }
                   >
@@ -438,16 +438,16 @@ export function UsuariosPage() {
                             onClick={() => openEditDialog(item)}
                           />
                           <EntityListIconAction
-                            icon={item.accountStatus === "ativo" ? UserX : UserCheck}
-                            label={item.accountStatus === "ativo" ? "Inativar" : "Reativar"}
-                            tone={item.accountStatus === "ativo" ? "destructive" : "default"}
+                            icon={item.accountStatus === "ATIVO" ? UserX : UserCheck}
+                            label={item.accountStatus === "ATIVO" ? "Inativar" : "Reativar"}
+                            tone={item.accountStatus === "ATIVO" ? "destructive" : "default"}
                             onClick={() =>
                               handleStatusChange(
                                 item,
-                                item.accountStatus === "ativo" ? "inativo" : "ativo",
+                                item.accountStatus === "ATIVO" ? "INATIVO" : "ATIVO",
                               )
                             }
-                            disabled={isSelf && item.accountStatus === "ativo"}
+                            disabled={isSelf && item.accountStatus === "ATIVO"}
                           />
                         </>
                       }

@@ -21,12 +21,12 @@ Fontes de custeio: `Municipal`, `Estadual`, `Particular`.
 
 ### Desativação (`isActive: false`)
 
-Ao desativar, o sistema analisa sessões `agendadas` futuras do paciente:
+Ao desativar, o sistema analisa sessões `AGENDADA` futuras do paciente:
 
 | Modalidade | Pacientes na sessão | Efeito |
 |---|---|---|
-| individual | 1 | **Cancela** a sessão |
-| dupla | 2 | **Exige substituto** (outro paciente ativo) |
+| INDIVIDUAL | 1 | **Cancela** a sessão |
+| DUPLA | 2 | **Exige substituto** (outro paciente ativo) |
 | grupo | >1 | **Exige substituto** na série/sessão |
 | grupo | 1 (só ele) | **Cancela** a sessão |
 

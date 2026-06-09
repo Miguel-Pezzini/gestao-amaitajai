@@ -14,9 +14,9 @@ enum UserRole {
 }
 
 enum UserAccountStatus {
-  pendente
-  ativo
-  inativo
+  PENDENTE
+  ATIVO
+  INATIVO
 }
 
 enum FundingSource {
@@ -43,9 +43,9 @@ enum ProtocolStatus {
 }
 
 enum SessionSeriesStatus {
-  ativa
-  encerrada
-  cancelada
+  ATIVA
+  ENCERRADA
+  CANCELADA
 }
 
 model User {
@@ -55,7 +55,7 @@ model User {
   passwordHash  String?
   googleId      String?           @unique
   role          UserRole          @default(TECNICO)
-  accountStatus UserAccountStatus @default(ativo)
+  accountStatus UserAccountStatus @default(ATIVO)
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
 
@@ -166,7 +166,7 @@ model SessionSeries {
   endsAt          DateTime            @db.Date
   timeMinutes     Int
   durationMinutes Int
-  status          SessionSeriesStatus @default(ativa)
+  status          SessionSeriesStatus @default(ATIVA)
   notes           String              @default("")
   createdById     String              @db.Uuid
   updatedById     String              @db.Uuid

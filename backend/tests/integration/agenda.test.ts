@@ -1095,13 +1095,13 @@ describe("Agenda integration", () => {
       const cancelFuture = await request(app)
         .patch(`/api/agenda/sessions/${middleSession._id}/cancel`)
         .set("Cookie", adminCookie)
-        .send({ cancelReason: "Interrupção parcial", scope: "future" });
+        .send({ cancelReason: "Interrupção parcial", scope: "FUTURE" });
       expect(cancelFuture.status).toBe(200);
       expect(cancelFuture.body.sessionsCancelled).toBeGreaterThan(1);
 
       const afterFuture = await request(app).get("/api/agenda/sessions").set("Cookie", adminCookie);
       const stillAgendada = afterFuture.body.items.filter(
-        (item: { status: string }) => item.status === "agendada",
+        (item: { status: string }) => item.status === "AGENDADA",
       );
       expect(stillAgendada.length).toBeGreaterThan(0);
       expect(stillAgendada.length).toBeLessThan(sessions.length);
@@ -1131,7 +1131,7 @@ describe("Agenda integration", () => {
       const cancelAll = await request(app)
         .patch(`/api/agenda/sessions/${firstSeriesSession._id}/cancel`)
         .set("Cookie", adminCookie)
-        .send({ cancelReason: "Encerramento", scope: "all" });
+        .send({ cancelReason: "Encerramento", scope: "ALL" });
       expect(cancelAll.status).toBe(200);
       expect(cancelAll.body.sessionsCancelled).toBe(seriesSessions.length);
     });

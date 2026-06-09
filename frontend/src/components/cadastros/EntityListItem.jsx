@@ -18,9 +18,9 @@ export function EntityStatusBadge({
   status,
 }) {
   const resolvedStatus =
-    status ?? (active === true ? "ativo" : active === false ? "inativo" : "ativo");
+    status ?? (active === true ? "ATIVO" : active === false ? "INATIVO" : "ATIVO");
 
-  if (resolvedStatus === "pendente") {
+  if (resolvedStatus === "PENDENTE") {
     return (
       <Badge
         variant="outline"
@@ -31,7 +31,7 @@ export function EntityStatusBadge({
     );
   }
 
-  const isActive = resolvedStatus === "ativo";
+  const isActive = resolvedStatus === "ATIVO";
 
   return (
     <Badge

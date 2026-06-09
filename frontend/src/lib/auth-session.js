@@ -10,7 +10,7 @@ export function normalizeAuthUser(user) {
     name: user.name,
     email: user.email,
     role: user.role,
-    accountStatus: user.accountStatus ?? "ativo",
+    accountStatus: user.accountStatus ?? "ATIVO",
   };
 }
 

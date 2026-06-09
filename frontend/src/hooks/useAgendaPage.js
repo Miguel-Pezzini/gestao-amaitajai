@@ -58,7 +58,7 @@ export function useAgendaPage(user) {
   const [cancelSessionHasSeries, setCancelSessionHasSeries] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
   const [cancelReasonError, setCancelReasonError] = useState("");
-  const [cancelScope, setCancelScope] = useState("single");
+  const [cancelScope, setCancelScope] = useState("SINGLE");
   const [cancelScopeError, setCancelScopeError] = useState("");
 
   const [patientTerm, setPatientTerm] = useState("");
@@ -349,7 +349,7 @@ export function useAgendaPage(user) {
     setCancelSessionHasSeries(Boolean(session?.seriesId));
     setCancelReason("");
     setCancelReasonError("");
-    setCancelScope("single");
+    setCancelScope("SINGLE");
     setCancelScopeError("");
     setCancelDialogOpen(true);
   }
@@ -360,7 +360,7 @@ export function useAgendaPage(user) {
     setCancelSessionHasSeries(false);
     setCancelReason("");
     setCancelReasonError("");
-    setCancelScope("single");
+    setCancelScope("SINGLE");
     setCancelScopeError("");
   }
 

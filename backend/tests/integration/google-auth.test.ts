@@ -29,7 +29,7 @@ describe("Autenticação Google", () => {
       name: "Externo",
       email: "externo@gmail.com",
       password: "senha123456",
-      role: "tecnico",
+      role: "TECNICO",
     });
 
     const response = await request(app)
@@ -47,8 +47,8 @@ describe("Autenticação Google", () => {
         email: "google@amaitajai.org.br",
         passwordHash: null,
         googleId: "google-sub-1",
-        role: "tecnico",
-        accountStatus: "ativo",
+        role: "TECNICO",
+        accountStatus: "ATIVO",
       },
     });
 
@@ -69,9 +69,9 @@ describe("Autenticação Google", () => {
     });
 
     expect(user.name).toBe("Debora");
-    expect(user.accountStatus).toBe("ativo");
+    expect(user.accountStatus).toBe("ATIVO");
     expect(user.passwordHash).toBeNull();
-    expect(user.role).toBe("tecnico");
+    expect(user.role).toBe("TECNICO");
   });
 
   it("permite login Google para usuário ativo e autoativa conta pendente existente", async () => {
@@ -79,7 +79,7 @@ describe("Autenticação Google", () => {
       name: "Ativo",
       email: "ativo@amaitajai.org.br",
       password: "senha123456",
-      role: "tecnico",
+      role: "TECNICO",
     });
 
     vi.mocked(authenticateGoogleCode).mockResolvedValueOnce({
@@ -87,7 +87,7 @@ describe("Autenticação Google", () => {
       name: activeUser.name,
       email: activeUser.email,
       role: activeUser.role,
-      accountStatus: "ativo",
+      accountStatus: "ATIVO",
       passwordHash: "hash",
       googleId: null,
       createdAt: new Date(),
@@ -106,8 +106,8 @@ describe("Autenticação Google", () => {
         name: "Legado",
         email: "legado@amaitajai.org.br",
         passwordHash: null,
-        role: "tecnico",
-        accountStatus: "pendente",
+        role: "TECNICO",
+        accountStatus: "PENDENTE",
       },
     });
 
@@ -118,7 +118,7 @@ describe("Autenticação Google", () => {
       hostedDomain: "amaitajai.org.br",
     });
 
-    expect(reactivated.accountStatus).toBe("ativo");
+    expect(reactivated.accountStatus).toBe("ATIVO");
   });
 
   it("permite administrador reativar usuário inativo", async () => {
@@ -127,7 +127,7 @@ describe("Autenticação Google", () => {
       name: "Admin",
       email: "admin-auth@amaitajai.org.br",
       password: adminPassword,
-      role: "administrador",
+      role: "ADMINISTRADOR",
     });
     const adminCookie = await loginAndGetCookie(admin.email, adminPassword);
 
@@ -136,17 +136,17 @@ describe("Autenticação Google", () => {
         name: "Inativo",
         email: "inativo@amaitajai.org.br",
         passwordHash: null,
-        role: "tecnico",
-        accountStatus: "inativo",
+        role: "TECNICO",
+        accountStatus: "INATIVO",
       },
     });
 
     const response = await request(app)
       .patch(`/api/users/${inactive.id}/status`)
       .set("Cookie", adminCookie)
-      .send({ accountStatus: "ativo" });
+      .send({ accountStatus: "ATIVO" });
 
     expect(response.status).toBe(200);
-    expect(response.body.user.accountStatus).toBe("ativo");
+    expect(response.body.user.accountStatus).toBe("ATIVO");
   });
 });

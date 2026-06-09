@@ -175,7 +175,7 @@ export class AgendaService {
     const limit = parseLimit(query.limit);
     const rows = await prisma.user.findMany({
       where: {
-        accountStatus: "ativo",
+        accountStatus: "ATIVO",
         role: { in: [...USER_ROLES] },
         OR: [{ name: containsInsensitive(term) }, { email: containsInsensitive(term) }],
       },
@@ -195,7 +195,7 @@ export class AgendaService {
     }
 
     const userWhere: Prisma.UserWhereInput = {
-      accountStatus: "ativo",
+      accountStatus: "ATIVO",
       role: { in: [...USER_ROLES] },
     };
     if (input.q) {
@@ -262,7 +262,7 @@ export class AgendaService {
     input: NonNullable<ReturnType<typeof parseAvailabilityLookupQuery>>,
   ) {
     const baseFilter: Prisma.UserWhereInput = {
-      accountStatus: "ativo",
+      accountStatus: "ATIVO",
       role: { in: [...USER_ROLES] },
     };
     const overlapWhere = buildSessionOverlapWhere({
@@ -633,7 +633,7 @@ export class AgendaService {
 
       if (
         professionalsChanged &&
-        updateScope === "future" &&
+        updateScope === "FUTURE" &&
         existing.seriesId
       ) {
         await this.applySeriesProfessionalUpdate(
@@ -663,7 +663,7 @@ export class AgendaService {
       throw new ValidationError("Sessão já está cancelada.");
     }
 
-    if (scope === "single" || !existing.seriesId) {
+    if (scope === "SINGLE" || !existing.seriesId) {
       const session = await prisma.session.update({
         where: { id: sessionId },
         data: {
@@ -683,7 +683,7 @@ export class AgendaService {
     const now = new Date();
     const result = await prisma.$transaction(async (tx) => {
       const where: Prisma.SessionWhereInput =
-        scope === "future"
+        scope === "FUTURE"
           ? {
               seriesId: existing.seriesId,
               status: "AGENDADA",
@@ -704,11 +704,11 @@ export class AgendaService {
         },
       });
 
-      if (scope === "all") {
+      if (scope === "ALL") {
         await tx.sessionSeries.update({
           where: { id: existing.seriesId! },
           data: {
-            status: "cancelada",
+            status: "CANCELADA",
             cancelReason,
             cancelledAt: now,
             updatedById: currentUser._id,
@@ -879,7 +879,7 @@ export class AgendaService {
       await tx.sessionSeriesPatient.deleteMany({
         where: {
           patientId,
-          series: { status: "ativa" },
+          series: { status: "ATIVA" },
         },
       });
     });
@@ -1504,7 +1504,7 @@ export class AgendaService {
         where: {
           id: { in: input.professionalIds },
           role: { in: [...USER_ROLES] },
-          accountStatus: "ativo",
+          accountStatus: "ATIVO",
         },
       }),
     ]);

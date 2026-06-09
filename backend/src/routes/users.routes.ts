@@ -35,7 +35,7 @@ function normalizeRole(value: unknown): UserRole | null {
 }
 
 function normalizeAccountStatus(value: unknown): UserAccountStatus | null {
-  const status = normalizeText(value).toLowerCase();
+  const status = normalizeText(value).toUpperCase();
   return USER_ACCOUNT_STATUSES.includes(status as UserAccountStatus)
     ? (status as UserAccountStatus)
     : null;
@@ -136,9 +136,9 @@ function buildWhere(queryParams: Request["query"]): Prisma.UserWhereInput {
 
   const status = normalizeText(queryParams.status).toLowerCase();
   if (status === "active") {
-    where.accountStatus = "ativo";
+    where.accountStatus = "ATIVO";
   } else if (status === "inactive") {
-    where.accountStatus = "inativo";
+    where.accountStatus = "INATIVO";
   }
 
   return where;
@@ -207,7 +207,7 @@ router.post("/users", async (req: Request, res: Response) => {
       email: update.email!,
       role: update.role ?? "TECNICO",
       passwordHash,
-      accountStatus: "ativo",
+      accountStatus: "ATIVO",
     },
     select: userSelect,
   });
@@ -286,14 +286,14 @@ router.patch("/users/:id/status", async (req: Request, res: Response) => {
   }
 
   const accountStatus = normalizeAccountStatus((req.body as { accountStatus?: unknown })?.accountStatus);
-  if (!accountStatus || accountStatus === "pendente") {
+  if (!accountStatus || accountStatus === "PENDENTE") {
     res.status(400).json({
-      message: "O campo accountStatus deve ser 'ativo' ou 'inativo'.",
+      message: "O campo accountStatus deve ser 'ATIVO' ou 'INATIVO'.",
     });
     return;
   }
 
-  if (req.user?._id === id && accountStatus === "inativo") {
+  if (req.user?._id === id && accountStatus === "INATIVO") {
     res.status(400).json({ message: "Você não pode inativar sua própria conta." });
     return;
   }

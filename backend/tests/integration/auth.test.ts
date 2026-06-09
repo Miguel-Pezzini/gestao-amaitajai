@@ -25,7 +25,7 @@ describe("Autenticação", () => {
     expect(response.body.user).toMatchObject({
       email: user.email,
       role: "ADMINISTRADOR",
-      accountStatus: "ativo",
+      accountStatus: "ATIVO",
     });
     expect(response.headers["set-cookie"]?.[0]).toMatch(/ama_access_token=/);
   });
@@ -90,7 +90,7 @@ describe("Autenticação", () => {
 
     await prisma.user.update({
       where: { id: user._id },
-      data: { accountStatus: "inativo" },
+      data: { accountStatus: "INATIVO" },
     });
 
     const me = await request(app).get("/api/auth/me").set("Cookie", cookie);

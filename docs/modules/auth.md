@@ -17,7 +17,7 @@ Autenticação de usuários via e-mail/senha ou Google OAuth (quando configurado
 
 - E-mail e senha obrigatórios.
 - Rate limit no endpoint de login.
-- Usuário com `accountStatus: inativo` não autentica.
+- Usuário com `accountStatus: INATIVO` não autentica.
 - Na primeira subida, cria admin inicial se configurado em env (`ensureInitialAdminUser`).
 
 ### Login Google (opcional)
@@ -25,9 +25,9 @@ Autenticação de usuários via e-mail/senha ou Google OAuth (quando configurado
 - Habilitado via `GOOGLE_AUTH_ENABLED=true` e credenciais OAuth.
 - Apenas e-mails do domínio institucional (`ALLOWED_EMAIL_DOMAIN`).
 - Valida `hostedDomain` do token Google quando presente.
-- Usuário novo via Google: role `tecnico`, status `ativo`, sem senha.
-- Usuário existente: vincula `googleId`, atualiza e-mail se necessário, ativa se `pendente`.
-- Conta `inativo` → erro `conta_inativa`.
+- Usuário novo via Google: role `TECNICO`, status `ATIVO`, sem senha.
+- Usuário existente: vincula `googleId`, atualiza e-mail se necessário, ativa se `PENDENTE`.
+- Conta `INATIVO` → erro `conta_inativa`.
 
 ### Sessão
 
@@ -95,7 +95,7 @@ Módulo transversal — não define roles, apenas identidade. Autorização fica
 
 ## Pendências e decisões abertas
 
-- Fluxo de convite/aprovação para novos usuários Google (hoje cria `tecnico` ativo automaticamente).
+- Fluxo de convite/aprovação para novos usuários Google (hoje cria `TECNICO` ativo automaticamente).
 - Assinatura digital (fase futura).
 
 ---

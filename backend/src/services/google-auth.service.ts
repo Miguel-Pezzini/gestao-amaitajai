@@ -99,7 +99,7 @@ export async function findOrProvisionGoogleUser(profile: GoogleUserProfile) {
   if (existingUser) {
     const needsGoogleId = !existingUser.googleId;
     const needsEmail = existingUser.email !== normalizedEmail;
-    const needsActivation = existingUser.accountStatus === "pendente";
+    const needsActivation = existingUser.accountStatus === "PENDENTE";
 
     if (needsGoogleId || needsEmail || needsActivation) {
       return prisma.user.update({
@@ -107,7 +107,7 @@ export async function findOrProvisionGoogleUser(profile: GoogleUserProfile) {
         data: {
           ...(needsGoogleId ? { googleId: profile.googleId } : {}),
           ...(needsEmail ? { email: normalizedEmail } : {}),
-          ...(needsActivation ? { accountStatus: "ativo" } : {}),
+          ...(needsActivation ? { accountStatus: "ATIVO" } : {}),
         },
       });
     }
@@ -121,14 +121,14 @@ export async function findOrProvisionGoogleUser(profile: GoogleUserProfile) {
       email: normalizedEmail,
       googleId: profile.googleId,
       role: "TECNICO",
-      accountStatus: "ativo",
+      accountStatus: "ATIVO",
       passwordHash: null,
     },
   });
 }
 
 export function assertUserCanAuthenticate(user: { accountStatus: string }): void {
-  if (user.accountStatus === "inativo") {
+  if (user.accountStatus === "INATIVO") {
     throw new GoogleAuthError("conta_inativa");
   }
 }
