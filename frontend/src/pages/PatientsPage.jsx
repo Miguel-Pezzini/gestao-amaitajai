@@ -20,6 +20,14 @@ import { CreateFab } from "@/components/cadastros/CreateFab";
 import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { SELECT_ALL_VALUE } from "@/constants/select";
 import { useSession } from "@/contexts/session-context";
 import { DeactivatePatientDialog } from "@/features/patients/components/DeactivatePatientDialog";
 import { PatientProtocolsDialog } from "@/features/protocols/components/PatientProtocolsDialog";
@@ -206,19 +214,22 @@ function PatientForm({
 
       <div className="space-y-2">
         <Label htmlFor="patient-fundingSource">Fonte de custeio</Label>
-        <select
-          id="patient-fundingSource"
-          className="h-10 w-full min-w-0 rounded-md border border-input bg-background px-3 py-2 text-sm"
+        <Select
           value={form.fundingSource}
-          onChange={(event) => onFormChange("fundingSource", event.target.value)}
+          onValueChange={(value) => onFormChange("fundingSource", value)}
           disabled={saving}
         >
-          {FUNDING_OPTIONS.map((option) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger id="patient-fundingSource" className="w-full">
+            <SelectValue placeholder="Selecione a fonte" />
+          </SelectTrigger>
+          <SelectContent>
+            {FUNDING_OPTIONS.map((option) => (
+              <SelectItem key={option} value={option}>
+                {option}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         {fieldErrors.fundingSource ? (
           <p className="text-sm text-destructive">{fieldErrors.fundingSource}</p>
         ) : null}
@@ -464,32 +475,37 @@ export function PatientsPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="patient-funding-filter">Fonte de custeio</Label>
-              <select
-                id="patient-funding-filter"
-                className="h-10 w-full min-w-0 rounded-md border border-input bg-background px-3 py-2 text-sm"
-                value={fundingFilter}
-                onChange={(event) => setFundingFilter(event.target.value)}
+              <Select
+                value={fundingFilter || SELECT_ALL_VALUE}
+                onValueChange={(value) =>
+                  setFundingFilter(value === SELECT_ALL_VALUE ? "" : value)
+                }
               >
-                <option value="">Todas as fontes</option>
-                {FUNDING_OPTIONS.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger id="patient-funding-filter" className="w-full">
+                  <SelectValue placeholder="Todas as fontes" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={SELECT_ALL_VALUE}>Todas as fontes</SelectItem>
+                  {FUNDING_OPTIONS.map((option) => (
+                    <SelectItem key={option} value={option}>
+                      {option}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="patient-status-filter">Status</Label>
-              <select
-                id="patient-status-filter"
-                className="h-10 w-full min-w-0 rounded-md border border-input bg-background px-3 py-2 text-sm"
-                value={statusFilter}
-                onChange={(event) => setStatusFilter(event.target.value)}
-              >
-                <option value="active">Apenas ativos</option>
-                <option value="inactive">Apenas inativos</option>
-                <option value="all">Todos</option>
-              </select>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger id="patient-status-filter" className="w-full">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Apenas ativos</SelectItem>
+                  <SelectItem value="inactive">Apenas inativos</SelectItem>
+                  <SelectItem value="all">Todos</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <Button
               className="justify-self-start bg-ama-cyan px-6 text-ama-blue-dark shadow-sm hover:bg-ama-cyan/90 sm:col-span-2 sm:justify-self-end"

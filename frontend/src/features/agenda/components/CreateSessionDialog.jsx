@@ -2,6 +2,13 @@ import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { FieldError } from "@/features/agenda/components/FieldError";
 import { PatientSearchField } from "@/features/agenda/components/PatientSearchField";
 import { ProfessionalAvailabilityList } from "@/features/agenda/components/ProfessionalAvailabilityList";
@@ -76,56 +83,71 @@ export function CreateSessionDialog({
         <form onSubmit={onSubmit} className="space-y-3">
           <div className="space-y-2">
             <Label htmlFor="sessionTypeId">Modalidade</Label>
-            <select
-              id="sessionTypeId"
-              className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              value={form.sessionTypeId}
-              onChange={(event) => onFormChange("sessionTypeId", event.target.value)}
+            <Select
+              value={form.sessionTypeId || undefined}
+              onValueChange={(value) => onFormChange("sessionTypeId", value)}
               disabled={saving}
-              aria-invalid={Boolean(fieldErrors.sessionTypeId)}
             >
-              {sessionTypes.map((type) => (
-                <option key={type._id} value={type._id}>
-                  {type.name}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger
+                id="sessionTypeId"
+                className="w-full"
+                aria-invalid={Boolean(fieldErrors.sessionTypeId)}
+              >
+                <SelectValue placeholder="Selecione a modalidade" />
+              </SelectTrigger>
+              <SelectContent>
+                {sessionTypes.map((type) => (
+                  <SelectItem key={type._id} value={type._id}>
+                    {type.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <FieldError message={fieldErrors.sessionTypeId} />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="modality">Tipo de sessão</Label>
-            <select
-              id="modality"
-              className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            <Select
               value={form.modality}
-              onChange={(event) => onFormChange("modality", event.target.value)}
+              onValueChange={(value) => onFormChange("modality", value)}
               disabled={saving}
             >
-              {modalityOptions.map((item) => (
-                <option key={item} value={item}>
-                  {SESSION_FORMAT_LABELS[item]}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger id="modality" className="w-full">
+                <SelectValue placeholder="Selecione o tipo" />
+              </SelectTrigger>
+              <SelectContent>
+                {modalityOptions.map((item) => (
+                  <SelectItem key={item} value={item}>
+                    {SESSION_FORMAT_LABELS[item]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="roomId">Sala</Label>
-            <select
-              id="roomId"
-              className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              value={form.roomId}
-              onChange={(event) => onFormChange("roomId", event.target.value)}
+            <Select
+              value={form.roomId || undefined}
+              onValueChange={(value) => onFormChange("roomId", value)}
               disabled={saving}
-              aria-invalid={Boolean(fieldErrors.roomId)}
             >
-              {rooms.map((room) => (
-                <option key={room._id} value={room._id}>
-                  {room.name}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger
+                id="roomId"
+                className="w-full"
+                aria-invalid={Boolean(fieldErrors.roomId)}
+              >
+                <SelectValue placeholder="Selecione a sala" />
+              </SelectTrigger>
+              <SelectContent>
+                {rooms.map((room) => (
+                  <SelectItem key={room._id} value={room._id}>
+                    {room.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <FieldError message={fieldErrors.roomId} />
           </div>
 

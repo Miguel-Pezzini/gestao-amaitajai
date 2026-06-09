@@ -35,10 +35,9 @@ import {
   getProtocolTypeLabel,
   getProtocolStatusLabel,
 } from "@/features/protocols/utils";
+import { SELECT_ALL_VALUE } from "@/constants/select";
 import { useProtocolsPage } from "@/hooks/useProtocolsPage";
 import { useSession } from "@/contexts/session-context";
-
-const STATUS_FILTER_ALL = "__all__";
 
 function ProtocolForm({
   form,
@@ -259,16 +258,16 @@ export function ProtocolsPage() {
             <div className="min-w-0 space-y-2">
               <Label htmlFor="protocol-status-filter">Status</Label>
               <Select
-                value={statusFilter || STATUS_FILTER_ALL}
+                value={statusFilter || SELECT_ALL_VALUE}
                 onValueChange={(value) =>
-                  setStatusFilter(value === STATUS_FILTER_ALL ? "" : value)
+                  setStatusFilter(value === SELECT_ALL_VALUE ? "" : value)
                 }
               >
                 <SelectTrigger id="protocol-status-filter" className="w-full">
                   <SelectValue placeholder="Todos" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={STATUS_FILTER_ALL}>Todos</SelectItem>
+                  <SelectItem value={SELECT_ALL_VALUE}>Todos</SelectItem>
                   {PROTOCOL_STATUSES.map((status) => (
                     <SelectItem key={status} value={status}>
                       {getProtocolStatusLabel(status)}

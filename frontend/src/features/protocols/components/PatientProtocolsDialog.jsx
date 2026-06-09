@@ -3,6 +3,13 @@ import { EntityTagBadge } from "@/components/cadastros/EntityListItem";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { CancelProtocolDialog } from "@/features/protocols/components/CancelProtocolDialog";
 import { ProtocolStatusDates } from "@/features/protocols/components/ProtocolStatusDates";
 import {
@@ -216,25 +223,30 @@ export function PatientProtocolsDialog({ patient, open, onOpenChange, onChanged 
           <form onSubmit={handleCreate} className="space-y-3 rounded-lg border border-ama-cyan/20 p-4">
             <div className="space-y-2">
               <Label htmlFor="patient-protocol-type">Tipo de solicitação</Label>
-              <select
-                id="patient-protocol-type"
-                className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                value={form.protocolTypeId}
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, protocolTypeId: event.target.value }))
+              <Select
+                value={form.protocolTypeId || undefined}
+                onValueChange={(value) =>
+                  setForm((current) => ({ ...current, protocolTypeId: value }))
                 }
                 disabled={saving || activeProtocolTypes.length === 0}
               >
-                {activeProtocolTypes.length === 0 ? (
-                  <option value="">Cadastre tipos em Cadastros Gerais</option>
-                ) : (
-                  activeProtocolTypes.map((type) => (
-                    <option key={type._id} value={type._id}>
+                <SelectTrigger id="patient-protocol-type" className="w-full">
+                  <SelectValue
+                    placeholder={
+                      activeProtocolTypes.length === 0
+                        ? "Cadastre tipos em Cadastros Gerais"
+                        : "Selecione o tipo"
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {activeProtocolTypes.map((type) => (
+                    <SelectItem key={type._id} value={type._id}>
                       {type.name}
-                    </option>
-                  ))
-                )}
-              </select>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">
