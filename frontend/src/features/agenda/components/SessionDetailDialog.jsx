@@ -102,20 +102,6 @@ export function SessionDetailDialog({
 
         {hasActions ? (
           <div className="flex flex-col gap-2 border-t border-ama-cyan/15 pt-4 sm:flex-row sm:justify-end">
-            {canComplete ? (
-              <Button
-                type="button"
-                variant="outline"
-                className="border-ama-cyan/40"
-                onClick={() => {
-                  onCompleteSession(session._id);
-                  onOpenChange(false);
-                }}
-              >
-                <Check className="size-4" aria-hidden="true" />
-                Marcar como realizada
-              </Button>
-            ) : null}
             {canCancel ? (
               <Button
                 type="button"
@@ -128,6 +114,20 @@ export function SessionDetailDialog({
               >
                 <X className="size-4" aria-hidden="true" />
                 Cancelar sessão
+              </Button>
+            ) : null}
+            {canComplete ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="border-ama-cyan/40"
+                onClick={() => {
+                  onCompleteSession(session._id);
+                  onOpenChange(false);
+                }}
+              >
+                <Check className="size-4" aria-hidden="true" />
+                Marcar como realizada
               </Button>
             ) : null}
           </div>

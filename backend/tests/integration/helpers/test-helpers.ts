@@ -144,3 +144,25 @@ export function buildSessionPayload(params: {
     professionalIds: params.professionalIds,
   };
 }
+
+export function buildRecurringSessionPayload(params: {
+  sessionTypeId: string;
+  roomId: string;
+  patientIds: string[];
+  professionalIds: string[];
+  startAt?: string;
+  modality?: string;
+  durationMinutes?: number;
+  weekdays?: number[];
+  endsAt?: string;
+}) {
+  const startAt = params.startAt ?? "2026-06-02T13:00:00.000Z";
+  return {
+    ...buildSessionPayload({ ...params, startAt }),
+    recurrence: {
+      enabled: true,
+      weekdays: params.weekdays ?? [1, 3],
+      endsAt: params.endsAt ?? "2026-06-30",
+    },
+  };
+}

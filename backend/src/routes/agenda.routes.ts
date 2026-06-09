@@ -190,7 +190,7 @@ router.patch("/agenda/sessions/:id/cancel", requireAdmin, async (req: Request, r
   try {
     const result = await agendaService.cancelSession(
       getRouteId(req.params.id),
-      (req.body ?? {}) as { cancelReason?: unknown },
+      (req.body ?? {}) as { cancelReason?: unknown; scope?: unknown },
       req.user!,
     );
     res.status(200).json(result);

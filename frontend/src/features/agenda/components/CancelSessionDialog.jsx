@@ -3,6 +3,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FieldError } from "@/features/agenda/components/FieldError";
+import { CANCEL_SCOPE_OPTIONS } from "@/features/agenda/utils/recurrence";
 
 export function CancelSessionDialog({
   open,
@@ -10,7 +11,11 @@ export function CancelSessionDialog({
   saving,
   cancelReason,
   cancelReasonError,
+  cancelScope,
+  cancelScopeError,
+  hasSeries,
   onCancelReasonChange,
+  onCancelScopeChange,
   onSubmit,
   onClose,
 }) {
@@ -28,6 +33,31 @@ export function CancelSessionDialog({
       description="Informe o motivo do cancelamento."
     >
       <form onSubmit={onSubmit} className="space-y-3">
+        {hasSeries ? (
+          <fieldset className="space-y-2">
+            <legend className="text-sm font-medium">Escopo do cancelamento</legend>
+            <div className="space-y-2">
+              {CANCEL_SCOPE_OPTIONS.map((option) => (
+                <label
+                  key={option.value}
+                  className="flex cursor-pointer items-center gap-2 rounded-md border border-ama-cyan/20 px-3 py-2 text-sm"
+                >
+                  <input
+                    type="radio"
+                    name="cancelScope"
+                    value={option.value}
+                    checked={cancelScope === option.value}
+                    onChange={() => onCancelScopeChange(option.value)}
+                    disabled={saving}
+                  />
+                  {option.label}
+                </label>
+              ))}
+            </div>
+            <FieldError message={cancelScopeError} />
+          </fieldset>
+        ) : null}
+
         <div className="space-y-2">
           <Label htmlFor="cancelReason">Motivo</Label>
           <Input

@@ -20,12 +20,9 @@ import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useSession } from "@/contexts/session-context";
-import {
-  createPatient,
-  listPatients,
-  updatePatient,
-  updatePatientStatus,
-} from "@/services/patients";
+import { DeactivatePatientDialog } from "@/features/patients/components/DeactivatePatientDialog";
+import { usePatientDeactivation } from "@/hooks/usePatientDeactivation";
+import { createPatient, listPatients, updatePatient } from "@/services/patients";
 
 const FUNDING_OPTIONS = ["Municipal", "Estadual", "Particular"];
 
@@ -276,6 +273,8 @@ export function PatientsPage() {
     }
   }
 
+  const deactivation = usePatientDeactivation({ onCompleted: loadPatients });
+
   useEffect(() => {
     loadPatients();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -357,19 +356,6 @@ export function PatientsPage() {
     }
   }
 
-  async function handleToggleStatus(patient) {
-    setError("");
-    try {
-      await updatePatientStatus(patient._id, !patient.isActive);
-      await loadPatients();
-    } catch (err) {
-      setError(
-        err.response?.data?.message ??
-          "Não foi possível atualizar o status do paciente.",
-      );
-    }
-  }
-
   return (
     <div className="relative min-w-0 space-y-4 pb-24 sm:space-y-6">
       <Card className="overflow-hidden border-ama-cyan/30">
@@ -389,6 +375,20 @@ export function PatientsPage() {
           {error}
         </p>
       ) : null}
+
+      <DeactivatePatientDialog
+        open={deactivation.dialogOpen}
+        patient={deactivation.patient}
+        impact={deactivation.impact}
+        selections={deactivation.selections}
+        selectionLabels={deactivation.selectionLabels}
+        selectionErrors={deactivation.selectionErrors}
+        saving={deactivation.saving}
+        error={deactivation.error}
+        onSelectionChange={deactivation.handleSelectionChange}
+        onClose={deactivation.closeDialog}
+        onConfirm={deactivation.confirmDeactivation}
+      />
 
       <Dialog
         open={formDialogOpen}
@@ -517,7 +517,8 @@ export function PatientsPage() {
                           size="sm"
                           variant="outline"
                           className={entityListActionButtonClassName()}
-                          onClick={() => handleToggleStatus(patient)}
+                          onClick={() => deactivation.handleToggleStatus(patient)}
+                          disabled={deactivation.loadingImpact || deactivation.saving}
                         >
                           {patient.isActive ? "Inativar" : "Reativar"}
                         </Button>

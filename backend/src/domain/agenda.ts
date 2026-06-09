@@ -12,3 +12,16 @@ export type SessionModality = (typeof SESSION_MODALITIES)[number];
 
 export const SESSION_STATUSES = ["agendada", "realizada", "cancelada"] as const;
 export type SessionStatus = (typeof SESSION_STATUSES)[number];
+
+export const SESSION_SERIES_STATUSES = ["ativa", "encerrada", "cancelada"] as const;
+export type SessionSeriesStatus = (typeof SESSION_SERIES_STATUSES)[number];
+
+export const CANCEL_SCOPES = ["single", "future", "all"] as const;
+export type CancelScope = (typeof CANCEL_SCOPES)[number];
+
+export const UPDATE_SCOPES = ["single", "future"] as const;
+export type UpdateScope = (typeof UPDATE_SCOPES)[number];
+
+export function buildPatientDeactivatedCancelReason(patientFullName: string): string {
+  return `Paciente desativado: ${patientFullName}`;
+}

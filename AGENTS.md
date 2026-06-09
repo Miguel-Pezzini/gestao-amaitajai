@@ -4,11 +4,32 @@ Guia de execução para agentes de IA neste repositório.
 
 ## Regra principal por contexto
 
-- Se a tarefa for **frontend**, leia primeiro os arquivos em `frontend/skills/`.
-- Se a tarefa for **backend**, leia primeiro os arquivos em `backend/skills/`.
-- Se a tarefa envolver os dois lados, leia ambos.
+1. Identifique o **módulo** afetado (agenda, patients, auth, users, cadastros, room-occupancy).
+2. Leia a documentação do módulo em `docs/modules/<modulo>.md` (índice em `docs/modules/README.md`).
+3. Leia as **skills** do escopo:
+   - Frontend: `frontend/skills/README.md`
+   - Backend: `backend/skills/README.md`
+   - Fullstack: ambos + documentação do módulo
 
-Antes de implementar, identifique o escopo (front/back/fullstack) e aplique as skills mapeadas.
+Antes de implementar, identifique o escopo (front/back/fullstack) e aplique skills + documentação do módulo.
+
+## Documentação por módulo (obrigatório)
+
+Cada módulo tem um arquivo em `docs/modules/` com regras de negócio, funcionalidades, validações, permissões e mapa de código.
+
+| Módulo | Arquivo |
+|---|---|
+| Agenda | `docs/modules/agenda.md` |
+| Pacientes | `docs/modules/patients.md` |
+| Autenticação | `docs/modules/auth.md` |
+| Usuários | `docs/modules/users.md` |
+| Cadastros gerais | `docs/modules/cadastros.md` |
+| Ocupação de salas | `docs/modules/room-occupancy.md` |
+
+**Ao trabalhar em um módulo:**
+- Ler o `.md` correspondente **antes** de alterar código.
+- Atualizar o mesmo `.md` **depois** de mudanças funcionais (regras, rotas, validações, pendências).
+- Módulo novo: copiar `docs/modules/_TEMPLATE.md`, preencher e registrar no índice.
 
 ## Mapeamento de skills do projeto
 
@@ -58,4 +79,5 @@ Observação: atualmente o frontend não possui script de teste no `package.json
 - Evitar funções de service com muitas responsabilidades.
 - Erros devem ser específicos por tipo de falha.
 - Toda alteração funcional deve vir acompanhada de cobertura de teste adequada.
+- Toda alteração funcional deve atualizar `docs/modules/<modulo>.md` na mesma entrega.
 

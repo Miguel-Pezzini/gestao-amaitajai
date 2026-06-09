@@ -63,6 +63,8 @@ export function AgendaPage() {
         loadingProfessionals={agenda.loadingProfessionals}
         onAddProfessional={agenda.addProfessional}
         onRemoveProfessional={agenda.removeProfessional}
+        onToggleRecurrence={agenda.handleToggleRecurrence}
+        onToggleRecurrenceWeekday={agenda.handleToggleRecurrenceWeekday}
       />
 
       <CancelSessionDialog
@@ -71,7 +73,11 @@ export function AgendaPage() {
         saving={agenda.saving}
         cancelReason={agenda.cancelReason}
         cancelReasonError={agenda.cancelReasonError}
+        cancelScope={agenda.cancelScope}
+        cancelScopeError={agenda.cancelScopeError}
+        hasSeries={agenda.cancelSessionHasSeries}
         onCancelReasonChange={agenda.handleCancelReasonChange}
+        onCancelScopeChange={agenda.handleCancelScopeChange}
         onSubmit={agenda.handleCancelSession}
         onClose={agenda.closeCancelDialog}
       />

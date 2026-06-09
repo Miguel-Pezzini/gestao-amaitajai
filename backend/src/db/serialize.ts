@@ -66,6 +66,7 @@ export type SessionListInclude = {
   updatedById: string;
   cancelledAt: Date | null;
   cancelReason: string;
+  seriesId: string | null;
   createdAt: Date;
   updatedAt: Date;
   sessionType: { id: string; name: string; slug: string };
@@ -89,6 +90,7 @@ export function serializeSessionForList(session: SessionListInclude) {
     updatedBy: session.updatedById,
     cancelledAt: session.cancelledAt,
     cancelReason: session.cancelReason,
+    seriesId: session.seriesId ?? null,
     createdAt: session.createdAt,
     updatedAt: session.updatedAt,
     patientIds: session.patients.map((row) => serializePatientRef(row.patient)),
@@ -116,6 +118,7 @@ export function serializeSessionPlain(session: {
   updatedById: string;
   cancelledAt: Date | null;
   cancelReason: string;
+  seriesId: string | null;
   createdAt: Date;
   updatedAt: Date;
   patientIds?: string[];
@@ -141,9 +144,46 @@ export function serializeSessionPlain(session: {
     updatedBy: session.updatedById,
     cancelledAt: session.cancelledAt,
     cancelReason: session.cancelReason,
+    seriesId: session.seriesId ?? null,
     createdAt: session.createdAt,
     updatedAt: session.updatedAt,
     patientIds,
     professionalIds,
+  };
+}
+
+export function serializeSessionSeries(series: {
+  id: string;
+  sessionTypeId: string;
+  modality: string;
+  roomId: string;
+  weekdays: number[];
+  startsAt: Date;
+  endsAt: Date;
+  timeMinutes: number;
+  durationMinutes: number;
+  status: string;
+  notes: string;
+  cancelledAt: Date | null;
+  cancelReason: string;
+  createdAt: Date;
+  updatedAt: Date;
+}) {
+  return {
+    _id: series.id,
+    sessionTypeId: series.sessionTypeId,
+    modality: series.modality,
+    roomId: series.roomId,
+    weekdays: series.weekdays,
+    startsAt: series.startsAt,
+    endsAt: series.endsAt,
+    timeMinutes: series.timeMinutes,
+    durationMinutes: series.durationMinutes,
+    status: series.status,
+    notes: series.notes,
+    cancelledAt: series.cancelledAt,
+    cancelReason: series.cancelReason,
+    createdAt: series.createdAt,
+    updatedAt: series.updatedAt,
   };
 }

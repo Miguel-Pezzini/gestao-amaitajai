@@ -19,7 +19,17 @@ Este diretório mapeia as skills de backend disponíveis no projeto.
   - Centralizar validações em `validators/`.
   - Padronizar erros de validação.
 
+## Documentação de módulo
+
+Antes de alterar código de um domínio, ler `docs/modules/<modulo>.md` (ver índice em `docs/modules/README.md`).
+
+Após mudanças funcionais, atualizar o mesmo arquivo com novas regras, rotas, validações ou pendências.
+
 ## Regra operacional
 
-Em qualquer tarefa de backend, o agente deve ler este README e as skills acima antes de começar alterações.
+Em qualquer tarefa de backend, o agente deve:
+
+1. Ler a documentação do módulo em `docs/modules/`.
+2. Ler este README e as skills acima.
+3. Atualizar `docs/modules/<modulo>.md` ao finalizar alterações funcionais.
 

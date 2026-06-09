@@ -37,6 +37,12 @@ enum SessionStatus {
   cancelada
 }
 
+enum SessionSeriesStatus {
+  ativa
+  encerrada
+  cancelada
+}
+
 model User {
   id            String            @id @default(uuid()) @db.Uuid
   name          String
@@ -48,9 +54,12 @@ model User {
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
 
-  sessionsCreated      Session[]              @relation("SessionCreatedBy")
-  sessionsUpdated      Session[]              @relation("SessionUpdatedBy")
-  sessionProfessionals SessionProfessional[]
+  sessionsCreated           Session[]                 @relation("SessionCreatedBy")
+  sessionsUpdated           Session[]                 @relation("SessionUpdatedBy")
+  sessionProfessionals      SessionProfessional[]
+  sessionSeriesCreated      SessionSeries[]           @relation("SessionSeriesCreatedBy")
+  sessionSeriesUpdated      SessionSeries[]           @relation("SessionSeriesUpdatedBy")
+  sessionSeriesProfessional SessionSeriesProfessional[]
 
   @@index([role, accountStatus])
 }
@@ -66,7 +75,8 @@ model Patient {
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
-  sessionPatients SessionPatient[]
+  sessionPatients       SessionPatient[]
+  sessionSeriesPatients SessionSeriesPatient[]
 
   @@index([isActive, fullName])
   @@index([fundingSource, isActive, fullName])
@@ -79,7 +89,8 @@ model Room {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  sessions Session[]
+  sessions       Session[]
+  sessionSeries  SessionSeries[]
 
   @@index([isActive])
 }
@@ -95,14 +106,69 @@ model SessionType {
   createdAt              DateTime          @default(now())
   updatedAt              DateTime          @updatedAt
 
-  sessions Session[]
+  sessions      Session[]
+  sessionSeries SessionSeries[]
 
   @@index([name])
   @@index([isActive])
 }
 
+model SessionSeries {
+  id              String              @id @default(uuid()) @db.Uuid
+  sessionTypeId   String              @db.Uuid
+  modality        SessionModality
+  roomId          String              @db.Uuid
+  weekdays        Int[]
+  startsAt        DateTime            @db.Date
+  endsAt          DateTime            @db.Date
+  timeMinutes     Int
+  durationMinutes Int
+  status          SessionSeriesStatus @default(ativa)
+  notes           String              @default("")
+  createdById     String              @db.Uuid
+  updatedById     String              @db.Uuid
+  cancelledAt     DateTime?
+  cancelReason    String              @default("")
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  sessionType   SessionType                 @relation(fields: [sessionTypeId], references: [id])
+  room          Room                        @relation(fields: [roomId], references: [id])
+  createdBy     User                        @relation("SessionSeriesCreatedBy", fields: [createdById], references: [id])
+  updatedBy     User                        @relation("SessionSeriesUpdatedBy", fields: [updatedById], references: [id])
+  patients      SessionSeriesPatient[]
+  professionals SessionSeriesProfessional[]
+  sessions      Session[]
+
+  @@index([status])
+  @@index([startsAt, endsAt])
+}
+
+model SessionSeriesPatient {
+  seriesId  String @db.Uuid
+  patientId String @db.Uuid
+
+  series  SessionSeries @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  patient Patient       @relation(fields: [patientId], references: [id])
+
+  @@id([seriesId, patientId])
+  @@index([patientId])
+}
+
+model SessionSeriesProfessional {
+  seriesId       String @db.Uuid
+  professionalId String @db.Uuid
+
+  series       SessionSeries @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  professional User          @relation(fields: [professionalId], references: [id])
+
+  @@id([seriesId, professionalId])
+  @@index([professionalId])
+}
+
 model Session {
   id              String          @id @default(uuid()) @db.Uuid
+  seriesId        String?         @db.Uuid
   sessionTypeId   String          @db.Uuid
   modality        SessionModality
   roomId          String          @db.Uuid
@@ -118,6 +184,7 @@ model Session {
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 
+  series        SessionSeries?        @relation(fields: [seriesId], references: [id], onDelete: SetNull)
   sessionType   SessionType           @relation(fields: [sessionTypeId], references: [id])
   room          Room                  @relation(fields: [roomId], references: [id])
   createdBy     User                  @relation("SessionCreatedBy", fields: [createdById], references: [id])
@@ -128,6 +195,7 @@ model Session {
   @@index([startAt, endAt])
   @@index([roomId, startAt, endAt])
   @@index([status])
+  @@index([seriesId, startAt])
 }
 
 model SessionPatient {

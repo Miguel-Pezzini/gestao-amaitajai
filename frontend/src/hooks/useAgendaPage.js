@@ -28,6 +28,11 @@ import {
   normalizeRole,
   splitStartDateTime,
 } from "@/features/agenda/utils";
+import {
+  defaultRecurrenceEndsAt,
+  getWeekdayFromDateString,
+  toggleWeekday,
+} from "@/features/agenda/utils/recurrence";
 
 const EMPTY_FIELD_ERRORS = {};
 
@@ -50,8 +55,11 @@ export function useAgendaPage(user) {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [cancelSessionId, setCancelSessionId] = useState("");
+  const [cancelSessionHasSeries, setCancelSessionHasSeries] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
   const [cancelReasonError, setCancelReasonError] = useState("");
+  const [cancelScope, setCancelScope] = useState("single");
+  const [cancelScopeError, setCancelScopeError] = useState("");
 
   const [patientTerm, setPatientTerm] = useState("");
   const [patientOptions, setPatientOptions] = useState([]);
@@ -234,7 +242,51 @@ export function useAgendaPage(user) {
     if (field === "startDate" || field === "startTime") {
       clearFieldError("startAt");
     }
+    if (field === "startDate") {
+      setForm((current) => {
+        const weekday = getWeekdayFromDateString(value);
+        const next = { ...current, startDate: value };
+        if (current.recurrenceEnabled && weekday !== null) {
+          next.recurrenceWeekdays = current.recurrenceWeekdays.includes(weekday)
+            ? current.recurrenceWeekdays
+            : [...current.recurrenceWeekdays, weekday].sort((a, b) => a - b);
+          next.recurrenceEndsAt = defaultRecurrenceEndsAt(value);
+        }
+        return next;
+      });
+      return;
+    }
     setForm((current) => ({ ...current, [field]: value }));
+  }
+
+  function handleToggleRecurrence(enabled) {
+    clearFieldError("recurrenceWeekdays");
+    clearFieldError("recurrenceEndsAt");
+    setForm((current) => {
+      const weekday = getWeekdayFromDateString(current.startDate);
+      return {
+        ...current,
+        recurrenceEnabled: enabled,
+        recurrenceWeekdays:
+          enabled && weekday !== null
+            ? current.recurrenceWeekdays.length > 0
+              ? current.recurrenceWeekdays
+              : [weekday]
+            : current.recurrenceWeekdays,
+        recurrenceEndsAt:
+          enabled && current.startDate
+            ? defaultRecurrenceEndsAt(current.startDate)
+            : current.recurrenceEndsAt,
+      };
+    });
+  }
+
+  function handleToggleRecurrenceWeekday(weekday) {
+    clearFieldError("recurrenceWeekdays");
+    setForm((current) => ({
+      ...current,
+      recurrenceWeekdays: toggleWeekday(current.recurrenceWeekdays, weekday),
+    }));
   }
 
   function resetCreateForm() {
@@ -292,17 +344,24 @@ export function useAgendaPage(user) {
   }, [createDialogOpen, sessionTypes, rooms]);
 
   function openCancelDialog(sessionId) {
+    const session = sessions.find((item) => item._id === sessionId);
     setCancelSessionId(sessionId);
+    setCancelSessionHasSeries(Boolean(session?.seriesId));
     setCancelReason("");
     setCancelReasonError("");
+    setCancelScope("single");
+    setCancelScopeError("");
     setCancelDialogOpen(true);
   }
 
   function closeCancelDialog() {
     setCancelDialogOpen(false);
     setCancelSessionId("");
+    setCancelSessionHasSeries(false);
     setCancelReason("");
     setCancelReasonError("");
+    setCancelScope("single");
+    setCancelScopeError("");
   }
 
   function handleCancelReasonChange(value) {
@@ -412,10 +471,22 @@ export function useAgendaPage(user) {
       notes: form.notes.trim(),
     };
 
+    if (form.recurrenceEnabled) {
+      payload.recurrence = {
+        enabled: true,
+        weekdays: form.recurrenceWeekdays,
+        endsAt: form.recurrenceEndsAt,
+      };
+    }
+
     try {
-      await createSession(payload);
+      const result = await createSession(payload);
       closeCreateDialog();
-      toast.success("Sessão criada com sucesso.");
+      if (result.sessionsCreated) {
+        toast.success(`${result.sessionsCreated} sessões criadas com sucesso.`);
+      } else {
+        toast.success("Sessão criada com sucesso.");
+      }
       await loadSessions();
     } catch (err) {
       toast.error(
@@ -450,9 +521,15 @@ export function useAgendaPage(user) {
     setCancelReasonError("");
     setSaving(true);
     try {
-      await cancelSession(cancelSessionId, cancelReason.trim());
+      const result = await cancelSession(cancelSessionId, {
+        cancelReason: cancelReason.trim(),
+        scope: cancelScope,
+      });
       closeCancelDialog();
-      toast.success("Sessão cancelada com sucesso.");
+      const count = result.sessionsCancelled ?? 1;
+      toast.success(
+        count > 1 ? `${count} sessões canceladas com sucesso.` : "Sessão cancelada com sucesso.",
+      );
       await loadSessions();
     } catch (err) {
       toast.error(
@@ -481,7 +558,11 @@ export function useAgendaPage(user) {
     setCancelDialogOpen,
     cancelReason,
     cancelReasonError,
+    cancelScope,
+    cancelScopeError,
+    cancelSessionHasSeries,
     handleCancelReasonChange,
+    handleCancelScopeChange: setCancelScope,
     patientTerm,
     setPatientTerm,
     patientOptions,
@@ -503,5 +584,7 @@ export function useAgendaPage(user) {
     handleCreateSession,
     handleCompleteSession,
     handleCancelSession,
+    handleToggleRecurrence,
+    handleToggleRecurrenceWeekday,
   };
 }

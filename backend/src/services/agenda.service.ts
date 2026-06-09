@@ -11,10 +11,12 @@ import {
   serializeSessionForList,
   serializeSessionPlain,
   serializeSessionRecord,
+  serializeSessionSeries,
   withMongoId,
   withMongoIdList,
 } from "../db/serialize.js";
 import {
+  buildPatientDeactivatedCancelReason,
   SESSION_MODALITIES,
   USER_ROLES,
   type SessionModality,
@@ -54,6 +56,25 @@ import {
   validateUpdateSession,
 } from "../validators/agenda/session.validator.js";
 import {
+  parseRecurrenceInput,
+  validatePatientId,
+  validateRecurrenceInput,
+  validateUpdateScope,
+  type RecurrenceInput,
+} from "../validators/agenda/recurrence.validator.js";
+import {
+  formatRecurrenceConflictDates,
+  generateRecurrenceDates,
+  getTimeMinutesFromDate,
+  toDateOnly,
+} from "./session-recurrence.helpers.js";
+import {
+  buildReplacementKey,
+  requiresPatientReplacementOnDeactivation,
+  shouldCancelSessionOnPatientDeactivation,
+} from "./patient-deactivation.helpers.js";
+import type { PatientDeactivationReplacementInput } from "../validators/patient-deactivation.validator.js";
+import {
   buildSessionOverlapWhere,
   indexConflictsByParticipantId,
   mapOverlapSessionToConflictShape,
@@ -64,6 +85,15 @@ type AuthenticatedUser = {
   role: UserRole;
 };
 
+type SessionPayloadWithRecurrence = SessionPayload & {
+  recurrence?: unknown;
+  updateScope?: unknown;
+};
+
+type CancelPayload = {
+  cancelReason?: unknown;
+  scope?: unknown;
+};
 type SessionValidationLimits = {
   minPatients: number;
   maxPatients: number;
@@ -473,7 +503,7 @@ export class AgendaService {
     return { items: sessions.map(serializeSessionForList) };
   }
 
-  async createSession(payload: SessionPayload, currentUser: AuthenticatedUser) {
+  async createSession(payload: SessionPayloadWithRecurrence, currentUser: AuthenticatedUser) {
     const normalized = normalizeSessionInput(payload);
     validateSession(normalized);
     await this.validateSessionParticipantsByModality(
@@ -485,6 +515,11 @@ export class AgendaService {
 
     const references = await this.loadSessionReferences(normalized);
     validateSessionModality(references.sessionType.allowedModalities, normalized.modality);
+
+    const recurrenceInput = parseRecurrenceInput(payload, startAt);
+    if (recurrenceInput.enabled) {
+      return this.createRecurringSessions(normalized, recurrenceInput, currentUser);
+    }
 
     const endAt = this.computeSessionEndAt(startAt, normalized.durationMinutes);
     await this.assertNoSchedulingConflicts({
@@ -525,11 +560,12 @@ export class AgendaService {
 
   async updateSession(
     sessionId: string,
-    payload: SessionPayload,
+    payload: SessionPayloadWithRecurrence,
     currentUser: AuthenticatedUser,
   ) {
     const existing = await this.findSessionOrThrow(sessionId);
     validateUpdateSession(sessionId, existing.status);
+    const updateScope = validateUpdateScope(payload.updateScope);
 
     const normalized = normalizeSessionInput(payload, {
       sessionTypeId: existing.sessionTypeId,
@@ -562,11 +598,19 @@ export class AgendaService {
       excludeSessionId: sessionId,
     });
 
+    const existingProfessionalIds = existing.professionals
+      .map((row) => row.professionalId)
+      .sort();
+    const nextProfessionalIds = [...normalized.professionalIds].sort();
+    const professionalsChanged =
+      existingProfessionalIds.length !== nextProfessionalIds.length ||
+      existingProfessionalIds.some((id, index) => id !== nextProfessionalIds[index]);
+
     const session = await prisma.$transaction(async (tx) => {
       await tx.sessionPatient.deleteMany({ where: { sessionId } });
       await tx.sessionProfessional.deleteMany({ where: { sessionId } });
 
-      return tx.session.update({
+      const updated = await tx.session.update({
         where: { id: sessionId },
         data: {
           sessionTypeId: normalized.sessionTypeId,
@@ -586,6 +630,22 @@ export class AgendaService {
         },
         include: SESSION_LIST_INCLUDE,
       });
+
+      if (
+        professionalsChanged &&
+        updateScope === "future" &&
+        existing.seriesId
+      ) {
+        await this.applySeriesProfessionalUpdate(
+          tx,
+          existing.seriesId,
+          existing.startAt,
+          normalized.professionalIds,
+          currentUser,
+        );
+      }
+
+      return updated;
     });
 
     return { session: serializeSessionRecord(session) };
@@ -593,12 +653,17 @@ export class AgendaService {
 
   async cancelSession(
     sessionId: string,
-    payload: { cancelReason?: unknown },
+    payload: CancelPayload,
     currentUser: AuthenticatedUser,
   ) {
-    const { cancelReason } = validateCancelSession(sessionId, payload);
+    const { cancelReason, scope } = validateCancelSession(sessionId, payload);
+    const existing = await this.findSessionOrThrow(sessionId);
 
-    try {
+    if (existing.status === "cancelada") {
+      throw new ValidationError("Sessão já está cancelada.");
+    }
+
+    if (scope === "single" || !existing.seriesId) {
       const session = await prisma.session.update({
         where: { id: sessionId },
         data: {
@@ -612,9 +677,443 @@ export class AgendaService {
           professionals: { select: { professionalId: true } },
         },
       });
-      return { session: serializeSessionPlain(session) };
-    } catch {
-      throw new NotFoundError("Sessão não encontrada.");
+      return { session: serializeSessionPlain(session), sessionsCancelled: 1 };
+    }
+
+    const now = new Date();
+    const result = await prisma.$transaction(async (tx) => {
+      const where: Prisma.SessionWhereInput =
+        scope === "future"
+          ? {
+              seriesId: existing.seriesId,
+              status: "agendada",
+              startAt: { gte: existing.startAt },
+            }
+          : {
+              seriesId: existing.seriesId,
+              status: "agendada",
+            };
+
+      const cancelled = await tx.session.updateMany({
+        where,
+        data: {
+          status: "cancelada",
+          cancelReason,
+          cancelledAt: now,
+          updatedById: currentUser._id,
+        },
+      });
+
+      if (scope === "all") {
+        await tx.sessionSeries.update({
+          where: { id: existing.seriesId! },
+          data: {
+            status: "cancelada",
+            cancelReason,
+            cancelledAt: now,
+            updatedById: currentUser._id,
+          },
+        });
+      }
+
+      return cancelled.count;
+    });
+
+    const session = await prisma.session.findUniqueOrThrow({
+      where: { id: sessionId },
+      include: {
+        patients: { select: { patientId: true } },
+        professionals: { select: { professionalId: true } },
+      },
+    });
+
+    return {
+      session: serializeSessionPlain(session),
+      sessionsCancelled: result,
+    };
+  }
+
+  async getPatientDeactivationImpact(patientId: string) {
+    validatePatientId(patientId);
+
+    const sessions = await this.findScheduledSessionsForPatient(patientId);
+    const cancellations: Array<{
+      sessionId: string;
+      modality: SessionModality;
+      startAt: Date;
+      sessionTypeName: string;
+      roomName: string;
+    }> = [];
+    const replacementSessions: typeof sessions = [];
+
+    for (const session of sessions) {
+      const patientCountInSession = session.patients.length;
+      const modality = session.modality as SessionModality;
+
+      if (shouldCancelSessionOnPatientDeactivation(modality, patientCountInSession)) {
+        cancellations.push({
+          sessionId: session.id,
+          modality,
+          startAt: session.startAt,
+          sessionTypeName: session.sessionType.name,
+          roomName: session.room.name,
+        });
+        continue;
+      }
+
+      if (requiresPatientReplacementOnDeactivation(modality, patientCountInSession)) {
+        replacementSessions.push(session);
+      }
+    }
+
+    const seriesGroups = new Map<string, typeof sessions>();
+    const standaloneSessions: typeof sessions = [];
+
+    for (const session of replacementSessions) {
+      if (session.seriesId) {
+        const current = seriesGroups.get(session.seriesId) ?? [];
+        current.push(session);
+        seriesGroups.set(session.seriesId, current);
+      } else {
+        standaloneSessions.push(session);
+      }
+    }
+
+    const replacements = [
+      ...Array.from(seriesGroups.entries()).map(([seriesId, groupedSessions]) => {
+        const first = groupedSessions[0]!;
+        return {
+          key: buildReplacementKey({ seriesId }),
+          type: "series" as const,
+          seriesId,
+          modality: first.modality as SessionModality,
+          sessionTypeName: first.sessionType.name,
+          roomName: first.room.name,
+          sessionCount: groupedSessions.length,
+          nextStartAt: first.startAt,
+          weekdays: first.series?.weekdays ?? [],
+          otherPatients: this.serializeOtherPatients(first, patientId),
+        };
+      }),
+      ...standaloneSessions.map((session) => ({
+        key: buildReplacementKey({ sessionId: session.id }),
+        type: "session" as const,
+        sessionId: session.id,
+        modality: session.modality as SessionModality,
+        sessionTypeName: session.sessionType.name,
+        roomName: session.room.name,
+        sessionCount: 1,
+        nextStartAt: session.startAt,
+        weekdays: [] as number[],
+        otherPatients: this.serializeOtherPatients(session, patientId),
+      })),
+    ];
+
+    return {
+      cancellations,
+      replacements,
+      requiresReplacement: replacements.length > 0,
+    };
+  }
+
+  async handlePatientDeactivation(
+    patientId: string,
+    patientFullName: string,
+    currentUser: AuthenticatedUser,
+    replacementsInput: PatientDeactivationReplacementInput[] = [],
+  ) {
+    validatePatientId(patientId);
+
+    const impact = await this.getPatientDeactivationImpact(patientId);
+    const replacementByKey = this.buildReplacementMap(replacementsInput);
+    this.assertReplacementCoverage(impact.replacements, replacementByKey, patientId);
+
+    const now = new Date();
+    const cancelReason = buildPatientDeactivatedCancelReason(patientFullName);
+    let sessionsCancelled = 0;
+    let sessionsReplaced = 0;
+
+    await prisma.$transaction(async (tx) => {
+      for (const item of impact.replacements) {
+        const replacement = replacementByKey.get(item.key);
+        if (!replacement) {
+          continue;
+        }
+
+        if (item.type === "series" && item.seriesId) {
+          sessionsReplaced += await this.applySeriesPatientReplacement(
+            tx,
+            item.seriesId,
+            patientId,
+            replacement.replacementPatientId,
+            currentUser,
+          );
+          continue;
+        }
+
+        if (item.type === "session" && item.sessionId) {
+          await this.applySessionPatientReplacement(
+            tx,
+            item.sessionId,
+            patientId,
+            replacement.replacementPatientId,
+            currentUser,
+          );
+          sessionsReplaced += 1;
+        }
+      }
+
+      for (const cancellation of impact.cancellations) {
+        await tx.session.update({
+          where: { id: cancellation.sessionId },
+          data: {
+            status: "cancelada",
+            cancelReason,
+            cancelledAt: now,
+            updatedById: currentUser._id,
+          },
+        });
+        sessionsCancelled += 1;
+      }
+
+      await tx.sessionSeriesPatient.deleteMany({
+        where: {
+          patientId,
+          series: { status: "ativa" },
+        },
+      });
+    });
+
+    return { sessionsCancelled, sessionsReplaced };
+  }
+
+  /** Sessões pendentes (`agendada`) em que o paciente participa; realizadas/canceladas ficam intactas. */
+  private async findScheduledSessionsForPatient(patientId: string) {
+    return prisma.session.findMany({
+      where: {
+        status: "agendada",
+        patients: { some: { patientId } },
+      },
+      include: {
+        sessionType: { select: { name: true } },
+        room: { select: { name: true } },
+        series: { select: { weekdays: true, timeMinutes: true } },
+        patients: {
+          include: { patient: { select: { id: true, fullName: true } } },
+        },
+        professionals: { select: { professionalId: true } },
+      },
+      orderBy: { startAt: "asc" },
+    });
+  }
+
+  private serializeOtherPatients(
+    session: {
+      patients: Array<{ patientId: string; patient: { id: string; fullName: string } }>;
+    },
+    patientId: string,
+  ) {
+    return session.patients
+      .filter((row) => row.patientId !== patientId)
+      .map((row) => ({
+        id: row.patient.id,
+        fullName: row.patient.fullName,
+      }));
+  }
+
+  private buildReplacementMap(replacementsInput: PatientDeactivationReplacementInput[]) {
+    const replacementByKey = new Map<string, PatientDeactivationReplacementInput>();
+
+    for (const replacement of replacementsInput) {
+      const key = buildReplacementKey({
+        seriesId: replacement.seriesId,
+        sessionId: replacement.sessionId,
+      });
+      replacementByKey.set(key, replacement);
+    }
+
+    return replacementByKey;
+  }
+
+  private assertReplacementCoverage(
+    requiredReplacements: Array<{ key: string }>,
+    replacementByKey: Map<string, PatientDeactivationReplacementInput>,
+    patientId: string,
+  ) {
+    if (requiredReplacements.length === 0) {
+      return;
+    }
+
+    if (replacementByKey.size !== requiredReplacements.length) {
+      throw new ValidationError(
+        "Informe o paciente substituto para todas as sessões que exigem troca.",
+      );
+    }
+
+    for (const item of requiredReplacements) {
+      const replacement = replacementByKey.get(item.key);
+      if (!replacement) {
+        throw new ValidationError(
+          "Informe o paciente substituto para todas as sessões que exigem troca.",
+        );
+      }
+      if (replacement.replacementPatientId === patientId) {
+        throw new ValidationError("O paciente substituto deve ser diferente do paciente inativado.");
+      }
+    }
+  }
+
+  private async applySeriesPatientReplacement(
+    tx: Prisma.TransactionClient,
+    seriesId: string,
+    oldPatientId: string,
+    newPatientId: string,
+    currentUser: AuthenticatedUser,
+  ) {
+    await this.assertReplacementPatientAvailable(tx, newPatientId, oldPatientId);
+
+    const seriesSessions = await tx.session.findMany({
+      where: {
+        seriesId,
+        status: "agendada",
+        patients: { some: { patientId: oldPatientId } },
+      },
+      include: {
+        patients: { select: { patientId: true } },
+        professionals: { select: { professionalId: true } },
+      },
+      orderBy: { startAt: "asc" },
+    });
+
+    if (seriesSessions.length === 0) {
+      throw new ValidationError("Nenhuma sessão agendada encontrada para a série informada.");
+    }
+
+    const alreadyInSeries = await tx.sessionSeriesPatient.findFirst({
+      where: { seriesId, patientId: newPatientId },
+    });
+    if (alreadyInSeries) {
+      throw new ValidationError("O paciente substituto já participa desta série.");
+    }
+
+    for (const session of seriesSessions) {
+      if (session.patients.some((row) => row.patientId === newPatientId)) {
+        throw new ValidationError("O paciente substituto já participa de uma sessão desta série.");
+      }
+
+      const nextPatientIds = session.patients
+        .map((row) => row.patientId)
+        .filter((id) => id !== oldPatientId);
+      nextPatientIds.push(newPatientId);
+
+      await this.assertNoSchedulingConflicts({
+        startAt: session.startAt,
+        endAt: session.endAt,
+        roomId: session.roomId,
+        patientIds: nextPatientIds,
+        professionalIds: session.professionals.map((row) => row.professionalId),
+        excludeSessionId: session.id,
+      });
+    }
+
+    await tx.sessionSeriesPatient.deleteMany({
+      where: { seriesId, patientId: oldPatientId },
+    });
+    await tx.sessionSeriesPatient.create({
+      data: { seriesId, patientId: newPatientId },
+    });
+    await tx.sessionSeries.update({
+      where: { id: seriesId },
+      data: { updatedById: currentUser._id },
+    });
+
+    for (const session of seriesSessions) {
+      await tx.sessionPatient.deleteMany({
+        where: { sessionId: session.id, patientId: oldPatientId },
+      });
+      await tx.sessionPatient.create({
+        data: { sessionId: session.id, patientId: newPatientId },
+      });
+      await tx.session.update({
+        where: { id: session.id },
+        data: { updatedById: currentUser._id },
+      });
+    }
+
+    return seriesSessions.length;
+  }
+
+  private async applySessionPatientReplacement(
+    tx: Prisma.TransactionClient,
+    sessionId: string,
+    oldPatientId: string,
+    newPatientId: string,
+    currentUser: AuthenticatedUser,
+  ) {
+    await this.assertReplacementPatientAvailable(tx, newPatientId, oldPatientId);
+
+    const session = await tx.session.findUnique({
+      where: { id: sessionId },
+      include: {
+        patients: { select: { patientId: true } },
+        professionals: { select: { professionalId: true } },
+      },
+    });
+
+    if (!session || session.status !== "agendada") {
+      throw new ValidationError("Sessão agendada não encontrada para substituição.");
+    }
+
+    if (!session.patients.some((row) => row.patientId === oldPatientId)) {
+      throw new ValidationError("O paciente inativado não participa desta sessão.");
+    }
+
+    if (session.patients.some((row) => row.patientId === newPatientId)) {
+      throw new ValidationError("O paciente substituto já participa desta sessão.");
+    }
+
+    const nextPatientIds = session.patients
+      .map((row) => row.patientId)
+      .filter((id) => id !== oldPatientId);
+    nextPatientIds.push(newPatientId);
+
+    await this.assertNoSchedulingConflicts({
+      startAt: session.startAt,
+      endAt: session.endAt,
+      roomId: session.roomId,
+      patientIds: nextPatientIds,
+      professionalIds: session.professionals.map((row) => row.professionalId),
+      excludeSessionId: session.id,
+    });
+
+    await tx.sessionPatient.deleteMany({
+      where: { sessionId, patientId: oldPatientId },
+    });
+    await tx.sessionPatient.create({
+      data: { sessionId, patientId: newPatientId },
+    });
+    await tx.session.update({
+      where: { id: sessionId },
+      data: { updatedById: currentUser._id },
+    });
+  }
+
+  private async assertReplacementPatientAvailable(
+    tx: Prisma.TransactionClient,
+    replacementPatientId: string,
+    deactivatedPatientId: string,
+  ) {
+    if (replacementPatientId === deactivatedPatientId) {
+      throw new ValidationError("O paciente substituto deve ser diferente do paciente inativado.");
+    }
+
+    const replacementPatient = await tx.patient.findUnique({
+      where: { id: replacementPatientId },
+      select: { isActive: true },
+    });
+
+    if (!replacementPatient?.isActive) {
+      throw new ValidationError("O paciente substituto não existe ou está inativo.");
     }
   }
 
@@ -704,6 +1203,168 @@ export class AgendaService {
 
   private computeSessionEndAt(startAt: Date, durationMinutes: number): Date {
     return new Date(startAt.getTime() + durationMinutes * 60 * 1000);
+  }
+
+  private async createRecurringSessions(
+    normalized: ReturnType<typeof normalizeSessionInput>,
+    recurrenceInput: RecurrenceInput,
+    currentUser: AuthenticatedUser,
+  ) {
+    const startAt = normalized.startAt as Date;
+    const { weekdays, endsAt } = validateRecurrenceInput(recurrenceInput, startAt);
+    const dates = generateRecurrenceDates({ startAt, weekdays, endsAt });
+
+    if (dates.length === 0) {
+      throw new ValidationError("Nenhuma ocorrência encontrada para o período selecionado.");
+    }
+
+    const conflictDates = await this.findRecurrenceConflictDates({
+      dates,
+      durationMinutes: normalized.durationMinutes,
+      roomId: normalized.roomId,
+      patientIds: normalized.patientIds,
+      professionalIds: normalized.professionalIds,
+    });
+
+    if (conflictDates.length > 0) {
+      throw new ConflictError(
+        `Conflito de agenda em ${conflictDates.length} data(s): ${formatRecurrenceConflictDates(conflictDates)}.`,
+      );
+    }
+
+    const timeMinutes = getTimeMinutesFromDate(startAt);
+    const result = await prisma.$transaction(async (tx) => {
+      const series = await tx.sessionSeries.create({
+        data: {
+          sessionTypeId: normalized.sessionTypeId,
+          modality: normalized.modality,
+          roomId: normalized.roomId,
+          weekdays,
+          startsAt: toDateOnly(startAt),
+          endsAt: toDateOnly(endsAt),
+          timeMinutes,
+          durationMinutes: normalized.durationMinutes,
+          notes: normalized.notes,
+          createdById: currentUser._id,
+          updatedById: currentUser._id,
+          patients: {
+            create: normalized.patientIds.map((patientId) => ({ patientId })),
+          },
+          professionals: {
+            create: normalized.professionalIds.map((professionalId) => ({ professionalId })),
+          },
+        },
+      });
+
+      for (const occurrenceStart of dates) {
+        const occurrenceEnd = this.computeSessionEndAt(
+          occurrenceStart,
+          normalized.durationMinutes,
+        );
+        await tx.session.create({
+          data: {
+            seriesId: series.id,
+            sessionTypeId: normalized.sessionTypeId,
+            modality: normalized.modality,
+            roomId: normalized.roomId,
+            startAt: occurrenceStart,
+            endAt: occurrenceEnd,
+            durationMinutes: normalized.durationMinutes,
+            status: "agendada",
+            notes: normalized.notes,
+            createdById: currentUser._id,
+            updatedById: currentUser._id,
+            patients: {
+              create: normalized.patientIds.map((patientId) => ({ patientId })),
+            },
+            professionals: {
+              create: normalized.professionalIds.map((professionalId) => ({
+                professionalId,
+              })),
+            },
+          },
+        });
+      }
+
+      return series;
+    });
+
+    return {
+      series: serializeSessionSeries(result),
+      sessionsCreated: dates.length,
+    };
+  }
+
+  private async findRecurrenceConflictDates(params: {
+    dates: Date[];
+    durationMinutes: number;
+    roomId: string;
+    patientIds: string[];
+    professionalIds: string[];
+  }): Promise<Date[]> {
+    const conflicts: Date[] = [];
+
+    for (const startAt of params.dates) {
+      const endAt = this.computeSessionEndAt(startAt, params.durationMinutes);
+      try {
+        await this.assertNoSchedulingConflicts({
+          startAt,
+          endAt,
+          roomId: params.roomId,
+          patientIds: params.patientIds,
+          professionalIds: params.professionalIds,
+        });
+      } catch (error) {
+        if (error instanceof ConflictError) {
+          conflicts.push(startAt);
+          continue;
+        }
+        throw error;
+      }
+    }
+
+    return conflicts;
+  }
+
+  private async applySeriesProfessionalUpdate(
+    tx: Prisma.TransactionClient,
+    seriesId: string,
+    fromStartAt: Date,
+    professionalIds: string[],
+    currentUser: AuthenticatedUser,
+  ) {
+    await tx.sessionSeriesProfessional.deleteMany({ where: { seriesId } });
+    await tx.sessionSeriesProfessional.createMany({
+      data: professionalIds.map((professionalId) => ({ seriesId, professionalId })),
+    });
+
+    await tx.sessionSeries.update({
+      where: { id: seriesId },
+      data: { updatedById: currentUser._id },
+    });
+
+    const futureSessions = await tx.session.findMany({
+      where: {
+        seriesId,
+        status: "agendada",
+        startAt: { gte: fromStartAt },
+      },
+      select: { id: true },
+    });
+
+    for (const futureSession of futureSessions) {
+      await tx.sessionProfessional.deleteMany({ where: { sessionId: futureSession.id } });
+      await tx.sessionProfessional.createMany({
+        data: professionalIds.map((professionalId) => ({
+          sessionId: futureSession.id,
+          professionalId,
+        })),
+      });
+      await tx.session.update({
+        where: { id: futureSession.id },
+        data: { updatedById: currentUser._id },
+      });
+    }
   }
 
   private async persistRoomCreate(name: string) {

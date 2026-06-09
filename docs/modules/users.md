@@ -1,0 +1,104 @@
+# Módulo: Usuários / Funcionários
+
+**Última atualização:** 2026-06-09  
+**Escopo:** fullstack
+
+---
+
+## Visão geral
+
+Gestão de funcionários (usuários do sistema) com perfis `administrador` ou `tecnico` e status de conta. Acesso restrito a administradores.
+
+---
+
+## Regras de negócio
+
+### Perfis
+
+- `administrador`: acesso total, incluindo este módulo.
+- `tecnico`: usuário operacional da agenda.
+
+### Status de conta
+
+`pendente`, `ativo`, `inativo`. Apenas `ativo` (e `pendente` em fluxo Google) autentica.
+
+### Cadastro
+
+- E-mail institucional obrigatório (`@ALLOWED_EMAIL_DOMAIN`).
+- Senha mínima 6 caracteres na criação.
+- E-mail único no sistema.
+- Role default na criação: `tecnico` se não informado.
+
+---
+
+## Funcionalidades atuais
+
+### Backend — rotas (`/users/*`)
+
+Todas exigem `requireAuth` + `requireAdmin`.
+
+| Método | Rota | Descrição |
+|---|---|---|
+| GET | `/users` | Lista com filtros (search, role, status) e paginação |
+| POST | `/users` | Criar funcionário (senha obrigatória) |
+| PATCH | `/users/:id` | Atualizar nome, e-mail, senha, role |
+| PATCH | `/users/:id/status` | Alterar `accountStatus` |
+
+### Frontend
+
+| Rota | Componente | Descrição |
+|---|---|---|
+| `/cadastros/funcionarios` | `UsuariosPage` | CRUD de funcionários |
+
+Redirect: `/cadastros/usuarios` → `/cadastros/funcionarios`.
+
+---
+
+## Validações importantes
+
+| Campo | Validação | Onde |
+|---|---|---|
+| `name` | obrigatório | `users.routes.ts` |
+| `email` | válido, domínio institucional, único | `users.routes.ts` |
+| `password` | ≥6 caracteres (criação ou quando enviado) | `users.routes.ts` |
+| `role` | `administrador` ou `tecnico` | `users.routes.ts` |
+| `accountStatus` | `pendente`, `ativo` ou `inativo` | `users.routes.ts` |
+
+---
+
+## Permissões
+
+| Ação | administrador | tecnico |
+|---|---|---|
+| Listar/criar/editar funcionários | sim | não |
+| Alterar status de conta | sim | não |
+
+---
+
+## Arquivos principais
+
+| Camada | Caminho |
+|---|---|
+| Rotas | `backend/src/routes/users.routes.ts` |
+| Domínio (roles/status) | `backend/src/domain/agenda.ts` |
+| Validator e-mail | `backend/src/validators/auth/email-domain.validator.ts` |
+| Schema | `backend/prisma/schema.prisma` (User) |
+| Página | `frontend/src/pages/cadastros/UsuariosPage.jsx` |
+| Service API | `frontend/src/services/users.js` |
+| Guard rota admin | `frontend/src/components/auth/RequireAdminRoute.jsx` |
+
+---
+
+## Pendências e decisões abertas
+
+- Impedir que admin desative a própria conta ou remova o último admin.
+- Auditoria de alterações de perfil.
+
+---
+
+## Como testar
+
+Manual:
+1. Login como técnico → acessar `/cadastros/funcionarios` → bloqueado.
+2. Admin cria funcionário com e-mail duplicado → 409.
+3. Admin altera status para `inativo` → usuário não consegue mais logar.

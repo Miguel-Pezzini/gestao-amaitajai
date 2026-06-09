@@ -1,0 +1,101 @@
+# Módulo: Cadastros gerais
+
+**Última atualização:** 2026-06-09  
+**Escopo:** fullstack
+
+---
+
+## Visão geral
+
+Telas administrativas para dados mestres usados pela agenda: salas, tipos de sessão (modalidades de atendimento), formatos de sessão (individual/dupla/grupo) e funcionários. As APIs de salas, tipos e modalidades ficam no módulo **Agenda**; funcionários no módulo **Usuários**.
+
+---
+
+## Regras de negócio
+
+### Salas
+
+- Nome único.
+- Podem ser ativadas/desativadas (`isActive`). Sala inativa não deve ser usada em novos agendamentos.
+
+### Tipos de sessão (`SessionType`)
+
+- Nome, slug (gerado automaticamente), duração padrão, `isDurationFlexible`, modalidades permitidas.
+- Slug `tea-14-plus`: apenas modalidade `grupo`.
+- Ativação/desativação via status.
+
+### Formatos de sessão (`SessionModalitySetting`)
+
+- Configura limites min/max de pacientes e profissionais por modalidade (individual, dupla, grupo).
+- Valores default criados automaticamente pelo service se não existirem.
+- Alteração afeta validação de novas sessões.
+
+### Funcionários
+
+Documentados em [users.md](./users.md).
+
+---
+
+## Funcionalidades atuais
+
+### Backend
+
+APIs sob `/agenda/*` — ver [agenda.md](./agenda.md) (rotas de rooms, session-types, session-modalities).
+
+### Frontend
+
+| Rota | Página | Descrição |
+|---|---|---|
+| `/cadastros/salas` | `SalasPage` | CRUD salas |
+| `/cadastros/tipos-sessao` | `TiposSessaoPage` | CRUD tipos de atendimento |
+| `/cadastros/modalidades` | `ModalidadesPage` | Editar limites por formato (individual/dupla/grupo) |
+| `/cadastros/funcionarios` | `UsuariosPage` | CRUD funcionários |
+
+Todas as rotas de cadastro exigem `RequireAdminRoute`.
+
+Constantes compartilhadas: `frontend/src/features/cadastros/constants.js` (labels de modalidade e role).
+
+---
+
+## Validações importantes
+
+| Entidade | Validação | Arquivo |
+|---|---|---|
+| Sala | nome obrigatório, único | `room.validator.ts` |
+| Tipo sessão | nome, duração > 0, ≥1 modalidade | `session-type.validator.ts` |
+| Modalidade setting | min ≤ max, todos > 0 | `session-modality-setting.validator.ts` |
+
+---
+
+## Permissões
+
+| Tela | administrador | tecnico |
+|---|---|---|
+| Todas em `/cadastros/*` | sim | não (rota bloqueada) |
+
+---
+
+## Arquivos principais
+
+| Camada | Caminho |
+|---|---|
+| Páginas | `frontend/src/pages/cadastros/*.jsx` |
+| Constantes | `frontend/src/features/cadastros/constants.js` |
+| APIs (backend) | `backend/src/routes/agenda.routes.ts` |
+| Validators | `backend/src/validators/agenda/room.validator.ts`, `session-type.validator.ts`, `session-modality-setting.validator.ts` |
+
+---
+
+## Pendências e decisões abertas
+
+- Lista inicial de salas/tipos será cadastrada pela equipe (não bloqueia MVP).
+- Seed automatizado de tipos padrão da ONG.
+
+---
+
+## Como testar
+
+Manual:
+1. Admin acessa cada tela de cadastro → lista e formulários funcionam.
+2. Criar tipo com modalidade inválida para tea-14-plus → erro.
+3. Alterar limites de grupo (ex.: max pacientes) → refletir na criação de sessão.
