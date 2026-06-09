@@ -44,7 +44,7 @@ Checklist simples do que já está no sistema e do que falta. Para regras de neg
 - [x] Cancelamento com motivo
 - [x] Técnico marca própria sessão como `realizada`
 - [x] Ocupação das salas (visão semanal)
-- [ ] Recorrência semanal de sessões
+- [x] Recorrência semanal de sessões
 - [ ] Filtro dedicado por profissional na UI (hoje o técnico já vê só a própria agenda)
 
 ---

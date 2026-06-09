@@ -25,7 +25,7 @@ describe("Autenticação", () => {
     expect(response.body.user).toMatchObject({
       email: user.email,
       role: "ADMINISTRADOR",
-      isActive: true,
+      accountStatus: "ativo",
     });
     expect(response.headers["set-cookie"]?.[0]).toMatch(/ama_access_token=/);
   });
@@ -86,12 +86,13 @@ describe("Autenticação", () => {
       role: "TECNICO",
     });
 
+    const cookie = await loginAndGetCookie(user.email, password);
+
     await prisma.user.update({
       where: { id: user._id },
-      data: { isActive: false },
+      data: { accountStatus: "inativo" },
     });
 
-    const cookie = await loginAndGetCookie(user.email, password);
     const me = await request(app).get("/api/auth/me").set("Cookie", cookie);
 
     expect(me.status).toBe(403);

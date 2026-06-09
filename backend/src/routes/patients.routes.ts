@@ -5,11 +5,26 @@ import { withMongoId, withMongoIdList } from "../db/serialize.js";
 import { FUNDING_SOURCES, type FundingSource } from "../domain/agenda.js";
 import { containsInsensitive, isUuid } from "../validators/agenda/agenda.utils.js";
 import { requireAuth } from "../middlewares/auth.middleware.js";
+import { agendaService } from "../services/agenda.service.js";
+import { AppError } from "../errors/app-error.js";
+import { validatePatientDeactivationReplacements } from "../validators/patient-deactivation.validator.js";
 
 const router = Router();
 
 function getRouteId(param: string | string[]): string {
   return Array.isArray(param) ? (param[0] ?? "") : param;
+}
+
+function handleServiceError(res: Response, error: unknown): void {
+  if (error instanceof AppError) {
+    res.status(error.statusCode).json({ message: error.message, code: error.name });
+    return;
+  }
+
+  console.error("Falha inesperada na API de pacientes:", error);
+  res.status(500).json({
+    message: "Não foi possível completar a solicitação. Tente novamente em instantes.",
+  });
 }
 
 interface PatientPayload {
@@ -284,6 +299,28 @@ router.patch("/patients/:id", async (req: Request, res: Response) => {
   }
 });
 
+router.get("/patients/:id/deactivation-impact", async (req: Request, res: Response) => {
+  const id = getRouteId(req.params.id);
+
+  if (!isUuid(id)) {
+    res.status(400).json({ message: "Identificador de paciente inválido." });
+    return;
+  }
+
+  try {
+    const existing = await prisma.patient.findUnique({ where: { id } });
+    if (!existing) {
+      res.status(404).json({ message: "Paciente não encontrado." });
+      return;
+    }
+
+    const impact = await agendaService.getPatientDeactivationImpact(id);
+    res.status(200).json(impact);
+  } catch (error) {
+    handleServiceError(res, error);
+  }
+});
+
 router.patch("/patients/:id/status", async (req: Request, res: Response) => {
   const id = getRouteId(req.params.id);
 
@@ -299,13 +336,36 @@ router.patch("/patients/:id/status", async (req: Request, res: Response) => {
   }
 
   try {
+    const existing = await prisma.patient.findUnique({ where: { id } });
+    if (!existing) {
+      res.status(404).json({ message: "Paciente não encontrado." });
+      return;
+    }
+
+    let sessionImpact = { sessionsCancelled: 0, sessionsReplaced: 0 };
+    if (existing.isActive && !isActive) {
+      const replacements = validatePatientDeactivationReplacements(
+        (req.body as { replacements?: unknown })?.replacements,
+      );
+      sessionImpact = await agendaService.handlePatientDeactivation(
+        id,
+        existing.fullName,
+        req.user!,
+        replacements,
+      );
+    }
+
     const patient = await prisma.patient.update({
       where: { id },
       data: { isActive },
     });
-    res.status(200).json({ patient: withMongoId(patient) });
-  } catch {
-    res.status(404).json({ message: "Paciente não encontrado." });
+
+    res.status(200).json({
+      patient: withMongoId(patient),
+      ...sessionImpact,
+    });
+  } catch (error) {
+    handleServiceError(res, error);
   }
 });
 

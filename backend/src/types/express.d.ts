@@ -1,11 +1,11 @@
-import type { UserRole } from "../domain/agenda.js";
+import type { UserAccountStatus, UserRole } from "../domain/agenda.js";
 
 export interface AuthUser {
   _id: string;
   name: string;
   email: string;
   role: UserRole;
-  isActive: boolean;
+  accountStatus: UserAccountStatus;
   createdAt?: Date;
   updatedAt?: Date;
 }

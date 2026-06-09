@@ -1,5 +1,7 @@
 # Regras de Negócio — Agenda (MVP)
 
+> **Documentação atual:** ver [`docs/modules/agenda.md`](./modules/agenda.md) — este arquivo é referência histórica da validação com a ONG.
+
 Resumo objetivo do que já está decidido para começar a implementação.
 
 **Última atualização:** 27/05/2026  

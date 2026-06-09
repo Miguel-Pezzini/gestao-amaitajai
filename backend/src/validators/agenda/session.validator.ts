@@ -1,5 +1,9 @@
 import { ValidationError } from "../../errors/http-errors.js";
 import {
+  validateCancelScope,
+  type CancelScope,
+} from "./recurrence.validator.js";
+import {
   SESSION_MODALITIES,
   type SessionModality,
 } from "../../domain/agenda.js";
@@ -123,15 +127,16 @@ export function validateSessionId(sessionId: string): void {
 
 export function validateCancelSession(
   sessionId: string,
-  payload: { cancelReason?: unknown },
-): { cancelReason: string } {
+  payload: { cancelReason?: unknown; scope?: unknown },
+): { cancelReason: string; scope: CancelScope } {
   validateSessionId(sessionId);
 
   const cancelReason = normalizeText(payload.cancelReason);
   if (!cancelReason) {
     throw new ValidationError("Motivo do cancelamento é obrigatório.");
   }
-  return { cancelReason };
+  const scope = validateCancelScope(payload.scope);
+  return { cancelReason, scope };
 }
 
 export function validateUpdateSession(sessionId: string, status: string): void {

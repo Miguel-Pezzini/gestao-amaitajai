@@ -5,18 +5,36 @@ export function EntityStatusBadge({
   active,
   activeLabel = "Ativo",
   inactiveLabel = "Inativo",
+  pendingLabel = "Pendente",
+  status,
 }) {
+  const resolvedStatus =
+    status ?? (active === true ? "ativo" : active === false ? "inativo" : "ativo");
+
+  if (resolvedStatus === "pendente") {
+    return (
+      <Badge
+        variant="outline"
+        className="rounded-full border-amber-500/40 bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-800"
+      >
+        {pendingLabel}
+      </Badge>
+    );
+  }
+
+  const isActive = resolvedStatus === "ativo";
+
   return (
     <Badge
-      variant={active ? "secondary" : "outline"}
+      variant={isActive ? "secondary" : "outline"}
       className={cn(
         "rounded-full px-2.5 py-0.5 text-xs font-medium",
-        active
+        isActive
           ? "border-transparent bg-ama-light text-ama-blue-dark"
           : "border-muted-foreground/30 text-muted-foreground",
       )}
     >
-      {active ? activeLabel : inactiveLabel}
+      {isActive ? activeLabel : inactiveLabel}
     </Badge>
   );
 }

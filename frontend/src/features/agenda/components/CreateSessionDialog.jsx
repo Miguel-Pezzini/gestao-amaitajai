@@ -10,6 +10,7 @@ import {
   getParticipantCountLabels,
   SESSION_FORMAT_LABELS,
 } from "@/features/agenda/constants";
+import { WEEKDAY_OPTIONS } from "@/features/agenda/utils/recurrence";
 
 export function CreateSessionDialog({
   open,
@@ -37,6 +38,8 @@ export function CreateSessionDialog({
   loadingProfessionals,
   onAddProfessional,
   onRemoveProfessional,
+  onToggleRecurrence,
+  onToggleRecurrenceWeekday,
 }) {
   const participantCounts = getParticipantCountLabels(
     form.modality,
@@ -203,13 +206,74 @@ export function CreateSessionDialog({
             />
           </div>
 
+          <div className="space-y-3 rounded-lg border border-ama-cyan/20 bg-ama-light/20 p-3">
+            <label className="flex cursor-pointer items-center gap-2 text-sm font-medium">
+              <input
+                type="checkbox"
+                checked={Boolean(form.recurrenceEnabled)}
+                onChange={(event) => onToggleRecurrence(event.target.checked)}
+                disabled={saving}
+              />
+              Repetir semanalmente
+            </label>
+
+            {form.recurrenceEnabled ? (
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  <Label>Dias da semana</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {WEEKDAY_OPTIONS.map((option) => {
+                      const selected = form.recurrenceWeekdays.includes(option.value);
+                      return (
+                        <button
+                          key={option.value}
+                          type="button"
+                          className={`rounded-md border px-3 py-1.5 text-sm ${
+                            selected
+                              ? "border-ama-blue bg-ama-blue text-white"
+                              : "border-input bg-background text-foreground"
+                          }`}
+                          onClick={() => onToggleRecurrenceWeekday(option.value)}
+                          disabled={saving}
+                        >
+                          {option.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <FieldError message={fieldErrors.recurrenceWeekdays} />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="recurrenceEndsAt">Repetir até</Label>
+                  <Input
+                    id="recurrenceEndsAt"
+                    type="date"
+                    value={form.recurrenceEndsAt}
+                    onChange={(event) => onFormChange("recurrenceEndsAt", event.target.value)}
+                    disabled={saving}
+                    aria-invalid={Boolean(fieldErrors.recurrenceEndsAt)}
+                  />
+                  <FieldError message={fieldErrors.recurrenceEndsAt} />
+                  <p className="text-xs text-muted-foreground">
+                    Por padrão, até o final do ano dos atendimentos.
+                  </p>
+                </div>
+              </div>
+            ) : null}
+          </div>
+
           <div className="flex flex-col gap-2 pt-2 sm:flex-row">
             <Button
               type="submit"
               className="w-full bg-ama-blue text-white hover:bg-ama-blue-dark sm:flex-1"
               disabled={saving}
             >
-              {saving ? "Salvando..." : "Criar sessão"}
+              {saving
+                ? "Salvando..."
+                : form.recurrenceEnabled
+                  ? "Criar série recorrente"
+                  : "Criar sessão"}
             </Button>
             <Button
               type="button"

@@ -21,7 +21,7 @@ const EMPTY_LIST_DIALOG = {
   open: false,
   title: "",
   description: "",
-  sessions: [],
+  sessionIds: [],
   referenceDate: null,
 };
 
@@ -37,7 +37,7 @@ export function AgendaCalendarView({
   const [viewMode, setViewMode] = useState(AGENDA_VIEW_MODES.WEEK);
   const grouped = groupSessionsByDay(sessions);
   const [listDialog, setListDialog] = useState(EMPTY_LIST_DIALOG);
-  const [selectedSession, setSelectedSession] = useState(null);
+  const [selectedSessionId, setSelectedSessionId] = useState(null);
   const [sessionDetailOpen, setSessionDetailOpen] = useState(false);
 
   const dayViewSessions = useMemo(() => {
@@ -45,12 +45,31 @@ export function AgendaCalendarView({
     return sortSessionsByStart(grouped[key] ?? []);
   }, [grouped, referenceDate]);
 
+  const listDialogSessions = useMemo(() => {
+    if (!listDialog.open || listDialog.sessionIds.length === 0) {
+      return [];
+    }
+
+    const sessionsById = new Map(sessions.map((item) => [item._id, item]));
+    return sortSessionsByStart(
+      listDialog.sessionIds.map((id) => sessionsById.get(id)).filter(Boolean),
+    );
+  }, [listDialog.open, listDialog.sessionIds, sessions]);
+
+  const selectedSession = useMemo(() => {
+    if (!selectedSessionId) {
+      return null;
+    }
+
+    return sessions.find((item) => item._id === selectedSessionId) ?? null;
+  }, [sessions, selectedSessionId]);
+
   function openSessionsListDialog({ title, description, sessions: items, referenceDate: date }) {
     setListDialog({
       open: true,
       title,
       description,
-      sessions: sortSessionsByStart(items),
+      sessionIds: sortSessionsByStart(items).map((item) => item._id),
       referenceDate: date,
     });
   }
@@ -78,13 +97,13 @@ export function AgendaCalendarView({
 
   function openSessionDetail(session) {
     closeSessionsListDialog();
-    setSelectedSession(session);
+    setSelectedSessionId(session._id);
     setSessionDetailOpen(true);
   }
 
   function closeSessionDetail() {
     setSessionDetailOpen(false);
-    setSelectedSession(null);
+    setSelectedSessionId(null);
   }
 
   function handleNavigate(direction) {
@@ -177,7 +196,7 @@ export function AgendaCalendarView({
         }}
         title={listDialog.title}
         description={listDialog.description}
-        sessions={listDialog.sessions}
+        sessions={listDialogSessions}
         referenceDate={listDialog.referenceDate}
         onOpenSession={openSessionDetail}
         onCompleteSession={onCompleteSession}

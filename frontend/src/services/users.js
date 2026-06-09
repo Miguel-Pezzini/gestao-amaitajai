@@ -15,7 +15,7 @@ export async function updateUser(userId, payload) {
   return data;
 }
 
-export async function updateUserStatus(userId, isActive) {
-  const { data } = await api.patch(`/users/${userId}/status`, { isActive });
+export async function updateUserStatus(userId, accountStatus) {
+  const { data } = await api.patch(`/users/${userId}/status`, { accountStatus });
   return data;
 }

@@ -15,7 +15,15 @@ export async function updatePatient(patientId, payload) {
   return data;
 }
 
-export async function updatePatientStatus(patientId, isActive) {
-  const { data } = await api.patch(`/patients/${patientId}/status`, { isActive });
+export async function getPatientDeactivationImpact(patientId) {
+  const { data } = await api.get(`/patients/${patientId}/deactivation-impact`);
+  return data;
+}
+
+export async function updatePatientStatus(patientId, isActive, options = {}) {
+  const { data } = await api.patch(`/patients/${patientId}/status`, {
+    isActive,
+    replacements: options.replacements,
+  });
   return data;
 }

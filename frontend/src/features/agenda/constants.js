@@ -5,6 +5,10 @@ import {
 } from "@/features/cadastros/constants";
 
 import {
+  defaultRecurrenceEndsAt,
+  getWeekdayFromDateString,
+} from "@/features/agenda/utils/recurrence";
+import {
   OCCUPANCY_START_HOUR,
   OCCUPANCY_TOTAL_SLOTS,
 } from "@/features/room-occupancy/constants";
@@ -190,6 +194,17 @@ export function getSessionFormFieldErrors(form, limitsByModality = SESSION_FORMA
     errors.professionals = "Adicione ao menos um profissional.";
   }
 
+  if (form.recurrenceEnabled) {
+    if (!Array.isArray(form.recurrenceWeekdays) || form.recurrenceWeekdays.length === 0) {
+      errors.recurrenceWeekdays = "Selecione ao menos um dia da semana.";
+    }
+    if (!form.recurrenceEndsAt) {
+      errors.recurrenceEndsAt = "Informe a data final da recorrência.";
+    } else if (form.startDate && form.recurrenceEndsAt < form.startDate) {
+      errors.recurrenceEndsAt = "A data final deve ser igual ou posterior ao início.";
+    }
+  }
+
   return { ...errors, ...participantErrors };
 }
 
@@ -203,6 +218,9 @@ export const EMPTY_FORM = {
   notes: "",
   selectedPatients: [],
   selectedProfessionals: [],
+  recurrenceEnabled: false,
+  recurrenceWeekdays: [],
+  recurrenceEndsAt: "",
 };
 
 export function pickDefaultCatalogId(items) {
@@ -212,10 +230,15 @@ export function pickDefaultCatalogId(items) {
 
 /** Preenche modalidade e sala com o primeiro item ativo (evita select “preenchido” com state vazio). */
 export function buildInitialSessionForm(sessionTypes = [], rooms = [], overrides = {}) {
+  const startDate = overrides.startDate ?? "";
+  const weekday = getWeekdayFromDateString(startDate);
   return {
     ...EMPTY_FORM,
     sessionTypeId: pickDefaultCatalogId(sessionTypes),
     roomId: pickDefaultCatalogId(rooms),
     ...overrides,
+    recurrenceEndsAt: overrides.recurrenceEndsAt ?? defaultRecurrenceEndsAt(startDate),
+    recurrenceWeekdays:
+      overrides.recurrenceWeekdays ?? (weekday !== null ? [weekday] : []),
   };
 }

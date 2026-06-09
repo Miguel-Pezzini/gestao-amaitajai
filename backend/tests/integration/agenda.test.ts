@@ -4,6 +4,7 @@ import app from "../../src/app.js";
 import { prisma } from "../../src/db/prisma.js";
 import { randomUUID } from "node:crypto";
 import {
+  buildRecurringSessionPayload,
   buildSessionPayload,
   createPatient,
   createRoom,
@@ -23,13 +24,13 @@ describe("Agenda integration", () => {
       const techPassword = "tech123456";
       const admin = await createUser({
         name: "Admin",
-        email: "admin@agenda.test",
+        email: "admin@amaitajai.org.br",
         password: adminPassword,
         role: "ADMINISTRADOR",
       });
       const tecnico = await createUser({
         name: "Tecnico",
-        email: "tecnico@agenda.test",
+        email: "tecnico@amaitajai.org.br",
         password: techPassword,
         role: "TECNICO",
       });
@@ -585,7 +586,7 @@ describe("Agenda integration", () => {
             (
               await createUser({
                 name: "Outro Prof",
-                email: `outro-${Date.now()}@agenda.test`,
+                email: `outro-${Date.now()}@amaitajai.org.br`,
                 password: "x",
                 role: "TECNICO",
               })
@@ -647,13 +648,13 @@ describe("Agenda integration", () => {
       });
       const profissional1 = await createUser({
         name: "Prof Limites 1",
-        email: `prof-limites-1-${Date.now()}@agenda.test`,
+        email: `prof-limites-1-${Date.now()}@amaitajai.org.br`,
         password: "prof123456",
         role: "TECNICO",
       });
       const profissional2 = await createUser({
         name: "Prof Limites 2",
-        email: `prof-limites-2-${Date.now()}@agenda.test`,
+        email: `prof-limites-2-${Date.now()}@amaitajai.org.br`,
         password: "prof123456",
         role: "TECNICO",
       });
@@ -701,7 +702,7 @@ describe("Agenda integration", () => {
       const { adminCookie, paciente, profissional, room, sessionType } = await seedAgendaBase();
       const profissional2 = await createUser({
         name: "Profissional Grupo",
-        email: `prof-grupo-${Date.now()}@agenda.test`,
+        email: `prof-grupo-${Date.now()}@amaitajai.org.br`,
         password: "prof123456",
         role: "TECNICO",
       });
@@ -775,7 +776,7 @@ describe("Agenda integration", () => {
       const { adminCookie, paciente, profissional, room, sessionType } = await seedAgendaBase();
       const outroProf = await createUser({
         name: "Outro",
-        email: `outro2-${Date.now()}@agenda.test`,
+        email: `outro2-${Date.now()}@amaitajai.org.br`,
         password: "outro123456",
         role: "TECNICO",
       });
@@ -886,19 +887,19 @@ describe("Agenda integration", () => {
 
       const admin = await createUser({
         name: "Admin",
-        email: "admin3@agenda.test",
+        email: "admin3@amaitajai.org.br",
         password: adminPassword,
         role: "ADMINISTRADOR",
       });
       const tecnicoA = await createUser({
         name: "Tecnico A",
-        email: "tecnicoa@agenda.test",
+        email: "tecnicoa@amaitajai.org.br",
         password: tecnicoApassword,
         role: "TECNICO",
       });
       const tecnicoB = await createUser({
         name: "Tecnico B",
-        email: "tecnicob@agenda.test",
+        email: "tecnicob@amaitajai.org.br",
         password: tecnicoBpassword,
         role: "TECNICO",
       });
@@ -995,6 +996,144 @@ describe("Agenda integration", () => {
         .send();
       expect(response.status).toBe(404);
       expect(response.body.code).toBe("NotFoundError");
+    });
+  });
+
+  describe("sessões recorrentes", () => {
+    it("cria série semanal e gera múltiplas sessões", async () => {
+      const { adminCookie, paciente, profissional, room, sessionType } = await seedAgendaBase();
+
+      const created = await request(app)
+        .post("/api/agenda/sessions")
+        .set("Cookie", adminCookie)
+        .send(
+          buildRecurringSessionPayload({
+            sessionTypeId: sessionType._id,
+            roomId: room._id,
+            patientIds: [paciente._id],
+            professionalIds: [profissional._id],
+            startAt: "2026-06-02T13:00:00.000Z",
+            weekdays: [1, 3],
+            endsAt: "2026-06-30",
+          }),
+        );
+
+      expect(created.status).toBe(201);
+      expect(created.body.sessionsCreated).toBeGreaterThan(1);
+      expect(created.body.series.weekdays).toEqual([1, 3]);
+
+      const list = await request(app).get("/api/agenda/sessions").set("Cookie", adminCookie);
+      expect(list.status).toBe(200);
+      expect(list.body.items.length).toBe(created.body.sessionsCreated);
+      expect(list.body.items.every((item: { seriesId: string | null }) => item.seriesId)).toBe(true);
+    });
+
+    it("bloqueia criação recorrente quando há conflito em alguma data", async () => {
+      const { adminCookie, paciente, profissional, room, sessionType } = await seedAgendaBase();
+
+      await request(app)
+        .post("/api/agenda/sessions")
+        .set("Cookie", adminCookie)
+        .send(
+          buildSessionPayload({
+            sessionTypeId: sessionType._id,
+            roomId: room._id,
+            patientIds: [paciente._id],
+            professionalIds: [profissional._id],
+            startAt: "2026-06-03T13:00:00.000Z",
+          }),
+        );
+
+      const blocked = await request(app)
+        .post("/api/agenda/sessions")
+        .set("Cookie", adminCookie)
+        .send(
+          buildRecurringSessionPayload({
+            sessionTypeId: sessionType._id,
+            roomId: room._id,
+            patientIds: [paciente._id],
+            professionalIds: [profissional._id],
+            startAt: "2026-06-02T13:00:00.000Z",
+            weekdays: [1, 3],
+            endsAt: "2026-06-30",
+          }),
+        );
+
+      expect(blocked.status).toBe(409);
+      expect(blocked.body.message).toContain("Conflito");
+
+      const list = await request(app).get("/api/agenda/sessions").set("Cookie", adminCookie);
+      expect(list.body.items).toHaveLength(1);
+    });
+
+    it("cancela com escopo futuro e todos", async () => {
+      const { adminCookie, paciente, profissional, room, sessionType } = await seedAgendaBase();
+
+      const created = await request(app)
+        .post("/api/agenda/sessions")
+        .set("Cookie", adminCookie)
+        .send(
+          buildRecurringSessionPayload({
+            sessionTypeId: sessionType._id,
+            roomId: room._id,
+            patientIds: [paciente._id],
+            professionalIds: [profissional._id],
+            startAt: "2026-06-02T13:00:00.000Z",
+            weekdays: [1, 3],
+            endsAt: "2026-06-30",
+          }),
+        );
+      expect(created.status).toBe(201);
+
+      const list = await request(app).get("/api/agenda/sessions").set("Cookie", adminCookie);
+      const sessions = list.body.items as Array<{ _id: string; startAt: string; status: string }>;
+      const sorted = [...sessions].sort(
+        (a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime(),
+      );
+      const middleSession = sorted[Math.floor(sorted.length / 2)];
+
+      const cancelFuture = await request(app)
+        .patch(`/api/agenda/sessions/${middleSession._id}/cancel`)
+        .set("Cookie", adminCookie)
+        .send({ cancelReason: "Interrupção parcial", scope: "future" });
+      expect(cancelFuture.status).toBe(200);
+      expect(cancelFuture.body.sessionsCancelled).toBeGreaterThan(1);
+
+      const afterFuture = await request(app).get("/api/agenda/sessions").set("Cookie", adminCookie);
+      const stillAgendada = afterFuture.body.items.filter(
+        (item: { status: string }) => item.status === "agendada",
+      );
+      expect(stillAgendada.length).toBeGreaterThan(0);
+      expect(stillAgendada.length).toBeLessThan(sessions.length);
+
+      const created2 = await request(app)
+        .post("/api/agenda/sessions")
+        .set("Cookie", adminCookie)
+        .send(
+          buildRecurringSessionPayload({
+            sessionTypeId: sessionType._id,
+            roomId: room._id,
+            patientIds: [paciente._id],
+            professionalIds: [profissional._id],
+            startAt: "2026-07-01T13:00:00.000Z",
+            weekdays: [2],
+            endsAt: "2026-07-31",
+          }),
+        );
+      expect(created2.status).toBe(201);
+
+      const list2 = await request(app).get("/api/agenda/sessions").set("Cookie", adminCookie);
+      const seriesSessions = (list2.body.items as Array<{ _id: string; seriesId: string | null }>).filter(
+        (item) => item.seriesId === created2.body.series._id,
+      );
+      const firstSeriesSession = seriesSessions[0];
+
+      const cancelAll = await request(app)
+        .patch(`/api/agenda/sessions/${firstSeriesSession._id}/cancel`)
+        .set("Cookie", adminCookie)
+        .send({ cancelReason: "Encerramento", scope: "all" });
+      expect(cancelAll.status).toBe(200);
+      expect(cancelAll.body.sessionsCancelled).toBe(seriesSessions.length);
     });
   });
 });

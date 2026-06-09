@@ -77,9 +77,10 @@ export async function updateSession(sessionId, payload) {
   return data;
 }
 
-export async function cancelSession(sessionId, cancelReason) {
+export async function cancelSession(sessionId, { cancelReason, scope = "single" }) {
   const { data } = await api.patch(`/agenda/sessions/${sessionId}/cancel`, {
     cancelReason,
+    scope,
   });
   return data;
 }
