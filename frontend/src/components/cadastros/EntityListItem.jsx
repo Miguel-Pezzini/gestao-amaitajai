@@ -1,5 +1,14 @@
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Tooltip } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+
+const ENTITY_LIST_ICON_ACTION_TONES = {
+  default: "border-input/80 text-ama-blue-dark hover:bg-ama-light hover:text-ama-blue-dark",
+  destructive: "border-input/80 text-destructive hover:bg-destructive/10 hover:text-destructive",
+  success:
+    "border-emerald-500/40 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800",
+};
 
 export function EntityStatusBadge({
   active,
@@ -9,9 +18,9 @@ export function EntityStatusBadge({
   status,
 }) {
   const resolvedStatus =
-    status ?? (active === true ? "ativo" : active === false ? "inativo" : "ativo");
+    status ?? (active === true ? "ATIVO" : active === false ? "INATIVO" : "ATIVO");
 
-  if (resolvedStatus === "pendente") {
+  if (resolvedStatus === "PENDENTE") {
     return (
       <Badge
         variant="outline"
@@ -22,7 +31,7 @@ export function EntityStatusBadge({
     );
   }
 
-  const isActive = resolvedStatus === "ativo";
+  const isActive = resolvedStatus === "ATIVO";
 
   return (
     <Badge
@@ -61,7 +70,7 @@ export function EntityListItem({ title, children, badges, className }) {
   return (
     <article
       className={cn(
-        "rounded-xl border border-ama-cyan/20 bg-card shadow-sm transition-colors hover:border-ama-cyan/35",
+        "overflow-visible rounded-xl border border-ama-cyan/20 bg-card shadow-sm transition-colors hover:border-ama-cyan/35",
         className,
       )}
     >
@@ -97,7 +106,7 @@ export function EntityListItemFooterRow({ children, actions }) {
     >
       {children ? <div className="min-w-0 flex-1">{children}</div> : null}
       {actions ? (
-        <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-center">
+        <div className="flex shrink-0 flex-row items-center gap-1 overflow-visible">
           {actions}
         </div>
       ) : null}
@@ -109,5 +118,38 @@ export function entityListActionButtonClassName(extra = "") {
   return cn(
     "h-8 w-full border-input/80 text-ama-blue-dark hover:bg-ama-light hover:text-ama-blue-dark sm:w-auto",
     extra,
+  );
+}
+
+export function entityListIconActionClassName(extra = "") {
+  return cn("shrink-0", extra);
+}
+
+export function EntityListIconAction({
+  icon: Icon,
+  label,
+  onClick,
+  disabled = false,
+  tone = "default",
+  iconClassName,
+}) {
+  return (
+    <Tooltip content={label}>
+      <Button
+        type="button"
+        size="icon"
+        variant="outline"
+        className={cn(
+          entityListIconActionClassName(),
+          ENTITY_LIST_ICON_ACTION_TONES[tone] ?? ENTITY_LIST_ICON_ACTION_TONES.default,
+          disabled && "pointer-events-none",
+        )}
+        onClick={onClick}
+        disabled={disabled}
+        aria-label={label}
+      >
+        <Icon className={cn("size-4", iconClassName)} aria-hidden="true" />
+      </Button>
+    </Tooltip>
   );
 }

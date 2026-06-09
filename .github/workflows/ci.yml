@@ -36,6 +36,7 @@ jobs:
       ADMIN_EMAIL: admin@test.local
       ADMIN_PASSWORD: test-password
       DATABASE_URL: postgresql://admin:changeme@localhost:5432/gestao_amaitajai_test
+      DIRECT_URL: postgresql://admin:changeme@localhost:5432/gestao_amaitajai_test
       TEST_DATABASE_URL: postgresql://admin:changeme@localhost:5432/gestao_amaitajai_test
       TEST_BCRYPT_SALT_ROUNDS: "4"
 

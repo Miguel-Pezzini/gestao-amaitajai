@@ -20,7 +20,7 @@ export async function createUser(params: {
       email: params.email,
       passwordHash,
       role: params.role,
-      accountStatus: "ativo",
+      accountStatus: "ATIVO",
     },
   });
   return withMongoId(user);
@@ -40,13 +40,13 @@ export async function seedAgendaBase() {
     name: "Admin",
     email: `admin-${Date.now()}@agenda.test`,
     password: adminPassword,
-    role: "administrador",
+    role: "ADMINISTRADOR",
   });
   const profissional = await createUser({
     name: "Profissional",
     email: `prof-${Date.now()}@agenda.test`,
     password: "prof123456",
-    role: "tecnico",
+    role: "TECNICO",
   });
   const paciente = withMongoId(
     await prisma.patient.create({
@@ -55,7 +55,7 @@ export async function seedAgendaBase() {
         birthDate: new Date("2018-01-01"),
         guardianName: "Responsavel",
         phone: "(47) 99999-0001",
-        fundingSource: "Municipal",
+        fundingSource: "MUNICIPAL",
         isActive: true,
       },
     }),
@@ -72,7 +72,7 @@ export async function seedAgendaBase() {
         slug: `psicoped-${Date.now()}`,
         defaultDurationMinutes: 30,
         isDurationFlexible: false,
-        allowedModalities: ["individual"],
+        allowedModalities: ["INDIVIDUAL"],
         isActive: true,
       },
     }),
@@ -88,7 +88,7 @@ export async function createPatient(data: {
   birthDate: Date;
   guardianName: string;
   phone: string;
-  fundingSource: "Municipal" | "Estadual" | "Particular";
+  fundingSource: "MUNICIPAL" | "ESTADUAL" | "PARTICULAR";
   isActive?: boolean;
 }) {
   return withMongoId(
@@ -106,12 +106,20 @@ export async function createRoom(data: { name: string; isActive?: boolean }) {
   );
 }
 
+export async function createProtocolType(data: { name: string; isActive?: boolean }) {
+  return withMongoId(
+    await prisma.protocolType.create({
+      data: { isActive: true, ...data },
+    }),
+  );
+}
+
 export async function createSessionType(data: {
   name: string;
   slug: string;
   defaultDurationMinutes: number;
   isDurationFlexible?: boolean;
-  allowedModalities: Array<"individual" | "dupla" | "grupo">;
+  allowedModalities: Array<"INDIVIDUAL" | "DUPLA" | "GRUPO">;
   isActive?: boolean;
 }) {
   return withMongoId(
@@ -136,7 +144,7 @@ export function buildSessionPayload(params: {
 }) {
   return {
     sessionTypeId: params.sessionTypeId,
-    modality: params.modality ?? "individual",
+    modality: params.modality ?? "INDIVIDUAL",
     roomId: params.roomId,
     startAt: params.startAt ?? "2026-06-10T13:00:00.000Z",
     durationMinutes: params.durationMinutes ?? 30,

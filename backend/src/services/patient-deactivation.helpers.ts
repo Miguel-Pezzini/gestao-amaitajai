@@ -4,11 +4,11 @@ export function shouldCancelSessionOnPatientDeactivation(
   modality: SessionModality,
   patientCountInSession: number,
 ): boolean {
-  if (modality === "individual") {
+  if (modality === "INDIVIDUAL") {
     return true;
   }
 
-  if (modality === "dupla") {
+  if (modality === "DUPLA") {
     return false;
   }
 
@@ -19,11 +19,11 @@ export function requiresPatientReplacementOnDeactivation(
   modality: SessionModality,
   patientCountInSession: number,
 ): boolean {
-  if (modality === "individual") {
+  if (modality === "INDIVIDUAL") {
     return false;
   }
 
-  if (modality === "dupla") {
+  if (modality === "DUPLA") {
     return true;
   }
 

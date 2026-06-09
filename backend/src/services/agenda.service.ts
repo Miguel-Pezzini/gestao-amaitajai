@@ -102,15 +102,15 @@ type SessionValidationLimits = {
 };
 
 const DEFAULT_SESSION_MODALITY_SETTINGS: Record<SessionModality, SessionValidationLimits> = {
-  individual: { minPatients: 1, maxPatients: 1, minProfessionals: 1, maxProfessionals: 1 },
-  dupla: { minPatients: 2, maxPatients: 2, minProfessionals: 2, maxProfessionals: 2 },
-  grupo: { minPatients: 1, maxPatients: 15, minProfessionals: 2, maxProfessionals: 4 },
+  INDIVIDUAL: { minPatients: 1, maxPatients: 1, minProfessionals: 1, maxProfessionals: 1 },
+  DUPLA: { minPatients: 2, maxPatients: 2, minProfessionals: 2, maxProfessionals: 2 },
+  GRUPO: { minPatients: 1, maxPatients: 15, minProfessionals: 2, maxProfessionals: 4 },
 };
 
 const SESSION_FORMAT_LABELS: Record<SessionModality, string> = {
-  individual: "Individual",
-  dupla: "Dupla",
-  grupo: "Grupo",
+  INDIVIDUAL: "Individual",
+  DUPLA: "Dupla",
+  GRUPO: "Grupo",
 };
 
 const SESSION_LIST_INCLUDE = {
@@ -175,7 +175,7 @@ export class AgendaService {
     const limit = parseLimit(query.limit);
     const rows = await prisma.user.findMany({
       where: {
-        accountStatus: "ativo",
+        accountStatus: "ATIVO",
         role: { in: [...USER_ROLES] },
         OR: [{ name: containsInsensitive(term) }, { email: containsInsensitive(term) }],
       },
@@ -195,7 +195,7 @@ export class AgendaService {
     }
 
     const userWhere: Prisma.UserWhereInput = {
-      accountStatus: "ativo",
+      accountStatus: "ATIVO",
       role: { in: [...USER_ROLES] },
     };
     if (input.q) {
@@ -262,7 +262,7 @@ export class AgendaService {
     input: NonNullable<ReturnType<typeof parseAvailabilityLookupQuery>>,
   ) {
     const baseFilter: Prisma.UserWhereInput = {
-      accountStatus: "ativo",
+      accountStatus: "ATIVO",
       role: { in: [...USER_ROLES] },
     };
     const overlapWhere = buildSessionOverlapWhere({
@@ -538,7 +538,7 @@ export class AgendaService {
         startAt,
         endAt,
         durationMinutes: normalized.durationMinutes,
-        status: "agendada",
+        status: "AGENDADA",
         notes: normalized.notes,
         createdById: currentUser._id,
         updatedById: currentUser._id,
@@ -633,7 +633,7 @@ export class AgendaService {
 
       if (
         professionalsChanged &&
-        updateScope === "future" &&
+        updateScope === "FUTURE" &&
         existing.seriesId
       ) {
         await this.applySeriesProfessionalUpdate(
@@ -659,15 +659,15 @@ export class AgendaService {
     const { cancelReason, scope } = validateCancelSession(sessionId, payload);
     const existing = await this.findSessionOrThrow(sessionId);
 
-    if (existing.status === "cancelada") {
+    if (existing.status === "CANCELADA") {
       throw new ValidationError("Sessão já está cancelada.");
     }
 
-    if (scope === "single" || !existing.seriesId) {
+    if (scope === "SINGLE" || !existing.seriesId) {
       const session = await prisma.session.update({
         where: { id: sessionId },
         data: {
-          status: "cancelada",
+          status: "CANCELADA",
           cancelReason,
           cancelledAt: new Date(),
           updatedById: currentUser._id,
@@ -683,32 +683,32 @@ export class AgendaService {
     const now = new Date();
     const result = await prisma.$transaction(async (tx) => {
       const where: Prisma.SessionWhereInput =
-        scope === "future"
+        scope === "FUTURE"
           ? {
               seriesId: existing.seriesId,
-              status: "agendada",
+              status: "AGENDADA",
               startAt: { gte: existing.startAt },
             }
           : {
               seriesId: existing.seriesId,
-              status: "agendada",
+              status: "AGENDADA",
             };
 
       const cancelled = await tx.session.updateMany({
         where,
         data: {
-          status: "cancelada",
+          status: "CANCELADA",
           cancelReason,
           cancelledAt: now,
           updatedById: currentUser._id,
         },
       });
 
-      if (scope === "all") {
+      if (scope === "ALL") {
         await tx.sessionSeries.update({
           where: { id: existing.seriesId! },
           data: {
-            status: "cancelada",
+            status: "CANCELADA",
             cancelReason,
             cancelledAt: now,
             updatedById: currentUser._id,
@@ -867,7 +867,7 @@ export class AgendaService {
         await tx.session.update({
           where: { id: cancellation.sessionId },
           data: {
-            status: "cancelada",
+            status: "CANCELADA",
             cancelReason,
             cancelledAt: now,
             updatedById: currentUser._id,
@@ -879,7 +879,7 @@ export class AgendaService {
       await tx.sessionSeriesPatient.deleteMany({
         where: {
           patientId,
-          series: { status: "ativa" },
+          series: { status: "ATIVA" },
         },
       });
     });
@@ -891,7 +891,7 @@ export class AgendaService {
   private async findScheduledSessionsForPatient(patientId: string) {
     return prisma.session.findMany({
       where: {
-        status: "agendada",
+        status: "AGENDADA",
         patients: { some: { patientId } },
       },
       include: {
@@ -975,7 +975,7 @@ export class AgendaService {
     const seriesSessions = await tx.session.findMany({
       where: {
         seriesId,
-        status: "agendada",
+        status: "AGENDADA",
         patients: { some: { patientId: oldPatientId } },
       },
       include: {
@@ -1060,7 +1060,7 @@ export class AgendaService {
       },
     });
 
-    if (!session || session.status !== "agendada") {
+    if (!session || session.status !== "AGENDADA") {
       throw new ValidationError("Sessão agendada não encontrada para substituição.");
     }
 
@@ -1125,7 +1125,7 @@ export class AgendaService {
     const session = await prisma.session.update({
       where: { id: sessionId },
       data: {
-        status: "realizada",
+        status: "REALIZADA",
         updatedById: currentUser._id,
       },
       include: {
@@ -1177,8 +1177,8 @@ export class AgendaService {
     currentUser: AuthenticatedUser,
   ): Prisma.SessionWhereInput {
     const where: Prisma.SessionWhereInput = {};
-    const status = normalizeText(query.status);
-    if (status && ["agendada", "realizada", "cancelada"].includes(status)) {
+    const status = normalizeText(query.status).toUpperCase();
+    if (status && ["AGENDADA", "REALIZADA", "CANCELADA"].includes(status)) {
       where.status = status as PrismaSessionStatus;
     }
 
@@ -1190,11 +1190,11 @@ export class AgendaService {
     }
 
     const professionalId = normalizeText(query.professionalId);
-    if (professionalId && isUuid(professionalId) && currentUser.role === "administrador") {
+    if (professionalId && isUuid(professionalId) && currentUser.role === "ADMINISTRADOR") {
       where.professionals = { some: { professionalId } };
     }
 
-    if (currentUser.role === "tecnico") {
+    if (currentUser.role === "TECNICO") {
       where.professionals = { some: { professionalId: currentUser._id } };
     }
 
@@ -1270,7 +1270,7 @@ export class AgendaService {
             startAt: occurrenceStart,
             endAt: occurrenceEnd,
             durationMinutes: normalized.durationMinutes,
-            status: "agendada",
+            status: "AGENDADA",
             notes: normalized.notes,
             createdById: currentUser._id,
             updatedById: currentUser._id,
@@ -1346,7 +1346,7 @@ export class AgendaService {
     const futureSessions = await tx.session.findMany({
       where: {
         seriesId,
-        status: "agendada",
+        status: "AGENDADA",
         startAt: { gte: fromStartAt },
       },
       select: { id: true },
@@ -1504,7 +1504,7 @@ export class AgendaService {
         where: {
           id: { in: input.professionalIds },
           role: { in: [...USER_ROLES] },
-          accountStatus: "ativo",
+          accountStatus: "ATIVO",
         },
       }),
     ]);
@@ -1534,7 +1534,7 @@ export class AgendaService {
     const isOwnerProfessional = session.professionals.some(
       (row) => row.professionalId === currentUser._id,
     );
-    if (currentUser.role === "tecnico" && !isOwnerProfessional) {
+    if (currentUser.role === "TECNICO" && !isOwnerProfessional) {
       throw new ForbiddenError("Técnico só pode concluir a própria sessão.");
     }
   }

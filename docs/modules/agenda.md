@@ -17,31 +17,31 @@ Agenda institucional de sessões terapêuticas. Administradores gerenciam sessõ
 
 | Perfil | Pode fazer |
 |---|---|
-| `administrador` | CRUD de sessões, salas, tipos, modalidades; ver agenda de qualquer profissional |
-| `tecnico` | Listar apenas sessões em que é profissional; marcar `realizada` na própria sessão |
+| `ADMINISTRADOR` | CRUD de sessões, salas, tipos, modalidades; ver agenda de qualquer profissional |
+| `TECNICO` | Listar apenas sessões em que é profissional; marcar `REALIZADA` na própria sessão |
 
 ### Sessão
 
-Uma sessão tem: data/hora, duração, sala, tipo de atendimento, modalidade (individual/dupla/grupo), pacientes, profissionais e status.
+Uma sessão tem: data/hora, duração, sala, tipo de atendimento, modalidade (`INDIVIDUAL`/`DUPLA`/`GRUPO`), pacientes, profissionais e status.
 
 **Limites por modalidade** (configuráveis em `SessionModalitySetting`, defaults no service):
 
 | Modalidade | Pacientes | Profissionais |
 |---|---|---|
-| individual | 1 | 1 |
+| INDIVIDUAL | 1 | 1 |
 | dupla | 2 | 2 |
 | grupo | 1–15 | 2–4 |
 
-**Conflitos bloqueiam agendamento:** profissional, paciente ou sala não podem ter sobreposição de horário com outra sessão `agendada`.
+**Conflitos bloqueiam agendamento:** profissional, paciente ou sala não podem ter sobreposição de horário com outra sessão `AGENDADA`.
 
-**Status:** `agendada` → `realizada` ou `cancelada`. Sessão cancelada não pode ser editada nem concluída.
+**Status:** `AGENDADA` → `REALIZADA` ou `CANCELADA`. Sessão cancelada não pode ser editada nem concluída.
 
 ### Recorrência semanal
 
 - Ao criar sessão com `recurrence.enabled = true`, gera série (`SessionSeries`) e múltiplas ocorrências.
 - Campos: `weekdays` (0=dom … 6=sáb), `endsAt` (default: +90 dias do início).
 - Conflitos em qualquer data da série bloqueiam a criação inteira.
-- Edição/cancelamento suportam escopo: `single` (só esta), `future` (esta e futuras), `all` (toda a série, só cancelamento).
+- Edição/cancelamento suportam escopo: `SINGLE` (só esta), `FUTURE` (esta e futuras), `ALL` (toda a série, só cancelamento).
 
 ### Tipos de atendimento
 
@@ -79,8 +79,8 @@ Uma sessão tem: data/hora, duração, sala, tipo de atendimento, modalidade (in
 | PATCH | `/agenda/session-modalities/:modality` | admin | Atualizar limites |
 | GET | `/agenda/sessions` | auth | Lista sessões (técnico: só as suas) |
 | POST | `/agenda/sessions` | admin | Criar sessão (com ou sem recorrência) |
-| PATCH | `/agenda/sessions/:id` | admin | Editar sessão (escopo single/future) |
-| PATCH | `/agenda/sessions/:id/cancel` | admin | Cancelar (escopo single/future/all) |
+| PATCH | `/agenda/sessions/:id` | admin | Editar sessão (escopo SINGLE/FUTURE) |
+| PATCH | `/agenda/sessions/:id/cancel` | admin | Cancelar (escopo SINGLE/FUTURE/ALL) |
 | PATCH | `/agenda/sessions/:id/complete` | auth | Marcar como realizada |
 
 Filtros de listagem: `status`, `startAt`, `endAt`, `professionalId` (só admin).
@@ -164,4 +164,4 @@ Manual:
 1. Admin cria sessão individual → deve aparecer no calendário.
 2. Tentar sobrepor mesma sala → erro de conflito.
 3. Técnico marca própria sessão como realizada → ok; em sessão alheia → 403.
-4. Criar recorrência semanal → múltiplas ocorrências; cancelar `future` → só futuras canceladas.
+4. Criar recorrência semanal → múltiplas ocorrências; cancelar `FUTURE` → só futuras canceladas.

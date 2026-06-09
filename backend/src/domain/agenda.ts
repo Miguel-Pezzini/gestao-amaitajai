@@ -1,25 +1,25 @@
-export const USER_ROLES = ["administrador", "tecnico"] as const;
+export const USER_ROLES = ["ADMINISTRADOR", "TECNICO"] as const;
 export type UserRole = (typeof USER_ROLES)[number];
 
-export const USER_ACCOUNT_STATUSES = ["pendente", "ativo", "inativo"] as const;
+export const USER_ACCOUNT_STATUSES = ["PENDENTE", "ATIVO", "INATIVO"] as const;
 export type UserAccountStatus = (typeof USER_ACCOUNT_STATUSES)[number];
 
-export const FUNDING_SOURCES = ["Municipal", "Estadual", "Particular"] as const;
+export const FUNDING_SOURCES = ["MUNICIPAL", "ESTADUAL", "PARTICULAR"] as const;
 export type FundingSource = (typeof FUNDING_SOURCES)[number];
 
-export const SESSION_MODALITIES = ["individual", "dupla", "grupo"] as const;
+export const SESSION_MODALITIES = ["INDIVIDUAL", "DUPLA", "GRUPO"] as const;
 export type SessionModality = (typeof SESSION_MODALITIES)[number];
 
-export const SESSION_STATUSES = ["agendada", "realizada", "cancelada"] as const;
+export const SESSION_STATUSES = ["AGENDADA", "REALIZADA", "CANCELADA"] as const;
 export type SessionStatus = (typeof SESSION_STATUSES)[number];
 
-export const SESSION_SERIES_STATUSES = ["ativa", "encerrada", "cancelada"] as const;
+export const SESSION_SERIES_STATUSES = ["ATIVA", "ENCERRADA", "CANCELADA"] as const;
 export type SessionSeriesStatus = (typeof SESSION_SERIES_STATUSES)[number];
 
-export const CANCEL_SCOPES = ["single", "future", "all"] as const;
+export const CANCEL_SCOPES = ["SINGLE", "FUTURE", "ALL"] as const;
 export type CancelScope = (typeof CANCEL_SCOPES)[number];
 
-export const UPDATE_SCOPES = ["single", "future"] as const;
+export const UPDATE_SCOPES = ["SINGLE", "FUTURE"] as const;
 export type UpdateScope = (typeof UPDATE_SCOPES)[number];
 
 export function buildPatientDeactivatedCancelReason(patientFullName: string): string {

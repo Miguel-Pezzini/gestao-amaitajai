@@ -16,8 +16,8 @@ export function AgendaSessionCard({
   onCancelSession,
   isAdmin,
 }) {
-  const canComplete = session.status === "agendada";
-  const canCancel = isAdmin && session.status !== "cancelada";
+  const canComplete = session.status === "AGENDADA";
+  const canCancel = isAdmin && session.status !== "CANCELADA";
   const hasActions = canComplete || canCancel;
 
   return (

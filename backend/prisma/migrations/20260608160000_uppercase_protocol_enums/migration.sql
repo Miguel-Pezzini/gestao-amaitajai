@@ -1,0 +1,3 @@
+-- ProtocolRequestType e ProtocolStatus já nascem em maiúsculas em
+-- 20260608140000_add_patient_protocols. Migração mantida como no-op para
+-- compatibilidade com histórico de branches que já a referenciam.

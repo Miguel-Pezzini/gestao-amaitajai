@@ -20,7 +20,7 @@ const validPatientPayload = {
   birthDate: "2015-03-10",
   guardianName: "Maria da Silva",
   phone: "(47) 99999-1234",
-  fundingSource: "Municipal",
+  fundingSource: "MUNICIPAL",
 };
 
 describe("Pacientes", () => {
@@ -33,7 +33,7 @@ describe("Pacientes", () => {
       name: "Admin Pacientes",
       email: "admin@patients.test",
       password: "admin123456",
-      role: "administrador",
+      role: "ADMINISTRADOR",
     });
     adminCookie = await loginAndGetCookie(admin.email, "admin123456");
   });
@@ -51,7 +51,7 @@ describe("Pacientes", () => {
 
     expect(response.status).toBe(201);
     expect(response.body.patient.fullName).toBe(validPatientPayload.fullName);
-    expect(response.body.patient.fundingSource).toBe("Municipal");
+    expect(response.body.patient.fundingSource).toBe("MUNICIPAL");
     expect(response.body.patient.isActive).toBe(true);
   });
 
@@ -124,7 +124,7 @@ describe("Pacientes", () => {
         name: "PSICOPED",
         slug: `psicoped-individual-${Date.now()}`,
         defaultDurationMinutes: 30,
-        allowedModalities: ["individual"],
+        allowedModalities: ["INDIVIDUAL"],
       });
 
       await request(app)
@@ -152,7 +152,7 @@ describe("Pacientes", () => {
         where: { patients: { some: { patientId: paciente._id } } },
       });
       expect(sessions).toHaveLength(1);
-      expect(sessions[0]?.status).toBe("cancelada");
+      expect(sessions[0]?.status).toBe("CANCELADA");
       expect(sessions[0]?.cancelReason).toBe(
         buildPatientDeactivatedCancelReason(paciente.fullName),
       );
@@ -165,26 +165,26 @@ describe("Pacientes", () => {
         birthDate: new Date("2017-02-02"),
         guardianName: "Responsavel 2",
         phone: "(47) 99999-0002",
-        fundingSource: "Estadual",
+        fundingSource: "ESTADUAL",
       });
       const paciente3 = await createPatient({
         fullName: "Paciente Grupo 3",
         birthDate: new Date("2017-03-03"),
         guardianName: "Responsavel 3",
         phone: "(47) 99999-0003",
-        fundingSource: "Estadual",
+        fundingSource: "ESTADUAL",
       });
       const profissional2 = await createUser({
         name: "Prof Grupo 2",
         email: `prof-grupo-2-${Date.now()}@patients.test`,
         password: "prof123456",
-        role: "tecnico",
+        role: "TECNICO",
       });
       const groupType = await createSessionType({
         name: "Grupo Terapêutico",
         slug: `grupo-${Date.now()}`,
         defaultDurationMinutes: 60,
-        allowedModalities: ["grupo"],
+        allowedModalities: ["GRUPO"],
       });
 
       const created = await request(app)
@@ -196,7 +196,7 @@ describe("Pacientes", () => {
             roomId: room._id,
             patientIds: [paciente._id, paciente2._id, paciente3._id],
             professionalIds: [profissional._id, profissional2._id],
-            modality: "grupo",
+            modality: "GRUPO",
             durationMinutes: 60,
             startAt: "2026-07-10T13:00:00.000Z",
           }),
@@ -208,7 +208,7 @@ describe("Pacientes", () => {
         birthDate: new Date("2017-06-06"),
         guardianName: "Responsavel 6",
         phone: "(47) 99999-0006",
-        fundingSource: "Estadual",
+        fundingSource: "ESTADUAL",
       });
 
       const impact = await request(app)
@@ -240,7 +240,7 @@ describe("Pacientes", () => {
         where: { id: sessionId },
         include: { patients: true },
       });
-      expect(session.status).toBe("agendada");
+      expect(session.status).toBe("AGENDADA");
       expect(session.patients.map((row) => row.patientId).sort()).toEqual(
         [paciente2._id, paciente3._id, substituto._id].sort(),
       );
@@ -253,23 +253,23 @@ describe("Pacientes", () => {
         birthDate: new Date("2017-04-04"),
         guardianName: "Responsavel 4",
         phone: "(47) 99999-0004",
-        fundingSource: "Estadual",
+        fundingSource: "ESTADUAL",
       });
       const profissional2 = await createUser({
         name: "Prof Grupo Min",
         email: `prof-grupo-min-${Date.now()}@patients.test`,
         password: "prof123456",
-        role: "tecnico",
+        role: "TECNICO",
       });
       const groupType = await createSessionType({
         name: "Grupo Mínimo 2",
         slug: `grupo-min-${Date.now()}`,
         defaultDurationMinutes: 60,
-        allowedModalities: ["grupo"],
+        allowedModalities: ["GRUPO"],
       });
 
       await request(app)
-        .patch("/api/agenda/session-modalities/grupo")
+        .patch("/api/agenda/session-modalities/GRUPO")
         .set("Cookie", adminCookie)
         .send({
           minPatients: 2,
@@ -288,7 +288,7 @@ describe("Pacientes", () => {
             roomId: room._id,
             patientIds: [paciente._id, paciente2._id],
             professionalIds: [profissional._id, profissional2._id],
-            modality: "grupo",
+            modality: "GRUPO",
             durationMinutes: 60,
             startAt: "2026-07-10T13:00:00.000Z",
           }),
@@ -300,7 +300,7 @@ describe("Pacientes", () => {
         birthDate: new Date("2017-07-07"),
         guardianName: "Responsavel 7",
         phone: "(47) 99999-0007",
-        fundingSource: "Estadual",
+        fundingSource: "ESTADUAL",
       });
 
       const deactivated = await request(app)
@@ -318,7 +318,7 @@ describe("Pacientes", () => {
         where: { id: sessionId },
         include: { patients: true },
       });
-      expect(session.status).toBe("agendada");
+      expect(session.status).toBe("AGENDADA");
       expect(session.patients.map((row) => row.patientId).sort()).toEqual(
         [paciente2._id, substituto._id].sort(),
       );
@@ -331,19 +331,19 @@ describe("Pacientes", () => {
         birthDate: new Date("2017-05-05"),
         guardianName: "Responsavel 5",
         phone: "(47) 99999-0005",
-        fundingSource: "Estadual",
+        fundingSource: "ESTADUAL",
       });
       const profissional2 = await createUser({
         name: "Prof Dupla 2",
         email: `prof-dupla-2-${Date.now()}@patients.test`,
         password: "prof123456",
-        role: "tecnico",
+        role: "TECNICO",
       });
       const duplaType = await createSessionType({
         name: "FONO Dupla",
         slug: `dupla-${Date.now()}`,
         defaultDurationMinutes: 60,
-        allowedModalities: ["dupla"],
+        allowedModalities: ["DUPLA"],
       });
 
       const created = await request(app)
@@ -355,7 +355,7 @@ describe("Pacientes", () => {
             roomId: room._id,
             patientIds: [paciente._id, paciente2._id],
             professionalIds: [profissional._id, profissional2._id],
-            modality: "dupla",
+            modality: "DUPLA",
             durationMinutes: 60,
             startAt: "2026-07-10T13:00:00.000Z",
           }),
@@ -367,7 +367,7 @@ describe("Pacientes", () => {
         birthDate: new Date("2017-08-08"),
         guardianName: "Responsavel 8",
         phone: "(47) 99999-0008",
-        fundingSource: "Estadual",
+        fundingSource: "ESTADUAL",
       });
 
       const deactivated = await request(app)
@@ -385,7 +385,7 @@ describe("Pacientes", () => {
         where: { id: sessionId },
         include: { patients: true },
       });
-      expect(session.status).toBe("agendada");
+      expect(session.status).toBe("AGENDADA");
       expect(session.patients.map((row) => row.patientId).sort()).toEqual(
         [paciente2._id, substituto._id].sort(),
       );
@@ -398,26 +398,26 @@ describe("Pacientes", () => {
         birthDate: new Date("2017-09-09"),
         guardianName: "Responsavel 9",
         phone: "(47) 99999-0009",
-        fundingSource: "Estadual",
+        fundingSource: "ESTADUAL",
       });
       const profissional2 = await createUser({
         name: "Prof Série 2",
         email: `prof-serie-2-${Date.now()}@patients.test`,
         password: "prof123456",
-        role: "tecnico",
+        role: "TECNICO",
       });
       const substituto = await createPatient({
         fullName: "Paciente Série Substituto",
         birthDate: new Date("2017-10-10"),
         guardianName: "Responsavel 10",
         phone: "(47) 99999-0010",
-        fundingSource: "Estadual",
+        fundingSource: "ESTADUAL",
       });
       const duplaType = await createSessionType({
         name: "Dupla Recorrente",
         slug: `dupla-recorrente-${Date.now()}`,
         defaultDurationMinutes: 60,
-        allowedModalities: ["dupla"],
+        allowedModalities: ["DUPLA"],
       });
 
       const created = await request(app)
@@ -429,7 +429,7 @@ describe("Pacientes", () => {
             roomId: room._id,
             patientIds: [paciente._id, paciente2._id],
             professionalIds: [profissional._id, profissional2._id],
-            modality: "dupla",
+            modality: "DUPLA",
             durationMinutes: 60,
             startAt: "2026-06-02T13:00:00.000Z",
             weekdays: [1, 3],
@@ -459,7 +459,7 @@ describe("Pacientes", () => {
       expect(deactivated.body.sessionsReplaced).toBeGreaterThan(1);
 
       const sessions = await prisma.session.findMany({
-        where: { seriesId, status: "agendada" },
+        where: { seriesId, status: "AGENDADA" },
         include: { patients: true },
       });
       expect(sessions.length).toBeGreaterThan(1);
@@ -483,13 +483,13 @@ describe("Pacientes", () => {
         name: "Prof Grupo Único",
         email: `prof-grupo-unico-${Date.now()}@patients.test`,
         password: "prof123456",
-        role: "tecnico",
+        role: "TECNICO",
       });
       const groupType = await createSessionType({
         name: "Grupo Único",
         slug: `grupo-unico-${Date.now()}`,
         defaultDurationMinutes: 60,
-        allowedModalities: ["grupo"],
+        allowedModalities: ["GRUPO"],
       });
 
       const created = await request(app)
@@ -501,7 +501,7 @@ describe("Pacientes", () => {
             roomId: room._id,
             patientIds: [paciente._id],
             professionalIds: [profissional._id, profissional2._id],
-            modality: "grupo",
+            modality: "GRUPO",
             durationMinutes: 60,
             startAt: "2026-07-10T13:00:00.000Z",
           }),
@@ -518,7 +518,7 @@ describe("Pacientes", () => {
       expect(deactivated.body.sessionsReplaced).toBe(0);
 
       const session = await prisma.session.findUniqueOrThrow({ where: { id: sessionId } });
-      expect(session.status).toBe("cancelada");
+      expect(session.status).toBe("CANCELADA");
       expect(session.cancelReason).toBe(buildPatientDeactivatedCancelReason(paciente.fullName));
     });
 
@@ -548,7 +548,7 @@ describe("Pacientes", () => {
       expect(deactivated.body.sessionsCancelled).toBe(1);
 
       const session = await prisma.session.findUniqueOrThrow({ where: { id: sessionId } });
-      expect(session.status).toBe("cancelada");
+      expect(session.status).toBe("CANCELADA");
       expect(session.cancelReason).toBe(buildPatientDeactivatedCancelReason(paciente.fullName));
     });
 
@@ -586,7 +586,7 @@ describe("Pacientes", () => {
         where: { id: sessionId },
         include: { patients: true },
       });
-      expect(session.status).toBe("realizada");
+      expect(session.status).toBe("REALIZADA");
       expect(session.patients.map((row) => row.patientId)).toContain(paciente._id);
     });
 
@@ -597,26 +597,26 @@ describe("Pacientes", () => {
         birthDate: new Date("2017-11-11"),
         guardianName: "Responsavel 11",
         phone: "(47) 99999-0011",
-        fundingSource: "Estadual",
+        fundingSource: "ESTADUAL",
       });
       const profissional2 = await createUser({
         name: "Prof Série Realizada 2",
         email: `prof-serie-realizada-2-${Date.now()}@patients.test`,
         password: "prof123456",
-        role: "tecnico",
+        role: "TECNICO",
       });
       const substituto = await createPatient({
         fullName: "Paciente Série Realizada Substituto",
         birthDate: new Date("2017-12-12"),
         guardianName: "Responsavel 12",
         phone: "(47) 99999-0012",
-        fundingSource: "Estadual",
+        fundingSource: "ESTADUAL",
       });
       const duplaType = await createSessionType({
         name: "Dupla Série Realizada",
         slug: `dupla-serie-realizada-${Date.now()}`,
         defaultDurationMinutes: 60,
-        allowedModalities: ["dupla"],
+        allowedModalities: ["DUPLA"],
       });
 
       const created = await request(app)
@@ -628,7 +628,7 @@ describe("Pacientes", () => {
             roomId: room._id,
             patientIds: [paciente._id, paciente2._id],
             professionalIds: [profissional._id, profissional2._id],
-            modality: "dupla",
+            modality: "DUPLA",
             durationMinutes: 60,
             startAt: "2026-06-02T13:00:00.000Z",
             weekdays: [1, 3],
@@ -663,13 +663,13 @@ describe("Pacientes", () => {
         where: { id: firstSession.id },
         include: { patients: true },
       });
-      expect(completedSession.status).toBe("realizada");
+      expect(completedSession.status).toBe("REALIZADA");
       expect(completedSession.patients.map((row) => row.patientId).sort()).toEqual(
         [paciente._id, paciente2._id].sort(),
       );
 
       const pendingSessions = await prisma.session.findMany({
-        where: { seriesId, status: "agendada" },
+        where: { seriesId, status: "AGENDADA" },
         include: { patients: true },
       });
       expect(pendingSessions.length).toBeGreaterThan(0);

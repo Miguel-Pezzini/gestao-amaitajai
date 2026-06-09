@@ -35,8 +35,8 @@ export function SessionDetailDialog({
     return null;
   }
 
-  const canComplete = session.status === "agendada";
-  const canCancel = isAdmin && session.status !== "cancelada";
+  const canComplete = session.status === "AGENDADA";
+  const canCancel = isAdmin && session.status !== "CANCELADA";
   const hasActions = canComplete || canCancel;
   const notes = String(session.notes ?? "").trim();
   const cancelReason = String(session.cancelReason ?? "").trim();
@@ -84,7 +84,7 @@ export function SessionDetailDialog({
           </section>
         ) : null}
 
-        {session.status === "cancelada" && cancelReason ? (
+        {session.status === "CANCELADA" && cancelReason ? (
           <section className="space-y-2">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-destructive">
               Motivo do cancelamento

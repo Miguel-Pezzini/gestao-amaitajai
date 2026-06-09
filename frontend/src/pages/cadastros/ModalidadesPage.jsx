@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
+import { Pencil, RotateCcw, Trash2 } from "lucide-react";
 import {
   EntityList,
   EntityListItem,
+  EntityListIconAction,
   EntityListItemFooterRow,
   EntityStatusBadge,
   EntityTagBadge,
-  entityListActionButtonClassName,
 } from "@/components/cadastros/EntityListItem";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,6 +19,13 @@ import {
 import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { CreateFab } from "@/components/cadastros/CreateFab";
 import { useSession } from "@/contexts/session-context";
 import {
@@ -36,7 +44,7 @@ const EMPTY_FORM = {
   name: "",
   defaultDurationMinutes: "60",
   isDurationFlexible: false,
-  allowedModalities: ["individual"],
+  allowedModalities: ["INDIVIDUAL"],
 };
 
 function SessionTypeForm({
@@ -149,7 +157,7 @@ function validateSessionTypeForm(form, existingSlug) {
   }
 
   const slug = existingSlug ?? slugify(name);
-  if (slug === "tea-14-plus" && form.allowedModalities.some((item) => item !== "grupo")) {
+  if (slug === "tea-14-plus" && form.allowedModalities.some((item) => item !== "GRUPO")) {
     errors.allowedModalities =
       "Esta modalidade permite apenas tipo de sessão em grupo.";
   }
@@ -375,16 +383,16 @@ export function ModalidadesPage() {
             </div>
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="session-type-status-filter">Status</Label>
-              <select
-                id="session-type-status-filter"
-                className="h-10 w-full min-w-0 rounded-md border border-input bg-background px-3 py-2 text-sm"
-                value={statusFilter}
-                onChange={(event) => setStatusFilter(event.target.value)}
-              >
-                <option value="active">Apenas ativos</option>
-                <option value="inactive">Apenas inativos</option>
-                <option value="all">Todos</option>
-              </select>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger id="session-type-status-filter" className="w-full">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Apenas ativos</SelectItem>
+                  <SelectItem value="inactive">Apenas inativos</SelectItem>
+                  <SelectItem value="all">Todos</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <Button
               className="justify-self-start bg-ama-cyan px-6 text-ama-blue-dark shadow-sm hover:bg-ama-cyan/90 sm:col-span-2 sm:justify-self-end"
@@ -418,22 +426,17 @@ export function ModalidadesPage() {
                   <EntityListItemFooterRow
                     actions={
                       <>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className={entityListActionButtonClassName()}
+                        <EntityListIconAction
+                          icon={Pencil}
+                          label="Editar"
                           onClick={() => openEditDialog(item)}
-                        >
-                          Editar
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className={entityListActionButtonClassName()}
+                        />
+                        <EntityListIconAction
+                          icon={item.isActive ? Trash2 : RotateCcw}
+                          label={item.isActive ? "Inativar" : "Reativar"}
+                          tone={item.isActive ? "destructive" : "default"}
                           onClick={() => handleToggleStatus(item)}
-                        >
-                          {item.isActive ? "Inativar" : "Reativar"}
-                        </Button>
+                        />
                       </>
                     }
                   >

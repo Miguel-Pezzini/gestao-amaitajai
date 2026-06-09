@@ -7,25 +7,25 @@ import {
 
 describe("patient-deactivation.helpers", () => {
   it("cancela sessão individual", () => {
-    expect(shouldCancelSessionOnPatientDeactivation("individual", 1)).toBe(true);
-    expect(requiresPatientReplacementOnDeactivation("individual", 1)).toBe(false);
+    expect(shouldCancelSessionOnPatientDeactivation("INDIVIDUAL", 1)).toBe(true);
+    expect(requiresPatientReplacementOnDeactivation("INDIVIDUAL", 1)).toBe(false);
   });
 
   it("exige substituição em dupla", () => {
-    expect(shouldCancelSessionOnPatientDeactivation("dupla", 2)).toBe(false);
-    expect(requiresPatientReplacementOnDeactivation("dupla", 2)).toBe(true);
+    expect(shouldCancelSessionOnPatientDeactivation("DUPLA", 2)).toBe(false);
+    expect(requiresPatientReplacementOnDeactivation("DUPLA", 2)).toBe(true);
   });
 
   it("exige substituição em grupo com outros participantes", () => {
-    expect(shouldCancelSessionOnPatientDeactivation("grupo", 3)).toBe(false);
-    expect(requiresPatientReplacementOnDeactivation("grupo", 3)).toBe(true);
-    expect(shouldCancelSessionOnPatientDeactivation("grupo", 2)).toBe(false);
-    expect(requiresPatientReplacementOnDeactivation("grupo", 2)).toBe(true);
+    expect(shouldCancelSessionOnPatientDeactivation("GRUPO", 3)).toBe(false);
+    expect(requiresPatientReplacementOnDeactivation("GRUPO", 3)).toBe(true);
+    expect(shouldCancelSessionOnPatientDeactivation("GRUPO", 2)).toBe(false);
+    expect(requiresPatientReplacementOnDeactivation("GRUPO", 2)).toBe(true);
   });
 
   it("cancela sessão em grupo quando o paciente é o único", () => {
-    expect(shouldCancelSessionOnPatientDeactivation("grupo", 1)).toBe(true);
-    expect(requiresPatientReplacementOnDeactivation("grupo", 1)).toBe(false);
+    expect(shouldCancelSessionOnPatientDeactivation("GRUPO", 1)).toBe(true);
+    expect(requiresPatientReplacementOnDeactivation("GRUPO", 1)).toBe(false);
   });
 
   it("monta chave de substituição por série ou sessão", () => {

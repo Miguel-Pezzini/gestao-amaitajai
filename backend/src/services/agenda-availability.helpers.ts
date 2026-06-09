@@ -1,7 +1,7 @@
 import type { SessionModality } from "../domain/agenda.js";
 
 export type SessionOverlapWhere = {
-  status: { not: "cancelada" };
+  status: { not: "CANCELADA" };
   startAt: { lt: Date };
   endAt: { gt: Date };
   id?: { not: string };
@@ -13,7 +13,7 @@ export function buildSessionOverlapWhere(params: {
   excludeSessionId?: string;
 }): SessionOverlapWhere {
   const where: SessionOverlapWhere = {
-    status: { not: "cancelada" },
+    status: { not: "CANCELADA" },
     startAt: { lt: params.endAt },
     endAt: { gt: params.startAt },
   };

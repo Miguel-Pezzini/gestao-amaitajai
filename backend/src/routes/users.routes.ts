@@ -30,12 +30,12 @@ function normalizeEmail(value: unknown): string {
 }
 
 function normalizeRole(value: unknown): UserRole | null {
-  const role = normalizeText(value).toLowerCase();
+  const role = normalizeText(value).toUpperCase();
   return USER_ROLES.includes(role as UserRole) ? (role as UserRole) : null;
 }
 
 function normalizeAccountStatus(value: unknown): UserAccountStatus | null {
-  const status = normalizeText(value).toLowerCase();
+  const status = normalizeText(value).toUpperCase();
   return USER_ACCOUNT_STATUSES.includes(status as UserAccountStatus)
     ? (status as UserAccountStatus)
     : null;
@@ -96,7 +96,7 @@ function validateUserPayload(
   if (!partial || payload.role !== undefined) {
     const role = normalizeRole(payload.role);
     if (!role) {
-      errors.push("Perfil inválido. Valores permitidos: administrador, tecnico.");
+      errors.push("Perfil inválido. Valores permitidos: ADMINISTRADOR, TECNICO.");
     } else {
       update.role = role;
     }
@@ -136,9 +136,9 @@ function buildWhere(queryParams: Request["query"]): Prisma.UserWhereInput {
 
   const status = normalizeText(queryParams.status).toLowerCase();
   if (status === "active") {
-    where.accountStatus = "ativo";
+    where.accountStatus = "ATIVO";
   } else if (status === "inactive") {
-    where.accountStatus = "inativo";
+    where.accountStatus = "INATIVO";
   }
 
   return where;
@@ -205,9 +205,9 @@ router.post("/users", async (req: Request, res: Response) => {
     data: {
       name: update.name!,
       email: update.email!,
-      role: update.role ?? "tecnico",
+      role: update.role ?? "TECNICO",
       passwordHash,
-      accountStatus: "ativo",
+      accountStatus: "ATIVO",
     },
     select: userSelect,
   });
@@ -286,14 +286,14 @@ router.patch("/users/:id/status", async (req: Request, res: Response) => {
   }
 
   const accountStatus = normalizeAccountStatus((req.body as { accountStatus?: unknown })?.accountStatus);
-  if (!accountStatus || accountStatus === "pendente") {
+  if (!accountStatus || accountStatus === "PENDENTE") {
     res.status(400).json({
-      message: "O campo accountStatus deve ser 'ativo' ou 'inativo'.",
+      message: "O campo accountStatus deve ser 'ATIVO' ou 'INATIVO'.",
     });
     return;
   }
 
-  if (req.user?._id === id && accountStatus === "inativo") {
+  if (req.user?._id === id && accountStatus === "INATIVO") {
     res.status(400).json({ message: "Você não pode inativar sua própria conta." });
     return;
   }

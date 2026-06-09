@@ -9,9 +9,9 @@ export const WEEKDAY_OPTIONS = [
 ];
 
 export const CANCEL_SCOPE_OPTIONS = [
-  { value: "single", label: "Somente este evento" },
-  { value: "future", label: "Este e os eventos futuros" },
-  { value: "all", label: "Todos os eventos da série" },
+  { value: "SINGLE", label: "Somente este evento" },
+  { value: "FUTURE", label: "Este e os eventos futuros" },
+  { value: "ALL", label: "Todos os eventos da série" },
 ];
 
 export function getWeekdayFromDateString(dateString) {

@@ -15,7 +15,7 @@ export function validateSessionModalitySettingUpdate(
     isActive?: unknown;
   },
 ) {
-  const normalizedModality = normalizeText(modality) as SessionModality;
+  const normalizedModality = normalizeText(modality).toUpperCase() as SessionModality;
   if (!SESSION_MODALITIES.includes(normalizedModality)) {
     throw new ValidationError("Tipo de sessão inválido.");
   }

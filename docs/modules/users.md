@@ -7,7 +7,7 @@
 
 ## Visão geral
 
-Gestão de funcionários (usuários do sistema) com perfis `administrador` ou `tecnico` e status de conta. Acesso restrito a administradores.
+Gestão de funcionários (usuários do sistema) com perfis `ADMINISTRADOR` ou `TECNICO` e status de conta. Acesso restrito a administradores.
 
 ---
 
@@ -15,19 +15,19 @@ Gestão de funcionários (usuários do sistema) com perfis `administrador` ou `t
 
 ### Perfis
 
-- `administrador`: acesso total, incluindo este módulo.
-- `tecnico`: usuário operacional da agenda.
+- `ADMINISTRADOR`: acesso total, incluindo este módulo.
+- `TECNICO`: usuário operacional da agenda.
 
 ### Status de conta
 
-`pendente`, `ativo`, `inativo`. Apenas `ativo` (e `pendente` em fluxo Google) autentica.
+`PENDENTE`, `ATIVO`, `INATIVO`. Apenas `ATIVO` (e `PENDENTE` em fluxo Google) autentica.
 
 ### Cadastro
 
 - E-mail institucional obrigatório (`@ALLOWED_EMAIL_DOMAIN`).
 - Senha mínima 6 caracteres na criação.
 - E-mail único no sistema.
-- Role default na criação: `tecnico` se não informado.
+- Role default na criação: `TECNICO` se não informado.
 
 ---
 
@@ -61,8 +61,8 @@ Redirect: `/cadastros/usuarios` → `/cadastros/funcionarios`.
 | `name` | obrigatório | `users.routes.ts` |
 | `email` | válido, domínio institucional, único | `users.routes.ts` |
 | `password` | ≥6 caracteres (criação ou quando enviado) | `users.routes.ts` |
-| `role` | `administrador` ou `tecnico` | `users.routes.ts` |
-| `accountStatus` | `pendente`, `ativo` ou `inativo` | `users.routes.ts` |
+| `role` | `ADMINISTRADOR` ou `TECNICO` | `users.routes.ts` |
+| `accountStatus` | `PENDENTE`, `ATIVO` ou `INATIVO` | `users.routes.ts` |
 
 ---
 
@@ -101,4 +101,4 @@ Redirect: `/cadastros/usuarios` → `/cadastros/funcionarios`.
 Manual:
 1. Login como técnico → acessar `/cadastros/funcionarios` → bloqueado.
 2. Admin cria funcionário com e-mail duplicado → 409.
-3. Admin altera status para `inativo` → usuário não consegue mais logar.
+3. Admin altera status para `INATIVO` → usuário não consegue mais logar.

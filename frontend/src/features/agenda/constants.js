@@ -19,7 +19,7 @@ export const DEFAULT_SESSION_START_TIME = `${String(OCCUPANCY_START_HOUR).padSta
 /** Mínimo de caracteres para buscar paciente/profissional com disponibilidade no horário. */
 export const PARTICIPANT_SEARCH_MIN_LENGTH = 2;
 
-export const STATUS_OPTIONS = ["agendada", "realizada", "cancelada"];
+export const STATUS_OPTIONS = ["AGENDADA", "REALIZADA", "CANCELADA"];
 
 export const AGENDA_VIEW_MODES = {
   MONTH: "month",
@@ -45,9 +45,9 @@ export { MODALITY_OPTIONS, SESSION_FORMAT_LABELS, SESSION_FORMAT_OPTIONS };
 
 /** Limites por tipo de sessão (campo API `modality`). */
 export const SESSION_FORMAT_LIMITS = {
-  individual: { minPatients: 1, maxPatients: 1, minProfessionals: 1, maxProfessionals: 1 },
-  dupla: { minPatients: 2, maxPatients: 2, minProfessionals: 2, maxProfessionals: 2 },
-  grupo: { minPatients: 1, maxPatients: 15, minProfessionals: 2, maxProfessionals: 4 },
+  INDIVIDUAL: { minPatients: 1, maxPatients: 1, minProfessionals: 1, maxProfessionals: 1 },
+  DUPLA: { minPatients: 2, maxPatients: 2, minProfessionals: 2, maxProfessionals: 2 },
+  GRUPO: { minPatients: 1, maxPatients: 15, minProfessionals: 2, maxProfessionals: 4 },
 };
 
 export function buildSessionLimitsMap(settings = []) {
@@ -210,7 +210,7 @@ export function getSessionFormFieldErrors(form, limitsByModality = SESSION_FORMA
 
 export const EMPTY_FORM = {
   sessionTypeId: "",
-  modality: "individual",
+  modality: "INDIVIDUAL",
   roomId: "",
   startDate: "",
   startTime: "",

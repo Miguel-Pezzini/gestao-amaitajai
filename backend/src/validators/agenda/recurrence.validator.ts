@@ -90,7 +90,7 @@ export function validateRecurrenceInput(
 }
 
 export function validateCancelScope(value: unknown): CancelScope {
-  const scope = normalizeText(value) || "single";
+  const scope = (normalizeText(value) || "SINGLE").toUpperCase();
   if (!CANCEL_SCOPES.includes(scope as CancelScope)) {
     throw new ValidationError("Escopo de cancelamento inválido.");
   }
@@ -98,7 +98,7 @@ export function validateCancelScope(value: unknown): CancelScope {
 }
 
 export function validateUpdateScope(value: unknown): UpdateScope {
-  const scope = normalizeText(value) || "single";
+  const scope = (normalizeText(value) || "SINGLE").toUpperCase();
   if (!UPDATE_SCOPES.includes(scope as UpdateScope)) {
     throw new ValidationError("Escopo de edição inválido.");
   }

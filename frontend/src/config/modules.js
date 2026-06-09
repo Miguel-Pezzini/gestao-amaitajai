@@ -1,6 +1,7 @@
 import {
   CalendarDays,
   ClipboardCheck,
+  ClipboardList,
   LayoutDashboard,
   LayoutGrid,
   ListOrdered,
@@ -18,7 +19,7 @@ export const APP_MODULES = [
     showInSidebar: true,
     showInQuickAccess: false,
     enabled: true,
-    requiredRoles: ["administrador", "tecnico"],
+    requiredRoles: ["ADMINISTRADOR", "TECNICO"],
     order: 0,
   },
   {
@@ -30,8 +31,20 @@ export const APP_MODULES = [
     showInSidebar: true,
     showInQuickAccess: true,
     enabled: true,
-    requiredRoles: ["administrador"],
+    requiredRoles: ["ADMINISTRADOR"],
     order: 1,
+  },
+  {
+    id: "protocols",
+    label: "Protocolos",
+    icon: ClipboardList,
+    description: "Registre solicitações administrativas e acompanhe pendências.",
+    route: "/protocols",
+    showInSidebar: true,
+    showInQuickAccess: true,
+    enabled: true,
+    requiredRoles: ["ADMINISTRADOR"],
+    order: 1.5,
   },
   {
     id: "agenda",
@@ -42,7 +55,7 @@ export const APP_MODULES = [
     showInSidebar: true,
     showInQuickAccess: true,
     enabled: true,
-    requiredRoles: ["administrador", "tecnico"],
+    requiredRoles: ["ADMINISTRADOR", "TECNICO"],
     order: 2,
   },
   {
@@ -54,7 +67,7 @@ export const APP_MODULES = [
     showInSidebar: true,
     showInQuickAccess: false,
     enabled: true,
-    requiredRoles: ["administrador"],
+    requiredRoles: ["ADMINISTRADOR"],
     order: 2.5,
   },
   {
@@ -66,7 +79,7 @@ export const APP_MODULES = [
     showInSidebar: false,
     showInQuickAccess: false,
     enabled: false,
-    requiredRoles: ["administrador"],
+    requiredRoles: ["ADMINISTRADOR"],
     order: 3,
   },
   {
@@ -78,7 +91,7 @@ export const APP_MODULES = [
     showInSidebar: false,
     showInQuickAccess: false,
     enabled: false,
-    requiredRoles: ["administrador", "tecnico"],
+    requiredRoles: ["ADMINISTRADOR", "TECNICO"],
     order: 4,
   },
   {
@@ -90,7 +103,7 @@ export const APP_MODULES = [
     showInSidebar: false,
     showInQuickAccess: false,
     enabled: false,
-    requiredRoles: ["administrador"],
+    requiredRoles: ["ADMINISTRADOR"],
     order: 5,
   },
 ];

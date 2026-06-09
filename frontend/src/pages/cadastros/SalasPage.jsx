@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
+import { Pencil, RotateCcw, Trash2 } from "lucide-react";
 import {
   EntityList,
   EntityListItem,
+  EntityListIconAction,
   EntityListItemFooterRow,
   EntityStatusBadge,
-  entityListActionButtonClassName,
 } from "@/components/cadastros/EntityListItem";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,6 +18,13 @@ import {
 import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { CreateFab } from "@/components/cadastros/CreateFab";
 import { useSession } from "@/contexts/session-context";
 import {
@@ -245,16 +253,16 @@ export function SalasPage() {
             </div>
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="room-status-filter">Status</Label>
-              <select
-                id="room-status-filter"
-                className="h-10 w-full min-w-0 rounded-md border border-input bg-background px-3 py-2 text-sm"
-                value={statusFilter}
-                onChange={(event) => setStatusFilter(event.target.value)}
-              >
-                <option value="active">Apenas ativas</option>
-                <option value="inactive">Apenas inativas</option>
-                <option value="all">Todas</option>
-              </select>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger id="room-status-filter" className="w-full">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Apenas ativas</SelectItem>
+                  <SelectItem value="inactive">Apenas inativas</SelectItem>
+                  <SelectItem value="all">Todas</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <Button
               className="justify-self-start bg-ama-cyan px-6 text-ama-blue-dark shadow-sm hover:bg-ama-cyan/90 sm:col-span-2 sm:justify-self-end"
@@ -289,22 +297,17 @@ export function SalasPage() {
                   <EntityListItemFooterRow
                     actions={
                       <>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className={entityListActionButtonClassName()}
+                        <EntityListIconAction
+                          icon={Pencil}
+                          label="Editar"
                           onClick={() => openEditDialog(room)}
-                        >
-                          Editar
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className={entityListActionButtonClassName()}
+                        />
+                        <EntityListIconAction
+                          icon={room.isActive ? Trash2 : RotateCcw}
+                          label={room.isActive ? "Inativar" : "Reativar"}
+                          tone={room.isActive ? "destructive" : "default"}
                           onClick={() => handleToggleStatus(room)}
-                        >
-                          {room.isActive ? "Inativar" : "Reativar"}
-                        </Button>
+                        />
                       </>
                     }
                   />

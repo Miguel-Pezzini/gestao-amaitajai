@@ -32,8 +32,8 @@ export async function ensureInitialAdminUser(): Promise<void> {
       name: env.adminName,
       email: adminEmail,
       passwordHash,
-      role: "administrador",
-      accountStatus: "ativo",
+      role: "ADMINISTRADOR",
+      accountStatus: "ATIVO",
     },
   });
 
@@ -63,7 +63,7 @@ export async function validateCredentials(email: string, password: string) {
     return { user: null, reason: "invalid_credentials" as const };
   }
 
-  if (user.accountStatus === "inativo") {
+  if (user.accountStatus === "INATIVO") {
     return { user: null, reason: "conta_inativa" as const };
   }
 

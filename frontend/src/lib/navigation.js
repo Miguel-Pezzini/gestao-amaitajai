@@ -2,16 +2,16 @@ import { CADASTRO_ITEMS, CADASTROS_GROUP } from "@/config/cadastros";
 import { APP_MODULES } from "@/config/modules";
 
 function getUserRole(user) {
-  const normalizedRole = String(user?.role ?? "").trim().toLowerCase();
+  const normalizedRole = String(user?.role ?? "").trim().toUpperCase();
 
-  if (normalizedRole === "admin") {
-    return "administrador";
+  if (normalizedRole === "ADMIN") {
+    return "ADMINISTRADOR";
   }
-  if (normalizedRole === "therapist") {
-    return "tecnico";
+  if (normalizedRole === "THERAPIST") {
+    return "TECNICO";
   }
 
-  return normalizedRole || "tecnico";
+  return normalizedRole || "TECNICO";
 }
 
 function hasRoleAccess(moduleConfig, userRole) {

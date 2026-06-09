@@ -10,9 +10,9 @@ import {
 import { isUuid, normalizeText, parseDate, parseUniqueIdArray } from "./agenda.utils.js";
 
 const SESSION_FORMAT_LABELS: Record<SessionModality, string> = {
-  individual: "Individual",
-  dupla: "Dupla",
-  grupo: "Grupo",
+  INDIVIDUAL: "Individual",
+  DUPLA: "Dupla",
+  GRUPO: "Grupo",
 };
 
 export type SessionPayload = {
@@ -51,7 +51,9 @@ export function normalizeSessionInput(
   },
 ): NormalizedSessionInput {
   const sessionTypeId = normalizeText(payload.sessionTypeId) || fallback?.sessionTypeId || "";
-  const modality = (normalizeText(payload.modality) || fallback?.modality || "") as SessionModality;
+  const modality = (
+    normalizeText(payload.modality).toUpperCase() || fallback?.modality || ""
+  ) as SessionModality;
   const roomId = normalizeText(payload.roomId) || fallback?.roomId || "";
   const startAt = parseDate(payload.startAt) ?? fallback?.startAt ?? null;
   const durationMinutes =
@@ -79,7 +81,7 @@ export function validateSession(input: NormalizedSessionInput): void {
     throw new ValidationError("Selecione uma modalidade de atendimento.");
   }
   if (!SESSION_MODALITIES.includes(input.modality)) {
-    throw new ValidationError("Selecione um tipo de sessão válido (individual, dupla ou grupo).");
+    throw new ValidationError("Selecione um tipo de sessão válido (INDIVIDUAL, DUPLA ou GRUPO).");
   }
   if (!isUuid(input.roomId)) {
     throw new ValidationError("Selecione uma sala.");
@@ -139,14 +141,14 @@ export function validateCancelSession(
 
 export function validateUpdateSession(sessionId: string, status: string): void {
   validateSessionId(sessionId);
-  if (status === "cancelada") {
+  if (status === "CANCELADA") {
     throw new ValidationError("Sessão cancelada não pode ser editada.");
   }
 }
 
 export function validateCompleteSession(sessionId: string, status: string): void {
   validateSessionId(sessionId);
-  if (status === "cancelada") {
+  if (status === "CANCELADA") {
     throw new ValidationError("Sessão cancelada não pode ser marcada como realizada.");
   }
 }

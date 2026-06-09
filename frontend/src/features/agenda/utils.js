@@ -1,26 +1,26 @@
 import { SESSION_FORMAT_LABELS } from "@/features/cadastros/constants";
 
 export function normalizeRole(role) {
-  const normalized = String(role ?? "").trim().toLowerCase();
-  if (normalized === "admin") {
-    return "administrador";
+  const normalized = String(role ?? "").trim().toUpperCase();
+  if (normalized === "ADMIN") {
+    return "ADMINISTRADOR";
   }
-  if (normalized === "therapist") {
-    return "tecnico";
+  if (normalized === "THERAPIST") {
+    return "TECNICO";
   }
   return normalized;
 }
 
 const SESSION_STATUS_CALENDAR_STYLES = {
-  agendada: {
+  AGENDADA: {
     container: "bg-amber-50 text-amber-950",
     accent: "border-l-amber-500",
   },
-  realizada: {
+  REALIZADA: {
     container: "bg-sky-50 text-sky-950",
     accent: "border-l-sky-600",
   },
-  cancelada: {
+  CANCELADA: {
     container: "bg-red-50 text-red-950",
     accent: "border-l-red-500",
   },
@@ -97,21 +97,21 @@ export function isPastCalendarDay(date) {
 
 export function summarizeDaySessions(sessions, date) {
   const counts = {
-    agendada: 0,
-    realizada: 0,
-    cancelada: 0,
+    AGENDADA: 0,
+    REALIZADA: 0,
+    CANCELADA: 0,
   };
 
   for (const session of sessions ?? []) {
     const status = session?.status;
-    if (status === "realizada" || status === "cancelada" || status === "agendada") {
+    if (status === "REALIZADA" || status === "CANCELADA" || status === "AGENDADA") {
       counts[status] += 1;
     }
   }
 
   const total = sessions?.length ?? 0;
-  const hasPending = isPastCalendarDay(date) && counts.agendada > 0;
-  const isDayFinished = total > 0 && counts.agendada === 0;
+  const hasPending = isPastCalendarDay(date) && counts.AGENDADA > 0;
+  const isDayFinished = total > 0 && counts.AGENDADA === 0;
 
   return {
     total,
@@ -128,9 +128,9 @@ export function formatMonthDaySummaryLabel(summary) {
 
   const parts = [
     `${summary.total} ${summary.total === 1 ? "sessão" : "sessões"}`,
-    `${summary.realizada} realizada${summary.realizada === 1 ? "" : "s"}`,
-    `${summary.agendada} agendada${summary.agendada === 1 ? "" : "s"}`,
-    `${summary.cancelada} cancelada${summary.cancelada === 1 ? "" : "s"}`,
+    `${summary.REALIZADA} realizada${summary.REALIZADA === 1 ? "" : "s"}`,
+    `${summary.AGENDADA} agendada${summary.AGENDADA === 1 ? "" : "s"}`,
+    `${summary.CANCELADA} cancelada${summary.CANCELADA === 1 ? "" : "s"}`,
   ];
 
   if (summary.hasPending) {
@@ -307,9 +307,9 @@ export function getSessionFormatLabel(modality) {
 }
 
 export function getCalendarSessionStyle(session) {
-  const status = session?.status ?? "agendada";
+  const status = session?.status ?? "AGENDADA";
   const styles =
-    SESSION_STATUS_CALENDAR_STYLES[status] ?? SESSION_STATUS_CALENDAR_STYLES.agendada;
+    SESSION_STATUS_CALENDAR_STYLES[status] ?? SESSION_STATUS_CALENDAR_STYLES.AGENDADA;
 
   return {
     container: styles.container,
@@ -340,19 +340,19 @@ export function sessionSummary(session) {
 }
 
 export function statusBadgeClass(status) {
-  if (status === "realizada") {
+  if (status === "REALIZADA") {
     return "bg-ama-light text-ama-blue-dark";
   }
-  if (status === "cancelada") {
+  if (status === "CANCELADA") {
     return "border-destructive/40 text-destructive";
   }
   return "border-ama-cyan text-ama-blue";
 }
 
 export const SESSION_STATUS_LABELS = {
-  agendada: "Agendada",
-  realizada: "Realizada",
-  cancelada: "Cancelada",
+  AGENDADA: "Agendada",
+  REALIZADA: "Realizada",
+  CANCELADA: "Cancelada",
 };
 
 export function getSessionStatusLabel(status) {

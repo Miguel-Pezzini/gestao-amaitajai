@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
+import { Pencil, UserCheck, UserX } from "lucide-react";
 import {
   EntityList,
   EntityListItem,
+  EntityListIconAction,
   EntityListItemFooterRow,
   EntityStatusBadge,
   EntityTagBadge,
-  entityListActionButtonClassName,
 } from "@/components/cadastros/EntityListItem";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,7 +19,15 @@ import {
 import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { CreateFab } from "@/components/cadastros/CreateFab";
+import { SELECT_ALL_VALUE } from "@/constants/select";
 import { useSession } from "@/contexts/session-context";
 import {
   USER_ROLE_LABELS,
@@ -35,7 +44,7 @@ const EMPTY_FORM = {
   name: "",
   email: "",
   password: "",
-  role: "tecnico",
+  role: "TECNICO",
 };
 
 function UserForm({ form, fieldErrors, saving, isEditing, onSubmit, onCancel, onFormChange }) {
@@ -71,19 +80,22 @@ function UserForm({ form, fieldErrors, saving, isEditing, onSubmit, onCancel, on
 
       <div className="space-y-2">
         <Label htmlFor="user-role">Perfil de acesso</Label>
-        <select
-          id="user-role"
-          className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+        <Select
           value={form.role}
-          onChange={(event) => onFormChange("role", event.target.value)}
+          onValueChange={(value) => onFormChange("role", value)}
           disabled={saving}
         >
-          {USER_ROLE_OPTIONS.map((role) => (
-            <option key={role} value={role}>
-              {USER_ROLE_LABELS[role]}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger id="user-role" className="w-full">
+            <SelectValue placeholder="Selecione o perfil" />
+          </SelectTrigger>
+          <SelectContent>
+            {USER_ROLE_OPTIONS.map((role) => (
+              <SelectItem key={role} value={role}>
+                {USER_ROLE_LABELS[role]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         {fieldErrors.role ? (
           <p className="text-sm text-destructive">{fieldErrors.role}</p>
         ) : null}
@@ -211,7 +223,7 @@ export function UsuariosPage() {
   }, []);
 
   const activeCount = useMemo(
-    () => users.filter((item) => item.accountStatus === "ativo").length,
+    () => users.filter((item) => item.accountStatus === "ATIVO").length,
     [users],
   );
 
@@ -238,7 +250,7 @@ export function UsuariosPage() {
       name: item.name ?? "",
       email: item.email ?? "",
       password: "",
-      role: item.role ?? "tecnico",
+      role: item.role ?? "TECNICO",
     });
     setFormDialogOpen(true);
   }
@@ -358,32 +370,37 @@ export function UsuariosPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="user-role-filter">Perfil</Label>
-              <select
-                id="user-role-filter"
-                className="h-10 w-full min-w-0 rounded-md border border-input bg-background px-3 py-2 text-sm"
-                value={roleFilter}
-                onChange={(event) => setRoleFilter(event.target.value)}
+              <Select
+                value={roleFilter || SELECT_ALL_VALUE}
+                onValueChange={(value) =>
+                  setRoleFilter(value === SELECT_ALL_VALUE ? "" : value)
+                }
               >
-                <option value="">Todos os perfis</option>
-                {USER_ROLE_OPTIONS.map((role) => (
-                  <option key={role} value={role}>
-                    {USER_ROLE_LABELS[role]}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger id="user-role-filter" className="w-full">
+                  <SelectValue placeholder="Todos os perfis" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={SELECT_ALL_VALUE}>Todos os perfis</SelectItem>
+                  {USER_ROLE_OPTIONS.map((role) => (
+                    <SelectItem key={role} value={role}>
+                      {USER_ROLE_LABELS[role]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="user-status-filter">Status</Label>
-              <select
-                id="user-status-filter"
-                className="h-10 w-full min-w-0 rounded-md border border-input bg-background px-3 py-2 text-sm"
-                value={statusFilter}
-                onChange={(event) => setStatusFilter(event.target.value)}
-              >
-                <option value="active">Apenas ativos</option>
-                <option value="inactive">Apenas inativos</option>
-                <option value="all">Todos</option>
-              </select>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger id="user-status-filter" className="w-full">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Apenas ativos</SelectItem>
+                  <SelectItem value="inactive">Apenas inativos</SelectItem>
+                  <SelectItem value="all">Todos</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <Button
               className="justify-self-start bg-ama-cyan px-6 text-ama-blue-dark shadow-sm hover:bg-ama-cyan/90 sm:col-span-2 sm:justify-self-end"
@@ -424,35 +441,30 @@ export function UsuariosPage() {
                         <EntityTagBadge>
                           {USER_ROLE_LABELS[item.role] ?? item.role}
                         </EntityTagBadge>
-                        <EntityStatusBadge status={item.accountStatus ?? "ativo"} />
+                        <EntityStatusBadge status={item.accountStatus ?? "ATIVO"} />
                       </>
                     }
                   >
                     <EntityListItemFooterRow
                       actions={
                         <>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className={entityListActionButtonClassName()}
+                          <EntityListIconAction
+                            icon={Pencil}
+                            label="Editar"
                             onClick={() => openEditDialog(item)}
-                          >
-                            Editar
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className={entityListActionButtonClassName()}
+                          />
+                          <EntityListIconAction
+                            icon={item.accountStatus === "ATIVO" ? UserX : UserCheck}
+                            label={item.accountStatus === "ATIVO" ? "Inativar" : "Reativar"}
+                            tone={item.accountStatus === "ATIVO" ? "destructive" : "default"}
                             onClick={() =>
                               handleStatusChange(
                                 item,
-                                item.accountStatus === "ativo" ? "inativo" : "ativo",
+                                item.accountStatus === "ATIVO" ? "INATIVO" : "ATIVO",
                               )
                             }
-                            disabled={isSelf && item.accountStatus === "ativo"}
-                          >
-                            {item.accountStatus === "ativo" ? "Inativar" : "Reativar"}
-                          </Button>
+                            disabled={isSelf && item.accountStatus === "ATIVO"}
+                          />
                         </>
                       }
                     >
