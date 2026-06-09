@@ -3,8 +3,9 @@ import { EntityTagBadge } from "@/components/cadastros/EntityListItem";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { CancelProtocolDialog } from "@/features/protocols/components/CancelProtocolDialog";
+import { ProtocolStatusDates } from "@/features/protocols/components/ProtocolStatusDates";
 import {
-  formatProtocolDate,
   formatProtocolNumber,
   getProtocolTypeLabel,
   getProtocolStatusLabel,
@@ -30,6 +31,11 @@ export function PatientProtocolsDialog({ patient, open, onOpenChange, onChanged 
   const [form, setForm] = useState(EMPTY_FORM);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [completingProtocolId, setCompletingProtocolId] = useState(null);
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [cancelProtocolId, setCancelProtocolId] = useState("");
+  const [cancelReason, setCancelReason] = useState("");
+  const [cancelReasonError, setCancelReasonError] = useState("");
+  const [cancellingProtocolId, setCancellingProtocolId] = useState(null);
 
   const activeProtocolTypes = protocolTypes.filter((item) => item.isActive);
 
@@ -134,13 +140,62 @@ export function PatientProtocolsDialog({ patient, open, onOpenChange, onChanged 
     }
   }
 
+  function openCancelDialog(protocolId) {
+    setCancelProtocolId(protocolId);
+    setCancelReason("");
+    setCancelReasonError("");
+    setCancelDialogOpen(true);
+  }
+
+  function closeCancelDialog() {
+    setCancelDialogOpen(false);
+    setCancelProtocolId("");
+    setCancelReason("");
+    setCancelReasonError("");
+  }
+
+  function handleCancelReasonChange(value) {
+    setCancelReason(value);
+    if (value.trim()) {
+      setCancelReasonError("");
+    }
+  }
+
+  async function handleCancelProtocol(event) {
+    event.preventDefault();
+    const trimmedReason = cancelReason.trim();
+    if (!trimmedReason) {
+      setCancelReasonError("Informe a justificativa do cancelamento.");
+      return;
+    }
+
+    setError("");
+    setCancellingProtocolId(cancelProtocolId);
+    try {
+      await updateProtocolStatus(cancelProtocolId, "CANCELADO", {
+        cancelReason: trimmedReason,
+      });
+      closeCancelDialog();
+      await loadProtocols();
+      onChanged?.();
+    } catch (err) {
+      setError(
+        err.response?.data?.message ??
+          "Não foi possível cancelar o protocolo.",
+      );
+    } finally {
+      setCancellingProtocolId(null);
+    }
+  }
+
   return (
-    <Dialog
-      open={open}
-      onOpenChange={onOpenChange}
-      title={`Protocolos — ${patient?.fullName ?? ""}`}
-      description="Solicitações administrativas em aberto ou concluídas deste atendido."
-    >
+    <>
+      <Dialog
+        open={open}
+        onOpenChange={onOpenChange}
+        title={`Protocolos — ${patient?.fullName ?? ""}`}
+        description="Solicitações administrativas em aberto ou concluídas deste atendido."
+      >
       <div className="space-y-4">
         {error ? (
           <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
@@ -238,18 +293,36 @@ export function PatientProtocolsDialog({ patient, open, onOpenChange, onChanged 
                     </p>
                   </div>
                   {protocol.status === "PENDENTE" ? (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      className="h-9 border-input/80 text-ama-blue-dark hover:bg-ama-light hover:text-ama-blue-dark"
-                      onClick={() => handleCompleteProtocol(protocol._id)}
-                      disabled={completingProtocolId === protocol._id}
-                    >
-                      {completingProtocolId === protocol._id
-                        ? "Concluindo..."
-                        : "Concluir protocolo"}
-                    </Button>
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-9 border-input/80 text-ama-blue-dark hover:bg-ama-light hover:text-ama-blue-dark"
+                        onClick={() => handleCompleteProtocol(protocol._id)}
+                        disabled={
+                          completingProtocolId === protocol._id ||
+                          cancellingProtocolId === protocol._id
+                        }
+                      >
+                        {completingProtocolId === protocol._id
+                          ? "Concluindo..."
+                          : "Concluir protocolo"}
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-9 border-input/80 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                        onClick={() => openCancelDialog(protocol._id)}
+                        disabled={
+                          completingProtocolId === protocol._id ||
+                          cancellingProtocolId === protocol._id
+                        }
+                      >
+                        Cancelar protocolo
+                      </Button>
+                    </div>
                   ) : (
                     <EntityTagBadge>
                       {getProtocolStatusLabel(protocol.status)}
@@ -261,14 +334,25 @@ export function PatientProtocolsDialog({ patient, open, onOpenChange, onChanged 
                   <p className="mt-2 text-sm text-muted-foreground">{protocol.notes}</p>
                 ) : null}
 
-                <p className="mt-2 text-xs text-muted-foreground">
-                  Aberto em {formatProtocolDate(protocol.createdAt)}
-                </p>
+                <div className="mt-2 text-xs text-muted-foreground">
+                  <ProtocolStatusDates protocol={protocol} />
+                </div>
               </article>
             ))}
           </div>
         )}
       </div>
     </Dialog>
+
+      <CancelProtocolDialog
+        open={cancelDialogOpen}
+        saving={Boolean(cancellingProtocolId)}
+        cancelReason={cancelReason}
+        cancelReasonError={cancelReasonError}
+        onCancelReasonChange={handleCancelReasonChange}
+        onSubmit={handleCancelProtocol}
+        onClose={closeCancelDialog}
+      />
+    </>
   );
 }

@@ -29,6 +29,11 @@ export function useProtocolsPage() {
   const [loadingPatients, setLoadingPatients] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [completingProtocolId, setCompletingProtocolId] = useState(null);
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [cancelProtocolId, setCancelProtocolId] = useState("");
+  const [cancelReason, setCancelReason] = useState("");
+  const [cancelReasonError, setCancelReasonError] = useState("");
+  const [cancellingProtocolId, setCancellingProtocolId] = useState(null);
 
   const activeProtocolTypes = protocolTypes.filter((item) => item.isActive);
 
@@ -184,6 +189,53 @@ export function useProtocolsPage() {
     }
   }
 
+  function openCancelDialog(protocolId) {
+    setCancelProtocolId(protocolId);
+    setCancelReason("");
+    setCancelReasonError("");
+    setCancelDialogOpen(true);
+  }
+
+  function closeCancelDialog() {
+    setCancelDialogOpen(false);
+    setCancelProtocolId("");
+    setCancelReason("");
+    setCancelReasonError("");
+  }
+
+  function handleCancelReasonChange(value) {
+    setCancelReason(value);
+    if (value.trim()) {
+      setCancelReasonError("");
+    }
+  }
+
+  async function handleCancelProtocol(event) {
+    event.preventDefault();
+    const trimmedReason = cancelReason.trim();
+    if (!trimmedReason) {
+      setCancelReasonError("Informe a justificativa do cancelamento.");
+      return;
+    }
+
+    setError("");
+    setCancellingProtocolId(cancelProtocolId);
+    try {
+      await updateProtocolStatus(cancelProtocolId, "CANCELADO", {
+        cancelReason: trimmedReason,
+      });
+      closeCancelDialog();
+      await loadProtocols();
+    } catch (err) {
+      setError(
+        err.response?.data?.message ??
+          "Não foi possível cancelar o protocolo.",
+      );
+    } finally {
+      setCancellingProtocolId(null);
+    }
+  }
+
   return {
     loading,
     saving,
@@ -212,5 +264,13 @@ export function useProtocolsPage() {
     handleCreate,
     completingProtocolId,
     handleCompleteProtocol,
+    cancelDialogOpen,
+    cancelReason,
+    cancelReasonError,
+    cancellingProtocolId,
+    openCancelDialog,
+    closeCancelDialog,
+    handleCancelReasonChange,
+    handleCancelProtocol,
   };
 }

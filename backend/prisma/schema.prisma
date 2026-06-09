@@ -40,6 +40,7 @@ enum SessionStatus {
 enum ProtocolStatus {
   PENDENTE
   CONCLUIDO
+  CANCELADO
 }
 
 enum SessionSeriesStatus {
@@ -109,6 +110,9 @@ model PatientProtocol {
   protocolTypeId String         @db.Uuid
   status         ProtocolStatus @default(PENDENTE)
   notes          String         @default("")
+  completedAt    DateTime?
+  cancelReason   String         @default("")
+  cancelledAt    DateTime?
   createdById    String         @db.Uuid
   updatedById    String         @db.Uuid
   createdAt      DateTime       @default(now())

@@ -1,4 +1,4 @@
-export const PROTOCOL_STATUSES = ["PENDENTE", "CONCLUIDO"] as const;
+export const PROTOCOL_STATUSES = ["PENDENTE", "CONCLUIDO", "CANCELADO"] as const;
 
 export type ProtocolStatus = (typeof PROTOCOL_STATUSES)[number];
 

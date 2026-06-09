@@ -35,7 +35,10 @@ export async function createProtocol(payload) {
   return data;
 }
 
-export async function updateProtocolStatus(protocolId, status) {
-  const { data } = await api.patch(`/protocols/${protocolId}/status`, { status });
+export async function updateProtocolStatus(protocolId, status, { cancelReason } = {}) {
+  const { data } = await api.patch(`/protocols/${protocolId}/status`, {
+    status,
+    ...(cancelReason !== undefined ? { cancelReason } : {}),
+  });
   return data;
 }

@@ -80,6 +80,9 @@ function serializeProtocol(protocol: {
   protocolTypeId: string;
   status: string;
   notes: string;
+  completedAt: Date | null;
+  cancelReason: string;
+  cancelledAt: Date | null;
   createdById: string;
   updatedById: string;
   createdAt: Date;
@@ -302,20 +305,36 @@ export class ProtocolService {
 
     const input = validateUpdateProtocolStatus(payload);
 
-    try {
-      const protocol = await prisma.patientProtocol.update({
-        where: { id: protocolId },
-        data: {
-          status: input.status,
-          updatedById: currentUser._id,
-        },
-        include: protocolInclude,
-      });
+    const existing = await prisma.patientProtocol.findUnique({
+      where: { id: protocolId },
+      select: { id: true, status: true },
+    });
 
-      return { protocol: serializeProtocol(protocol) };
-    } catch {
+    if (!existing) {
       throw new NotFoundError("Protocolo não encontrado.");
     }
+
+    if (existing.status !== "PENDENTE") {
+      throw new ValidationError("Só é possível alterar protocolos pendentes.");
+    }
+
+    const now = new Date();
+    const data = {
+      status: input.status,
+      updatedById: currentUser._id,
+      ...(input.status === "CONCLUIDO" ? { completedAt: now } : {}),
+      ...(input.status === "CANCELADO"
+        ? { cancelReason: input.cancelReason, cancelledAt: now }
+        : {}),
+    };
+
+    const protocol = await prisma.patientProtocol.update({
+      where: { id: protocolId },
+      data,
+      include: protocolInclude,
+    });
+
+    return { protocol: serializeProtocol(protocol) };
   }
 
   async listProtocolsByPatient(patientId: string) {

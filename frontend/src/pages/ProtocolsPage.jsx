@@ -1,4 +1,4 @@
-import { Check, Loader2 } from "lucide-react";
+import { Check, Loader2, X } from "lucide-react";
 import {
   EntityList,
   EntityListItem,
@@ -18,17 +18,27 @@ import {
 import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { PendingProtocolBadge } from "@/features/protocols/components/PendingProtocolBadge";
+import { CancelProtocolDialog } from "@/features/protocols/components/CancelProtocolDialog";
+import { ProtocolStatusDates } from "@/features/protocols/components/ProtocolStatusDates";
 import { ProtocolPatientSearchField } from "@/features/protocols/components/ProtocolPatientSearchField";
 import { PROTOCOL_STATUSES } from "@/features/protocols/constants";
 import {
-  formatProtocolDate,
   formatProtocolNumber,
   getProtocolTypeLabel,
   getProtocolStatusLabel,
 } from "@/features/protocols/utils";
 import { useProtocolsPage } from "@/hooks/useProtocolsPage";
 import { useSession } from "@/contexts/session-context";
+
+const STATUS_FILTER_ALL = "__all__";
 
 function ProtocolForm({
   form,
@@ -62,23 +72,28 @@ function ProtocolForm({
 
       <div className="space-y-2">
         <Label htmlFor="protocol-type">Tipo de solicitação</Label>
-        <select
-          id="protocol-type"
-          className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-          value={form.protocolTypeId}
-          onChange={(event) => onFormChange("protocolTypeId", event.target.value)}
+        <Select
+          value={form.protocolTypeId || undefined}
+          onValueChange={(value) => onFormChange("protocolTypeId", value)}
           disabled={saving || protocolTypes.length === 0}
         >
-          {protocolTypes.length === 0 ? (
-            <option value="">Cadastre tipos em Cadastros Gerais</option>
-          ) : (
-            protocolTypes.map((type) => (
-              <option key={type._id} value={type._id}>
+          <SelectTrigger id="protocol-type" className="w-full">
+            <SelectValue
+              placeholder={
+                protocolTypes.length === 0
+                  ? "Cadastre tipos em Cadastros Gerais"
+                  : "Selecione o tipo"
+              }
+            />
+          </SelectTrigger>
+          <SelectContent>
+            {protocolTypes.map((type) => (
+              <SelectItem key={type._id} value={type._id}>
                 {type.name}
-              </option>
-            ))
-          )}
-        </select>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         {fieldErrors.protocolTypeId ? (
           <p className="text-sm text-destructive">{fieldErrors.protocolTypeId}</p>
         ) : null}
@@ -141,6 +156,14 @@ export function ProtocolsPage() {
     handleCreate,
     completingProtocolId,
     handleCompleteProtocol,
+    cancelDialogOpen,
+    cancelReason,
+    cancelReasonError,
+    cancellingProtocolId,
+    openCancelDialog,
+    closeCancelDialog,
+    handleCancelReasonChange,
+    handleCancelProtocol,
   } = useProtocolsPage();
 
   const pendingCount = protocols.filter((protocol) => protocol.status === "PENDENTE").length;
@@ -191,6 +214,16 @@ export function ProtocolsPage() {
         />
       </Dialog>
 
+      <CancelProtocolDialog
+        open={cancelDialogOpen}
+        saving={Boolean(cancellingProtocolId)}
+        cancelReason={cancelReason}
+        cancelReasonError={cancelReasonError}
+        onCancelReasonChange={handleCancelReasonChange}
+        onSubmit={handleCancelProtocol}
+        onClose={closeCancelDialog}
+      />
+
       {!formDialogOpen ? (
         <CreateFab onClick={openCreateDialog} label="Novo protocolo" />
       ) : null}
@@ -225,19 +258,24 @@ export function ProtocolsPage() {
             </div>
             <div className="min-w-0 space-y-2">
               <Label htmlFor="protocol-status-filter">Status</Label>
-              <select
-                id="protocol-status-filter"
-                className="h-10 w-full min-w-0 rounded-md border border-input bg-background px-3 py-2 text-sm"
-                value={statusFilter}
-                onChange={(event) => setStatusFilter(event.target.value)}
+              <Select
+                value={statusFilter || STATUS_FILTER_ALL}
+                onValueChange={(value) =>
+                  setStatusFilter(value === STATUS_FILTER_ALL ? "" : value)
+                }
               >
-                <option value="">Todos</option>
-                {PROTOCOL_STATUSES.map((status) => (
-                  <option key={status} value={status}>
-                    {getProtocolStatusLabel(status)}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger id="protocol-status-filter" className="w-full">
+                  <SelectValue placeholder="Todos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={STATUS_FILTER_ALL}>Todos</SelectItem>
+                  {PROTOCOL_STATUSES.map((status) => (
+                    <SelectItem key={status} value={status}>
+                      {getProtocolStatusLabel(status)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <Button
               type="submit"
@@ -284,22 +322,37 @@ export function ProtocolsPage() {
                   <EntityListItemFooterRow
                     actions={
                       protocol.status === "PENDENTE" ? (
-                        <EntityListIconAction
-                          icon={
-                            completingProtocolId === protocol._id ? Loader2 : Check
-                          }
-                          label={
-                            completingProtocolId === protocol._id
-                              ? "Concluindo..."
-                              : "Concluir protocolo"
-                          }
-                          tone="success"
-                          iconClassName={
-                            completingProtocolId === protocol._id ? "animate-spin" : undefined
-                          }
-                          onClick={() => handleCompleteProtocol(protocol._id)}
-                          disabled={completingProtocolId === protocol._id}
-                        />
+                        <>
+                          <EntityListIconAction
+                            icon={
+                              completingProtocolId === protocol._id ? Loader2 : Check
+                            }
+                            label={
+                              completingProtocolId === protocol._id
+                                ? "Concluindo..."
+                                : "Concluir protocolo"
+                            }
+                            tone="success"
+                            iconClassName={
+                              completingProtocolId === protocol._id ? "animate-spin" : undefined
+                            }
+                            onClick={() => handleCompleteProtocol(protocol._id)}
+                            disabled={
+                              completingProtocolId === protocol._id ||
+                              cancellingProtocolId === protocol._id
+                            }
+                          />
+                          <EntityListIconAction
+                            icon={X}
+                            label="Cancelar protocolo"
+                            tone="destructive"
+                            onClick={() => openCancelDialog(protocol._id)}
+                            disabled={
+                              completingProtocolId === protocol._id ||
+                              cancellingProtocolId === protocol._id
+                            }
+                          />
+                        </>
                       ) : (
                         <EntityTagBadge>
                           {getProtocolStatusLabel(protocol.status)}
@@ -307,10 +360,7 @@ export function ProtocolsPage() {
                       )
                     }
                   >
-                    <p>
-                      <span className="text-foreground/80">Aberto em:</span>{" "}
-                      {formatProtocolDate(protocol.createdAt)}
-                    </p>
+                    <ProtocolStatusDates protocol={protocol} />
                   </EntityListItemFooterRow>
                 </EntityListItem>
               ))}

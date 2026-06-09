@@ -26,7 +26,10 @@ export function validateCreateProtocol(payload: {
   return { patientId, protocolTypeId, notes };
 }
 
-export function validateUpdateProtocolStatus(payload: { status?: unknown }) {
+export function validateUpdateProtocolStatus(payload: {
+  status?: unknown;
+  cancelReason?: unknown;
+}) {
   const status = parseProtocolStatus(payload.status);
   if (!status) {
     throw new ValidationError(
@@ -34,5 +37,13 @@ export function validateUpdateProtocolStatus(payload: { status?: unknown }) {
     );
   }
 
-  return { status };
+  const cancelReason = normalizeText(payload.cancelReason);
+  if (status === "CANCELADO" && !cancelReason) {
+    throw new ValidationError("Informe a justificativa do cancelamento.");
+  }
+
+  return {
+    status,
+    cancelReason: status === "CANCELADO" ? cancelReason : undefined,
+  };
 }

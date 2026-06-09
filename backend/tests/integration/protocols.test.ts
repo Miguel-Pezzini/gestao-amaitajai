@@ -147,11 +147,110 @@ describe("Protocolos de pacientes", () => {
       .send({ status: "CONCLUIDO" });
     expect(updated.status).toBe(200);
     expect(updated.body.protocol.status).toBe("CONCLUIDO");
+    expect(updated.body.protocol.completedAt).toBeTruthy();
 
     const patients = await request(app).get("/api/patients").set("Cookie", adminCookie);
     expect(patients.status).toBe(200);
     const patient = patients.body.items.find((item: { _id: string }) => item._id === patientId);
     expect(patient.pendingProtocolCount).toBe(0);
+  });
+
+  it("registra data de conclusão ao concluir protocolo", async () => {
+    const created = await request(app)
+      .post("/api/protocols")
+      .set("Cookie", adminCookie)
+      .send({ patientId, protocolTypeId });
+    expect(created.status).toBe(201);
+
+    const before = Date.now();
+    const updated = await request(app)
+      .patch(`/api/protocols/${created.body.protocol._id}/status`)
+      .set("Cookie", adminCookie)
+      .send({ status: "CONCLUIDO" });
+    const after = Date.now();
+
+    expect(updated.status).toBe(200);
+    const completedAt = new Date(updated.body.protocol.completedAt).getTime();
+    expect(completedAt).toBeGreaterThanOrEqual(before);
+    expect(completedAt).toBeLessThanOrEqual(after);
+  });
+
+  it("cancela protocolo com justificativa e data", async () => {
+    const created = await request(app)
+      .post("/api/protocols")
+      .set("Cookie", adminCookie)
+      .send({ patientId, protocolTypeId });
+    expect(created.status).toBe(201);
+    const protocolId = created.body.protocol._id as string;
+
+    const before = Date.now();
+    const updated = await request(app)
+      .patch(`/api/protocols/${protocolId}/status`)
+      .set("Cookie", adminCookie)
+      .send({ status: "CANCELADO", cancelReason: "Solicitação duplicada" });
+    const after = Date.now();
+
+    expect(updated.status).toBe(200);
+    expect(updated.body.protocol.status).toBe("CANCELADO");
+    expect(updated.body.protocol.cancelReason).toBe("Solicitação duplicada");
+    const cancelledAt = new Date(updated.body.protocol.cancelledAt).getTime();
+    expect(cancelledAt).toBeGreaterThanOrEqual(before);
+    expect(cancelledAt).toBeLessThanOrEqual(after);
+
+    const patients = await request(app).get("/api/patients").set("Cookie", adminCookie);
+    const patient = patients.body.items.find((item: { _id: string }) => item._id === patientId);
+    expect(patient.pendingProtocolCount).toBe(0);
+  });
+
+  it("exige justificativa para cancelar protocolo", async () => {
+    const created = await request(app)
+      .post("/api/protocols")
+      .set("Cookie", adminCookie)
+      .send({ patientId, protocolTypeId });
+
+    const response = await request(app)
+      .patch(`/api/protocols/${created.body.protocol._id}/status`)
+      .set("Cookie", adminCookie)
+      .send({ status: "CANCELADO", cancelReason: "  " });
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toMatch(/justificativa/i);
+  });
+
+  it("impede alterar status de protocolo já concluído ou cancelado", async () => {
+    const created = await request(app)
+      .post("/api/protocols")
+      .set("Cookie", adminCookie)
+      .send({ patientId, protocolTypeId });
+    const protocolId = created.body.protocol._id as string;
+
+    await request(app)
+      .patch(`/api/protocols/${protocolId}/status`)
+      .set("Cookie", adminCookie)
+      .send({ status: "CONCLUIDO" });
+
+    const retryComplete = await request(app)
+      .patch(`/api/protocols/${protocolId}/status`)
+      .set("Cookie", adminCookie)
+      .send({ status: "CONCLUIDO" });
+    expect(retryComplete.status).toBe(400);
+
+    const created2 = await request(app)
+      .post("/api/protocols")
+      .set("Cookie", adminCookie)
+      .send({ patientId, protocolTypeId });
+    const protocolId2 = created2.body.protocol._id as string;
+
+    await request(app)
+      .patch(`/api/protocols/${protocolId2}/status`)
+      .set("Cookie", adminCookie)
+      .send({ status: "CANCELADO", cancelReason: "Desistência" });
+
+    const retryCancel = await request(app)
+      .patch(`/api/protocols/${protocolId2}/status`)
+      .set("Cookie", adminCookie)
+      .send({ status: "CANCELADO", cancelReason: "Outro motivo" });
+    expect(retryCancel.status).toBe(400);
   });
 
   it("retorna 404 para protocolo inexistente", async () => {
