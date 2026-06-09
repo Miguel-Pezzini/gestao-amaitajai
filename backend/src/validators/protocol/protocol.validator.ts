@@ -1,45 +1,29 @@
-import {
-  PROTOCOL_REQUEST_TYPES,
-  PROTOCOL_STATUSES,
-  type ProtocolRequestType,
-  type ProtocolStatus,
-} from "../../domain/protocol.js";
+import { PROTOCOL_STATUSES, type ProtocolStatus } from "../../domain/protocol.js";
 import { ValidationError } from "../../errors/http-errors.js";
-import { isUuid } from "../agenda/agenda.utils.js";
+import { isUuid, normalizeText } from "../agenda/agenda.utils.js";
 
-function normalizeText(value: unknown): string {
-  return String(value ?? "").trim();
-}
-
-export function parseProtocolRequestType(value: unknown): ProtocolRequestType | null {
-  const raw = normalizeText(value).toUpperCase();
-  return PROTOCOL_REQUEST_TYPES.find((item) => item === raw) ?? null;
-}
-
-export function parseProtocolStatus(value: unknown): ProtocolStatus | null {
+function parseProtocolStatus(value: unknown): ProtocolStatus | null {
   const raw = normalizeText(value).toUpperCase();
   return PROTOCOL_STATUSES.find((item) => item === raw) ?? null;
 }
 
 export function validateCreateProtocol(payload: {
   patientId?: unknown;
-  requestType?: unknown;
+  protocolTypeId?: unknown;
   notes?: unknown;
 }) {
   const patientId = normalizeText(payload.patientId);
-  const requestType = parseProtocolRequestType(payload.requestType);
+  const protocolTypeId = normalizeText(payload.protocolTypeId);
   const notes = normalizeText(payload.notes);
 
   if (!patientId || !isUuid(patientId)) {
     throw new ValidationError("Paciente inválido para o protocolo.");
   }
-  if (!requestType) {
-    throw new ValidationError(
-      `Tipo de solicitação inválido. Valores permitidos: ${PROTOCOL_REQUEST_TYPES.join(", ")}.`,
-    );
+  if (!protocolTypeId || !isUuid(protocolTypeId)) {
+    throw new ValidationError("Selecione um tipo de protocolo válido.");
   }
 
-  return { patientId, requestType, notes };
+  return { patientId, protocolTypeId, notes };
 }
 
 export function validateUpdateProtocolStatus(payload: { status?: unknown }) {

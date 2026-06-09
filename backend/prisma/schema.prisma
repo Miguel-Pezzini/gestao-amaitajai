@@ -37,14 +37,6 @@ enum SessionStatus {
   CANCELADA
 }
 
-enum ProtocolRequestType {
-  DOCUMENTO
-  TROCA_HORARIO
-  SEGUNDA_VIA
-  ENCAMINHAMENTO
-  CANCELAMENTO
-}
-
 enum ProtocolStatus {
   PENDENTE
   CONCLUIDO
@@ -98,25 +90,39 @@ model Patient {
   @@index([fundingSource, isActive, fullName])
 }
 
-model PatientProtocol {
-  id             String              @id @default(uuid()) @db.Uuid
-  protocolNumber Int                 @unique
-  patientId      String              @db.Uuid
-  requestType    ProtocolRequestType
-  status         ProtocolStatus      @default(PENDENTE)
-  notes          String              @default("")
-  createdById    String              @db.Uuid
-  updatedById    String              @db.Uuid
-  createdAt      DateTime            @default(now())
-  updatedAt      DateTime            @updatedAt
+model ProtocolType {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  patient   Patient @relation(fields: [patientId], references: [id])
-  createdBy User    @relation("ProtocolCreatedBy", fields: [createdById], references: [id])
-  updatedBy User    @relation("ProtocolUpdatedBy", fields: [updatedById], references: [id])
+  protocols PatientProtocol[]
+
+  @@index([isActive])
+}
+
+model PatientProtocol {
+  id             String         @id @default(uuid()) @db.Uuid
+  protocolNumber Int            @unique
+  patientId      String         @db.Uuid
+  protocolTypeId String         @db.Uuid
+  status         ProtocolStatus @default(PENDENTE)
+  notes          String         @default("")
+  createdById    String         @db.Uuid
+  updatedById    String         @db.Uuid
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  patient      Patient      @relation(fields: [patientId], references: [id])
+  protocolType ProtocolType @relation(fields: [protocolTypeId], references: [id])
+  createdBy    User         @relation("ProtocolCreatedBy", fields: [createdById], references: [id])
+  updatedBy    User         @relation("ProtocolUpdatedBy", fields: [updatedById], references: [id])
 
   @@index([patientId, status])
   @@index([status, createdAt])
   @@index([protocolNumber])
+  @@index([protocolTypeId])
 }
 
 model Room {

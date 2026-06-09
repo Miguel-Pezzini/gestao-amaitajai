@@ -2,24 +2,22 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import {
-  PROTOCOL_REQUEST_TYPES,
-  PROTOCOL_STATUSES,
-} from "@/features/protocols/constants";
+import { PROTOCOL_STATUSES } from "@/features/protocols/constants";
 import {
   formatProtocolDate,
   formatProtocolNumber,
-  getProtocolRequestTypeLabel,
+  getProtocolTypeLabel,
   getProtocolStatusLabel,
 } from "@/features/protocols/utils";
 import {
   createProtocol,
   listPatientProtocols,
+  listProtocolTypes,
   updateProtocolStatus,
 } from "@/services/protocols";
 
 const EMPTY_FORM = {
-  requestType: "DOCUMENTO",
+  protocolTypeId: "",
   notes: "",
 };
 
@@ -28,8 +26,20 @@ export function PatientProtocolsDialog({ patient, open, onOpenChange, onChanged 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [protocols, setProtocols] = useState([]);
+  const [protocolTypes, setProtocolTypes] = useState([]);
   const [form, setForm] = useState(EMPTY_FORM);
   const [showCreateForm, setShowCreateForm] = useState(false);
+
+  const activeProtocolTypes = protocolTypes.filter((item) => item.isActive);
+
+  async function loadProtocolTypes() {
+    try {
+      const response = await listProtocolTypes();
+      setProtocolTypes(response.items ?? []);
+    } catch {
+      setProtocolTypes([]);
+    }
+  }
 
   async function loadProtocols() {
     if (!patient?._id) {
@@ -59,19 +69,37 @@ export function PatientProtocolsDialog({ patient, open, onOpenChange, onChanged 
       return;
     }
 
+    loadProtocolTypes();
     loadProtocols();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, patient?._id]);
+
+  useEffect(() => {
+    if (!showCreateForm || form.protocolTypeId || activeProtocolTypes.length === 0) {
+      return;
+    }
+
+    setForm((current) => ({
+      ...current,
+      protocolTypeId: activeProtocolTypes[0]._id,
+    }));
+  }, [showCreateForm, activeProtocolTypes, form.protocolTypeId]);
 
   async function handleCreate(event) {
     event.preventDefault();
     setSaving(true);
     setError("");
 
+    if (!form.protocolTypeId) {
+      setError("Selecione um tipo de solicitação.");
+      setSaving(false);
+      return;
+    }
+
     try {
       await createProtocol({
         patientId: patient._id,
-        requestType: form.requestType,
+        protocolTypeId: form.protocolTypeId,
         notes: form.notes.trim(),
       });
       setForm(EMPTY_FORM);
@@ -121,6 +149,7 @@ export function PatientProtocolsDialog({ patient, open, onOpenChange, onChanged 
             type="button"
             className="bg-ama-cyan text-ama-blue-dark hover:bg-ama-cyan/90"
             onClick={() => setShowCreateForm(true)}
+            disabled={activeProtocolTypes.length === 0}
           >
             Novo protocolo
           </Button>
@@ -131,17 +160,21 @@ export function PatientProtocolsDialog({ patient, open, onOpenChange, onChanged 
               <select
                 id="patient-protocol-type"
                 className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                value={form.requestType}
+                value={form.protocolTypeId}
                 onChange={(event) =>
-                  setForm((current) => ({ ...current, requestType: event.target.value }))
+                  setForm((current) => ({ ...current, protocolTypeId: event.target.value }))
                 }
-                disabled={saving}
+                disabled={saving || activeProtocolTypes.length === 0}
               >
-                {PROTOCOL_REQUEST_TYPES.map((type) => (
-                  <option key={type} value={type}>
-                    {getProtocolRequestTypeLabel(type)}
-                  </option>
-                ))}
+                {activeProtocolTypes.length === 0 ? (
+                  <option value="">Cadastre tipos em Cadastros Gerais</option>
+                ) : (
+                  activeProtocolTypes.map((type) => (
+                    <option key={type._id} value={type._id}>
+                      {type.name}
+                    </option>
+                  ))
+                )}
               </select>
             </div>
 
@@ -197,7 +230,7 @@ export function PatientProtocolsDialog({ patient, open, onOpenChange, onChanged 
                       {formatProtocolNumber(protocol.protocolNumber)}
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      {getProtocolRequestTypeLabel(protocol.requestType)}
+                      {getProtocolTypeLabel(protocol)}
                     </p>
                   </div>
                   <select

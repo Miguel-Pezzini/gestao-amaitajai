@@ -2,13 +2,19 @@ import request from "supertest";
 import { beforeEach, describe, expect, it } from "vitest";
 import app from "../../src/app.js";
 import { randomUUID } from "node:crypto";
-import { createPatient, createUser, loginAndGetCookie } from "./helpers/test-helpers.js";
+import {
+  createPatient,
+  createProtocolType,
+  createUser,
+  loginAndGetCookie,
+} from "./helpers/test-helpers.js";
 import { useIntegrationTestDatabase } from "./helpers/integration-db.js";
 
 describe("Protocolos de pacientes", () => {
   let adminCookie: string;
   let tecnicoCookie: string;
   let patientId: string;
+  let protocolTypeId: string;
 
   useIntegrationTestDatabase();
 
@@ -37,6 +43,9 @@ describe("Protocolos de pacientes", () => {
       fundingSource: "MUNICIPAL",
     });
     patientId = patient._id;
+
+    const protocolType = await createProtocolType({ name: "Solicitação de documento" });
+    protocolTypeId = protocolType._id;
   });
 
   it("exige autenticação para listar protocolos", async () => {
@@ -56,30 +65,32 @@ describe("Protocolos de pacientes", () => {
       .set("Cookie", adminCookie)
       .send({
         patientId,
-        requestType: "DOCUMENTO",
+        protocolTypeId,
         notes: "Relatório para escola",
       });
 
     expect(response.status).toBe(201);
     expect(response.body.protocol.protocolNumber).toBe(year * 100_000 + 1);
-    expect(response.body.protocol.requestType).toBe("DOCUMENTO");
+    expect(response.body.protocol.protocolType._id).toBe(protocolTypeId);
+    expect(response.body.protocol.protocolType.name).toBe("Solicitação de documento");
     expect(response.body.protocol.status).toBe("PENDENTE");
     expect(response.body.protocol.patient._id).toBe(patientId);
   });
 
   it("gera números sequenciais para múltiplos protocolos no mesmo ano", async () => {
     const year = new Date().getFullYear();
+    const secondType = await createProtocolType({ name: "Troca de horário" });
 
     const first = await request(app)
       .post("/api/protocols")
       .set("Cookie", adminCookie)
-      .send({ patientId, requestType: "DOCUMENTO" });
+      .send({ patientId, protocolTypeId });
     expect(first.status).toBe(201);
 
     const second = await request(app)
       .post("/api/protocols")
       .set("Cookie", adminCookie)
-      .send({ patientId, requestType: "TROCA_HORARIO" });
+      .send({ patientId, protocolTypeId: secondType._id });
     expect(second.status).toBe(201);
     expect(second.body.protocol.protocolNumber).toBe(year * 100_000 + 2);
   });
@@ -88,17 +99,32 @@ describe("Protocolos de pacientes", () => {
     const response = await request(app)
       .post("/api/protocols")
       .set("Cookie", adminCookie)
-      .send({ patientId, requestType: "invalido" });
+      .send({ patientId, protocolTypeId: randomUUID() });
+
+    expect(response.status).toBe(404);
+    expect(response.body.message).toMatch(/tipo de protocolo/i);
+  });
+
+  it("rejeita criação com tipo inativo", async () => {
+    const inactiveType = await createProtocolType({
+      name: "Tipo inativo",
+      isActive: false,
+    });
+
+    const response = await request(app)
+      .post("/api/protocols")
+      .set("Cookie", adminCookie)
+      .send({ patientId, protocolTypeId: inactiveType._id });
 
     expect(response.status).toBe(400);
-    expect(response.body.message).toMatch(/tipo de solicitação/i);
+    expect(response.body.message).toMatch(/inativo/i);
   });
 
   it("lista, atualiza status e expõe contagem pendente na listagem de pacientes", async () => {
     const created = await request(app)
       .post("/api/protocols")
       .set("Cookie", adminCookie)
-      .send({ patientId, requestType: "DOCUMENTO" });
+      .send({ patientId, protocolTypeId });
     expect(created.status).toBe(201);
     const protocolId = created.body.protocol._id as string;
 
@@ -134,5 +160,80 @@ describe("Protocolos de pacientes", () => {
       .set("Cookie", adminCookie);
 
     expect(response.status).toBe(404);
+  });
+});
+
+describe("Tipos de protocolo", () => {
+  let adminCookie: string;
+  let tecnicoCookie: string;
+
+  useIntegrationTestDatabase();
+
+  beforeEach(async () => {
+    const admin = await createUser({
+      name: "Admin Tipos Protocolo",
+      email: "admin@protocol-types.test",
+      password: "admin123456",
+      role: "ADMINISTRADOR",
+    });
+    const tecnico = await createUser({
+      name: "Tecnico Tipos Protocolo",
+      email: "tecnico@protocol-types.test",
+      password: "tech123456",
+      role: "TECNICO",
+    });
+
+    adminCookie = await loginAndGetCookie(admin.email, "admin123456");
+    tecnicoCookie = await loginAndGetCookie(tecnico.email, "tech123456");
+  });
+
+  it("nega cadastro de tipo ao técnico", async () => {
+    const response = await request(app)
+      .post("/api/protocol-types")
+      .set("Cookie", tecnicoCookie)
+      .send({ name: "Novo tipo" });
+
+    expect(response.status).toBe(403);
+  });
+
+  it("permite ao admin criar, listar, editar e inativar tipos", async () => {
+    const created = await request(app)
+      .post("/api/protocol-types")
+      .set("Cookie", adminCookie)
+      .send({ name: "Encaminhamento médico" });
+    expect(created.status).toBe(201);
+    expect(created.body.protocolType.name).toBe("Encaminhamento médico");
+
+    const list = await request(app).get("/api/protocol-types").set("Cookie", adminCookie);
+    expect(list.status).toBe(200);
+    expect(list.body.items.some((item: { name: string }) => item.name === "Encaminhamento médico")).toBe(
+      true,
+    );
+
+    const updated = await request(app)
+      .patch(`/api/protocol-types/${created.body.protocolType._id}`)
+      .set("Cookie", adminCookie)
+      .send({ name: "Encaminhamento" });
+    expect(updated.status).toBe(200);
+    expect(updated.body.protocolType.name).toBe("Encaminhamento");
+
+    const deactivated = await request(app)
+      .patch(`/api/protocol-types/${created.body.protocolType._id}/status`)
+      .set("Cookie", adminCookie)
+      .send({ isActive: false });
+    expect(deactivated.status).toBe(200);
+    expect(deactivated.body.protocolType.isActive).toBe(false);
+  });
+
+  it("rejeita tipo com nome duplicado", async () => {
+    await createProtocolType({ name: "Segunda via" });
+
+    const response = await request(app)
+      .post("/api/protocol-types")
+      .set("Cookie", adminCookie)
+      .send({ name: "Segunda via" });
+
+    expect(response.status).toBe(409);
+    expect(response.body.message).toMatch(/já existe/i);
   });
 });

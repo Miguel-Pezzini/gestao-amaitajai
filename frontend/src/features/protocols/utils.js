@@ -1,7 +1,4 @@
-import {
-  PROTOCOL_REQUEST_TYPE_LABELS,
-  PROTOCOL_STATUS_LABELS,
-} from "./constants";
+import { PROTOCOL_STATUS_LABELS } from "./constants";
 
 export function formatProtocolNumber(value) {
   if (value === null || value === undefined || value === "") {
@@ -10,8 +7,8 @@ export function formatProtocolNumber(value) {
   return String(value);
 }
 
-export function getProtocolRequestTypeLabel(value) {
-  return PROTOCOL_REQUEST_TYPE_LABELS[value] ?? value;
+export function getProtocolTypeLabel(protocol) {
+  return protocol?.protocolType?.name ?? "-";
 }
 
 export function getProtocolStatusLabel(value) {

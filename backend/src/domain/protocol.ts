@@ -1,13 +1,3 @@
-export const PROTOCOL_REQUEST_TYPES = [
-  "DOCUMENTO",
-  "TROCA_HORARIO",
-  "SEGUNDA_VIA",
-  "ENCAMINHAMENTO",
-  "CANCELAMENTO",
-] as const;
-
-export type ProtocolRequestType = (typeof PROTOCOL_REQUEST_TYPES)[number];
-
 export const PROTOCOL_STATUSES = ["PENDENTE", "CONCLUIDO"] as const;
 
 export type ProtocolStatus = (typeof PROTOCOL_STATUSES)[number];

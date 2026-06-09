@@ -2,13 +2,14 @@ import { useEffect, useState } from "react";
 import { searchAgendaPatients } from "@/services/agenda";
 import {
   createProtocol,
+  listProtocolTypes,
   listProtocols,
   updateProtocolStatus,
 } from "@/services/protocols";
 
 const EMPTY_FORM = {
   patientId: "",
-  requestType: "DOCUMENTO",
+  protocolTypeId: "",
   notes: "",
 };
 
@@ -19,6 +20,7 @@ export function useProtocolsPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("PENDENTE");
   const [protocols, setProtocols] = useState([]);
+  const [protocolTypes, setProtocolTypes] = useState([]);
   const [form, setForm] = useState(EMPTY_FORM);
   const [fieldErrors, setFieldErrors] = useState({});
   const [formDialogOpen, setFormDialogOpen] = useState(false);
@@ -26,6 +28,17 @@ export function useProtocolsPage() {
   const [patientOptions, setPatientOptions] = useState([]);
   const [loadingPatients, setLoadingPatients] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState(null);
+
+  const activeProtocolTypes = protocolTypes.filter((item) => item.isActive);
+
+  async function loadProtocolTypes() {
+    try {
+      const response = await listProtocolTypes();
+      setProtocolTypes(response.items ?? []);
+    } catch {
+      setProtocolTypes([]);
+    }
+  }
 
   async function loadProtocols() {
     setLoading(true);
@@ -48,6 +61,7 @@ export function useProtocolsPage() {
   }
 
   useEffect(() => {
+    loadProtocolTypes();
     loadProtocols();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -79,7 +93,8 @@ export function useProtocolsPage() {
   }, [patientTerm, formDialogOpen]);
 
   function resetForm() {
-    setForm(EMPTY_FORM);
+    const defaultTypeId = activeProtocolTypes[0]?._id ?? "";
+    setForm({ ...EMPTY_FORM, protocolTypeId: defaultTypeId });
     setFieldErrors({});
     setPatientTerm("");
     setPatientOptions([]);
@@ -122,6 +137,9 @@ export function useProtocolsPage() {
     if (!form.patientId) {
       errors.patientId = "Selecione o paciente.";
     }
+    if (!form.protocolTypeId) {
+      errors.protocolTypeId = "Selecione o tipo de solicitação.";
+    }
 
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
@@ -134,7 +152,7 @@ export function useProtocolsPage() {
     try {
       await createProtocol({
         patientId: form.patientId,
-        requestType: form.requestType,
+        protocolTypeId: form.protocolTypeId,
         notes: form.notes.trim(),
       });
       closeFormDialog();
@@ -171,6 +189,7 @@ export function useProtocolsPage() {
     statusFilter,
     setStatusFilter,
     protocols,
+    protocolTypes: activeProtocolTypes,
     form,
     fieldErrors,
     formDialogOpen,

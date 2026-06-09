@@ -106,6 +106,14 @@ export async function createRoom(data: { name: string; isActive?: boolean }) {
   );
 }
 
+export async function createProtocolType(data: { name: string; isActive?: boolean }) {
+  return withMongoId(
+    await prisma.protocolType.create({
+      data: { isActive: true, ...data },
+    }),
+  );
+}
+
 export async function createSessionType(data: {
   name: string;
   slug: string;

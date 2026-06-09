@@ -3,6 +3,7 @@ import { AppError } from "../errors/app-error.js";
 import { requireAuth } from "../middlewares/auth.middleware.js";
 import { requireAdmin } from "../middlewares/authz.middleware.js";
 import { protocolService } from "../services/protocol.service.js";
+import { validateIsActive } from "../validators/protocol/protocol-type.validator.js";
 
 const router = Router();
 
@@ -23,6 +24,49 @@ function handleServiceError(res: Response, error: unknown): void {
 }
 
 router.use(requireAuth, requireAdmin);
+
+router.get("/protocol-types", async (_req: Request, res: Response) => {
+  try {
+    const result = await protocolService.listProtocolTypes();
+    res.status(200).json(result);
+  } catch (error) {
+    handleServiceError(res, error);
+  }
+});
+
+router.post("/protocol-types", async (req: Request, res: Response) => {
+  try {
+    const result = await protocolService.createProtocolType(req.body ?? {});
+    res.status(201).json(result);
+  } catch (error) {
+    handleServiceError(res, error);
+  }
+});
+
+router.patch("/protocol-types/:id", async (req: Request, res: Response) => {
+  try {
+    const result = await protocolService.updateProtocolType(
+      getRouteId(req.params.id),
+      req.body ?? {},
+    );
+    res.status(200).json(result);
+  } catch (error) {
+    handleServiceError(res, error);
+  }
+});
+
+router.patch("/protocol-types/:id/status", async (req: Request, res: Response) => {
+  try {
+    const isActive = validateIsActive((req.body as { isActive?: unknown })?.isActive);
+    const result = await protocolService.updateProtocolTypeStatus(
+      getRouteId(req.params.id),
+      isActive,
+    );
+    res.status(200).json(result);
+  } catch (error) {
+    handleServiceError(res, error);
+  }
+});
 
 router.get("/protocols", async (req: Request, res: Response) => {
   try {

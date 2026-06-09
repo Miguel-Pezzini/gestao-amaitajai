@@ -1,4 +1,4 @@
-import { DoorOpen, Layers3, SlidersHorizontal, UserCog } from "lucide-react";
+import { ClipboardList, DoorOpen, Layers3, SlidersHorizontal, UserCog } from "lucide-react";
 
 export const CADASTROS_GROUP = {
   id: "cadastros",
@@ -34,11 +34,19 @@ export const CADASTRO_ITEMS = [
     order: 2,
   },
   {
+    id: "tipos-protocolo",
+    label: "Tipos de Protocolo",
+    description: "Cadastre os tipos de solicitação usados nos protocolos.",
+    icon: ClipboardList,
+    route: "/cadastros/tipos-protocolo",
+    order: 3,
+  },
+  {
     id: "funcionarios",
     label: "Funcionários",
     description: "Cadastre funcionários e permissões de acesso ao sistema.",
     icon: UserCog,
     route: "/cadastros/funcionarios",
-    order: 3,
+    order: 4,
   },
 ];

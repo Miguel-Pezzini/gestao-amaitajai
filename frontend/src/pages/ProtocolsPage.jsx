@@ -18,14 +18,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PendingProtocolBadge } from "@/features/protocols/components/PendingProtocolBadge";
 import { ProtocolPatientSearchField } from "@/features/protocols/components/ProtocolPatientSearchField";
-import {
-  PROTOCOL_REQUEST_TYPES,
-  PROTOCOL_STATUSES,
-} from "@/features/protocols/constants";
+import { PROTOCOL_STATUSES } from "@/features/protocols/constants";
 import {
   formatProtocolDate,
   formatProtocolNumber,
-  getProtocolRequestTypeLabel,
+  getProtocolTypeLabel,
   getProtocolStatusLabel,
 } from "@/features/protocols/utils";
 import { useProtocolsPage } from "@/hooks/useProtocolsPage";
@@ -34,6 +31,7 @@ import { useSession } from "@/contexts/session-context";
 function ProtocolForm({
   form,
   fieldErrors,
+  protocolTypes,
   patientTerm,
   onPatientTermChange,
   patientOptions,
@@ -65,16 +63,23 @@ function ProtocolForm({
         <select
           id="protocol-type"
           className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-          value={form.requestType}
-          onChange={(event) => onFormChange("requestType", event.target.value)}
-          disabled={saving}
+          value={form.protocolTypeId}
+          onChange={(event) => onFormChange("protocolTypeId", event.target.value)}
+          disabled={saving || protocolTypes.length === 0}
         >
-          {PROTOCOL_REQUEST_TYPES.map((type) => (
-            <option key={type} value={type}>
-              {getProtocolRequestTypeLabel(type)}
-            </option>
-          ))}
+          {protocolTypes.length === 0 ? (
+            <option value="">Cadastre tipos em Cadastros Gerais</option>
+          ) : (
+            protocolTypes.map((type) => (
+              <option key={type._id} value={type._id}>
+                {type.name}
+              </option>
+            ))
+          )}
         </select>
+        {fieldErrors.protocolTypeId ? (
+          <p className="text-sm text-destructive">{fieldErrors.protocolTypeId}</p>
+        ) : null}
       </div>
 
       <div className="space-y-2">
@@ -115,6 +120,7 @@ export function ProtocolsPage() {
     statusFilter,
     setStatusFilter,
     protocols,
+    protocolTypes,
     form,
     fieldErrors,
     formDialogOpen,
@@ -167,6 +173,7 @@ export function ProtocolsPage() {
         <ProtocolForm
           form={form}
           fieldErrors={fieldErrors}
+          protocolTypes={protocolTypes}
           patientTerm={patientTerm}
           onPatientTermChange={setPatientTerm}
           patientOptions={patientOptions}
@@ -257,7 +264,7 @@ export function ProtocolsPage() {
                 >
                   <p className="break-words">
                     <span className="text-foreground/80">Solicitação:</span>{" "}
-                    {getProtocolRequestTypeLabel(protocol.requestType)}
+                    {getProtocolTypeLabel(protocol)}
                   </p>
                   {protocol.notes ? (
                     <p className="break-words">
