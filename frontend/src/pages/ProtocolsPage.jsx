@@ -1,8 +1,10 @@
+import { Check, Loader2 } from "lucide-react";
 import {
   EntityList,
   EntityListItem,
+  EntityListIconAction,
   EntityListItemFooterRow,
-  entityListActionButtonClassName,
+  EntityTagBadge,
 } from "@/components/cadastros/EntityListItem";
 import { CreateFab } from "@/components/cadastros/CreateFab";
 import { Button } from "@/components/ui/button";
@@ -137,7 +139,8 @@ export function ProtocolsPage() {
     handleSelectPatient,
     handleClearPatient,
     handleCreate,
-    handleStatusChange,
+    completingProtocolId,
+    handleCompleteProtocol,
   } = useProtocolsPage();
 
   const pendingCount = protocols.filter((protocol) => protocol.status === "PENDENTE").length;
@@ -203,8 +206,15 @@ export function ProtocolsPage() {
             </CardDescription>
           </div>
 
-          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
-            <div className="min-w-0 space-y-2 sm:max-w-xs sm:flex-1">
+          <form
+            className="grid min-w-0 gap-3 sm:grid-cols-2"
+            onSubmit={(event) => {
+              event.preventDefault();
+              loadProtocols();
+            }}
+            noValidate
+          >
+            <div className="min-w-0 space-y-2">
               <Label htmlFor="protocol-search">Paciente, responsável ou número</Label>
               <Input
                 id="protocol-search"
@@ -213,7 +223,7 @@ export function ProtocolsPage() {
                 placeholder="Buscar..."
               />
             </div>
-            <div className="space-y-2 sm:w-40">
+            <div className="min-w-0 space-y-2">
               <Label htmlFor="protocol-status-filter">Status</Label>
               <select
                 id="protocol-status-filter"
@@ -230,13 +240,13 @@ export function ProtocolsPage() {
               </select>
             </div>
             <Button
-              className="shrink-0 bg-ama-cyan px-6 text-ama-blue-dark shadow-sm hover:bg-ama-cyan/90"
-              onClick={loadProtocols}
+              type="submit"
+              className="justify-self-end bg-ama-cyan px-6 text-ama-blue-dark shadow-sm hover:bg-ama-cyan/90 sm:col-span-2"
               disabled={loading}
             >
               Buscar
             </Button>
-          </div>
+          </form>
         </CardHeader>
         <CardContent className="p-4 pt-0 sm:p-6">
           {loading ? (
@@ -273,19 +283,28 @@ export function ProtocolsPage() {
                   ) : null}
                   <EntityListItemFooterRow
                     actions={
-                      <select
-                        className={`${entityListActionButtonClassName()} h-9 rounded-md border border-input bg-background px-3 py-1 text-sm`}
-                        value={protocol.status}
-                        onChange={(event) =>
-                          handleStatusChange(protocol._id, event.target.value)
-                        }
-                      >
-                        {PROTOCOL_STATUSES.map((status) => (
-                          <option key={status} value={status}>
-                            {getProtocolStatusLabel(status)}
-                          </option>
-                        ))}
-                      </select>
+                      protocol.status === "PENDENTE" ? (
+                        <EntityListIconAction
+                          icon={
+                            completingProtocolId === protocol._id ? Loader2 : Check
+                          }
+                          label={
+                            completingProtocolId === protocol._id
+                              ? "Concluindo..."
+                              : "Concluir protocolo"
+                          }
+                          tone="success"
+                          iconClassName={
+                            completingProtocolId === protocol._id ? "animate-spin" : undefined
+                          }
+                          onClick={() => handleCompleteProtocol(protocol._id)}
+                          disabled={completingProtocolId === protocol._id}
+                        />
+                      ) : (
+                        <EntityTagBadge>
+                          {getProtocolStatusLabel(protocol.status)}
+                        </EntityTagBadge>
+                      )
                     }
                   >
                     <p>

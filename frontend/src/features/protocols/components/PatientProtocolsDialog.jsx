@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
+import { EntityTagBadge } from "@/components/cadastros/EntityListItem";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { PROTOCOL_STATUSES } from "@/features/protocols/constants";
 import {
   formatProtocolDate,
   formatProtocolNumber,
@@ -29,6 +29,7 @@ export function PatientProtocolsDialog({ patient, open, onOpenChange, onChanged 
   const [protocolTypes, setProtocolTypes] = useState([]);
   const [form, setForm] = useState(EMPTY_FORM);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [completingProtocolId, setCompletingProtocolId] = useState(null);
 
   const activeProtocolTypes = protocolTypes.filter((item) => item.isActive);
 
@@ -116,17 +117,20 @@ export function PatientProtocolsDialog({ patient, open, onOpenChange, onChanged 
     }
   }
 
-  async function handleStatusChange(protocolId, status) {
+  async function handleCompleteProtocol(protocolId) {
     setError("");
+    setCompletingProtocolId(protocolId);
     try {
-      await updateProtocolStatus(protocolId, status);
+      await updateProtocolStatus(protocolId, "CONCLUIDO");
       await loadProtocols();
       onChanged?.();
     } catch (err) {
       setError(
         err.response?.data?.message ??
-          "Não foi possível atualizar o status do protocolo.",
+          "Não foi possível concluir o protocolo.",
       );
+    } finally {
+      setCompletingProtocolId(null);
     }
   }
 
@@ -233,19 +237,24 @@ export function PatientProtocolsDialog({ patient, open, onOpenChange, onChanged 
                       {getProtocolTypeLabel(protocol)}
                     </p>
                   </div>
-                  <select
-                    className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm"
-                    value={protocol.status}
-                    onChange={(event) =>
-                      handleStatusChange(protocol._id, event.target.value)
-                    }
-                  >
-                    {PROTOCOL_STATUSES.map((status) => (
-                      <option key={status} value={status}>
-                        {getProtocolStatusLabel(status)}
-                      </option>
-                    ))}
-                  </select>
+                  {protocol.status === "PENDENTE" ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-9 border-input/80 text-ama-blue-dark hover:bg-ama-light hover:text-ama-blue-dark"
+                      onClick={() => handleCompleteProtocol(protocol._id)}
+                      disabled={completingProtocolId === protocol._id}
+                    >
+                      {completingProtocolId === protocol._id
+                        ? "Concluindo..."
+                        : "Concluir protocolo"}
+                    </Button>
+                  ) : (
+                    <EntityTagBadge>
+                      {getProtocolStatusLabel(protocol.status)}
+                    </EntityTagBadge>
+                  )}
                 </div>
 
                 {protocol.notes ? (

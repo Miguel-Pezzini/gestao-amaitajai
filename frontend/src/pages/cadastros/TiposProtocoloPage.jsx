@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
+import { Pencil, RotateCcw, Trash2 } from "lucide-react";
 import {
   EntityList,
   EntityListItem,
+  EntityListIconAction,
   EntityListItemFooterRow,
   EntityStatusBadge,
-  entityListActionButtonClassName,
 } from "@/components/cadastros/EntityListItem";
 import { Button } from "@/components/ui/button";
 import {
@@ -301,22 +302,17 @@ export function TiposProtocoloPage() {
                   <EntityListItemFooterRow
                     actions={
                       <>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className={entityListActionButtonClassName()}
+                        <EntityListIconAction
+                          icon={Pencil}
+                          label="Editar"
                           onClick={() => openEditDialog(protocolType)}
-                        >
-                          Editar
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className={entityListActionButtonClassName()}
+                        />
+                        <EntityListIconAction
+                          icon={protocolType.isActive ? Trash2 : RotateCcw}
+                          label={protocolType.isActive ? "Inativar" : "Reativar"}
+                          tone={protocolType.isActive ? "destructive" : "default"}
                           onClick={() => handleToggleStatus(protocolType)}
-                        >
-                          {protocolType.isActive ? "Inativar" : "Reativar"}
-                        </Button>
+                        />
                       </>
                     }
                   />

@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
+import { ClipboardList, Pencil, UserCheck, UserX } from "lucide-react";
 import {
   EntityList,
   EntityListItem,
+  EntityListIconAction,
   EntityListItemFooterRow,
   EntityStatusBadge,
   EntityTagBadge,
-  entityListActionButtonClassName,
 } from "@/components/cadastros/EntityListItem";
 import { Button } from "@/components/ui/button";
 import {
@@ -535,31 +536,23 @@ export function PatientsPage() {
                   <EntityListItemFooterRow
                     actions={
                       <>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className={entityListActionButtonClassName()}
+                        <EntityListIconAction
+                          icon={ClipboardList}
+                          label="Protocolos"
                           onClick={() => openProtocolsDialog(patient)}
-                        >
-                          Protocolos
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className={entityListActionButtonClassName()}
+                        />
+                        <EntityListIconAction
+                          icon={Pencil}
+                          label="Editar"
                           onClick={() => openEditDialog(patient)}
-                        >
-                          Editar
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className={entityListActionButtonClassName()}
+                        />
+                        <EntityListIconAction
+                          icon={patient.isActive ? UserX : UserCheck}
+                          label={patient.isActive ? "Inativar" : "Reativar"}
+                          tone={patient.isActive ? "destructive" : "default"}
                           onClick={() => deactivation.handleToggleStatus(patient)}
                           disabled={deactivation.loadingImpact || deactivation.saving}
-                        >
-                          {patient.isActive ? "Inativar" : "Reativar"}
-                        </Button>
+                        />
                       </>
                     }
                   >

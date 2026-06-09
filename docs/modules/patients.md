@@ -63,6 +63,8 @@ Filtros: `search` (nome ou responsável), `fundingSource`, `status` (`active`/`i
 Componentes de desativação: `DeactivatePatientDialog`, `PatientReplacementPicker`.  
 Hook: `usePatientDeactivation.js`.
 
+**Lista de pacientes:** ações por item (`Protocolos`, `Editar`, `Inativar`/`Reativar`) exibidas como ícones compactos com tooltip no hover, via `EntityListIconAction` + `Tooltip` em `EntityListItem.jsx`.
+
 ---
 
 ## Validações importantes

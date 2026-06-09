@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
+import { Pencil, RotateCcw, Trash2 } from "lucide-react";
 import {
   EntityList,
   EntityListItem,
+  EntityListIconAction,
   EntityListItemFooterRow,
   EntityStatusBadge,
   EntityTagBadge,
-  entityListActionButtonClassName,
 } from "@/components/cadastros/EntityListItem";
 import { Button } from "@/components/ui/button";
 import {
@@ -418,22 +419,17 @@ export function ModalidadesPage() {
                   <EntityListItemFooterRow
                     actions={
                       <>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className={entityListActionButtonClassName()}
+                        <EntityListIconAction
+                          icon={Pencil}
+                          label="Editar"
                           onClick={() => openEditDialog(item)}
-                        >
-                          Editar
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className={entityListActionButtonClassName()}
+                        />
+                        <EntityListIconAction
+                          icon={item.isActive ? Trash2 : RotateCcw}
+                          label={item.isActive ? "Inativar" : "Reativar"}
+                          tone={item.isActive ? "destructive" : "default"}
                           onClick={() => handleToggleStatus(item)}
-                        >
-                          {item.isActive ? "Inativar" : "Reativar"}
-                        </Button>
+                        />
                       </>
                     }
                   >

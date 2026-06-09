@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
+import { Pencil, RotateCcw, Trash2 } from "lucide-react";
 import {
   EntityList,
   EntityListItem,
+  EntityListIconAction,
   EntityListItemFooterRow,
   EntityStatusBadge,
-  entityListActionButtonClassName,
 } from "@/components/cadastros/EntityListItem";
 import { Button } from "@/components/ui/button";
 import {
@@ -289,22 +290,17 @@ export function SalasPage() {
                   <EntityListItemFooterRow
                     actions={
                       <>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className={entityListActionButtonClassName()}
+                        <EntityListIconAction
+                          icon={Pencil}
+                          label="Editar"
                           onClick={() => openEditDialog(room)}
-                        >
-                          Editar
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className={entityListActionButtonClassName()}
+                        />
+                        <EntityListIconAction
+                          icon={room.isActive ? Trash2 : RotateCcw}
+                          label={room.isActive ? "Inativar" : "Reativar"}
+                          tone={room.isActive ? "destructive" : "default"}
                           onClick={() => handleToggleStatus(room)}
-                        >
-                          {room.isActive ? "Inativar" : "Reativar"}
-                        </Button>
+                        />
                       </>
                     }
                   />

@@ -28,6 +28,7 @@ export function useProtocolsPage() {
   const [patientOptions, setPatientOptions] = useState([]);
   const [loadingPatients, setLoadingPatients] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState(null);
+  const [completingProtocolId, setCompletingProtocolId] = useState(null);
 
   const activeProtocolTypes = protocolTypes.filter((item) => item.isActive);
 
@@ -167,16 +168,19 @@ export function useProtocolsPage() {
     }
   }
 
-  async function handleStatusChange(protocolId, status) {
+  async function handleCompleteProtocol(protocolId) {
     setError("");
+    setCompletingProtocolId(protocolId);
     try {
-      await updateProtocolStatus(protocolId, status);
+      await updateProtocolStatus(protocolId, "CONCLUIDO");
       await loadProtocols();
     } catch (err) {
       setError(
         err.response?.data?.message ??
-          "Não foi possível atualizar o status do protocolo.",
+          "Não foi possível concluir o protocolo.",
       );
+    } finally {
+      setCompletingProtocolId(null);
     }
   }
 
@@ -206,6 +210,7 @@ export function useProtocolsPage() {
     handleSelectPatient,
     handleClearPatient,
     handleCreate,
-    handleStatusChange,
+    completingProtocolId,
+    handleCompleteProtocol,
   };
 }
