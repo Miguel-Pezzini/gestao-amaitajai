@@ -34,9 +34,7 @@ router.get("/funding-sources", async (_req: Request, res: Response) => {
   }
 });
 
-router.use(requireAdmin);
-
-router.post("/funding-sources", async (req: Request, res: Response) => {
+router.post("/funding-sources", requireAdmin, async (req: Request, res: Response) => {
   try {
     const result = await patientFundingSourceService.createFundingSource(req.body ?? {});
     res.status(201).json(result);
@@ -45,7 +43,7 @@ router.post("/funding-sources", async (req: Request, res: Response) => {
   }
 });
 
-router.patch("/funding-sources/:id", async (req: Request, res: Response) => {
+router.patch("/funding-sources/:id", requireAdmin, async (req: Request, res: Response) => {
   try {
     const result = await patientFundingSourceService.updateFundingSource(
       getRouteId(req.params.id),
@@ -57,7 +55,7 @@ router.patch("/funding-sources/:id", async (req: Request, res: Response) => {
   }
 });
 
-router.patch("/funding-sources/:id/status", async (req: Request, res: Response) => {
+router.patch("/funding-sources/:id/status", requireAdmin, async (req: Request, res: Response) => {
   try {
     const isActive = validateIsActive((req.body as { isActive?: unknown })?.isActive);
     const result = await patientFundingSourceService.updateFundingSourceStatus(
