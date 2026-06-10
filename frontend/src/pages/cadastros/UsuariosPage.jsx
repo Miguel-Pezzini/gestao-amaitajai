@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Pencil, UserCheck, UserX } from "lucide-react";
 import {
   EntityList,
@@ -27,6 +27,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CreateFab } from "@/components/cadastros/CreateFab";
+import {
+  EntityListPagination,
+  formatPaginationSummary,
+} from "@/components/cadastros/EntityListPagination";
 import { SELECT_ALL_VALUE } from "@/constants/select";
 import { useSession } from "@/contexts/session-context";
 import {
@@ -39,6 +43,8 @@ import {
   updateUser,
   updateUserStatus,
 } from "@/services/users";
+
+const PAGE_SIZE = 20;
 
 const EMPTY_FORM = {
   name: "",
@@ -189,6 +195,8 @@ export function UsuariosPage() {
   const [roleFilter, setRoleFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("active");
   const [users, setUsers] = useState([]);
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState(null);
   const [editingId, setEditingId] = useState("");
   const [form, setForm] = useState(EMPTY_FORM);
   const [fieldErrors, setFieldErrors] = useState({});
@@ -196,7 +204,7 @@ export function UsuariosPage() {
 
   const isEditing = Boolean(editingId);
 
-  async function loadUsers() {
+  async function loadUsers(targetPage = page) {
     setLoading(true);
     setError("");
     try {
@@ -204,9 +212,12 @@ export function UsuariosPage() {
         search: search || undefined,
         role: roleFilter || undefined,
         status: statusFilter,
-        limit: 100,
+        page: targetPage,
+        limit: PAGE_SIZE,
       });
       setUsers(response.items ?? []);
+      setPagination(response.pagination ?? null);
+      setPage(targetPage);
     } catch (err) {
       setError(
         err.response?.data?.message ??
@@ -222,10 +233,13 @@ export function UsuariosPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const activeCount = useMemo(
-    () => users.filter((item) => item.accountStatus === "ATIVO").length,
-    [users],
-  );
+  function handleSearch() {
+    loadUsers(1);
+  }
+
+  function handlePageChange(nextPage) {
+    loadUsers(nextPage);
+  }
 
   function resetForm() {
     setForm(EMPTY_FORM);
@@ -355,7 +369,9 @@ export function UsuariosPage() {
           <div className="min-w-0">
             <CardTitle className="text-base text-ama-blue-dark">Funcionários cadastrados</CardTitle>
             <CardDescription className="break-words">
-              {activeCount} ativos em {users.length} carregado(s).
+              {loading && !pagination
+                ? "Carregando..."
+                : formatPaginationSummary(pagination)}
             </CardDescription>
           </div>
 
@@ -404,7 +420,7 @@ export function UsuariosPage() {
             </div>
             <Button
               className="justify-self-start bg-ama-cyan px-6 text-ama-blue-dark shadow-sm hover:bg-ama-cyan/90 sm:col-span-2 sm:justify-self-end"
-              onClick={loadUsers}
+              onClick={handleSearch}
               disabled={loading}
             >
               Buscar
@@ -475,6 +491,11 @@ export function UsuariosPage() {
               })}
             </EntityList>
           )}
+          <EntityListPagination
+            pagination={pagination}
+            loading={loading}
+            onPageChange={handlePageChange}
+          />
         </CardContent>
       </Card>
     </div>

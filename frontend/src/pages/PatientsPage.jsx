@@ -17,6 +17,10 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { CreateFab } from "@/components/cadastros/CreateFab";
+import {
+  EntityListPagination,
+  formatPaginationSummary,
+} from "@/components/cadastros/EntityListPagination";
 import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,6 +39,8 @@ import { PendingProtocolBadge } from "@/features/protocols/components/PendingPro
 import { usePatientDeactivation } from "@/hooks/usePatientDeactivation";
 import { listFundingSources } from "@/services/funding-sources";
 import { createPatient, listPatients, updatePatient } from "@/services/patients";
+
+const PAGE_SIZE = 20;
 
 const EMPTY_FORM = {
   fullName: "",
@@ -266,6 +272,8 @@ export function PatientsPage() {
   const [fundingFilter, setFundingFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("active");
   const [patients, setPatients] = useState([]);
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState(null);
   const [fundingSources, setFundingSources] = useState([]);
   const [editingId, setEditingId] = useState("");
   const [form, setForm] = useState(EMPTY_FORM);
@@ -303,7 +311,7 @@ export function PatientsPage() {
     }
   }
 
-  async function loadPatients() {
+  async function loadPatients(targetPage = page) {
     setLoading(true);
     setError("");
     try {
@@ -311,8 +319,12 @@ export function PatientsPage() {
         search: search || undefined,
         fundingSourceId: fundingFilter || undefined,
         status: statusFilter,
+        page: targetPage,
+        limit: PAGE_SIZE,
       });
       setPatients(response.items ?? []);
+      setPagination(response.pagination ?? null);
+      setPage(targetPage);
     } catch (err) {
       setError(
         err.response?.data?.message ??
@@ -331,10 +343,13 @@ export function PatientsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const activeCount = useMemo(
-    () => patients.filter((patient) => patient.isActive).length,
-    [patients],
-  );
+  function handleSearch() {
+    loadPatients(1);
+  }
+
+  function handlePageChange(nextPage) {
+    loadPatients(nextPage);
+  }
 
   function resetForm() {
     setForm(EMPTY_FORM);
@@ -500,7 +515,9 @@ export function PatientsPage() {
               Pacientes cadastrados
             </CardTitle>
             <CardDescription className="break-words">
-              {activeCount} ativos em {patients.length} carregado(s).
+              {loading && !pagination
+                ? "Carregando..."
+                : formatPaginationSummary(pagination)}
             </CardDescription>
           </div>
 
@@ -549,7 +566,7 @@ export function PatientsPage() {
             </div>
             <Button
               className="justify-self-start bg-ama-cyan px-6 text-ama-blue-dark shadow-sm hover:bg-ama-cyan/90 sm:col-span-2 sm:justify-self-end"
-              onClick={loadPatients}
+              onClick={handleSearch}
               disabled={loading}
             >
               Buscar
@@ -621,6 +638,11 @@ export function PatientsPage() {
               ))}
             </EntityList>
           )}
+          <EntityListPagination
+            pagination={pagination}
+            loading={loading}
+            onPageChange={handlePageChange}
+          />
         </CardContent>
       </Card>
     </div>

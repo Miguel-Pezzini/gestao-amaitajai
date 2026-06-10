@@ -1,6 +1,6 @@
 # Módulo: Usuários / Funcionários
 
-**Última atualização:** 2026-06-09  
+**Última atualização:** 2026-06-10  
 **Escopo:** fullstack
 
 ---
@@ -51,6 +51,8 @@ Todas exigem `requireAuth` + `requireAdmin`.
 | `/cadastros/funcionarios` | `UsuariosPage` | CRUD de funcionários |
 
 Redirect: `/cadastros/usuarios` → `/cadastros/funcionarios`.
+
+**Paginação:** a listagem consome `page`/`limit` da API (20 itens por página). Resumo `Mostrando X–Y de Z` no cabeçalho; controles Anterior/Próxima via `EntityListPagination` quando há mais de uma página. Nova busca com filtros reinicia na página 1.
 
 ---
 
