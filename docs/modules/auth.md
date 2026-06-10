@@ -1,6 +1,6 @@
 # Módulo: Autenticação
 
-**Última atualização:** 2026-06-09  
+**Última atualização:** 2026-06-10  
 **Escopo:** fullstack
 
 ---
@@ -34,6 +34,21 @@ Autenticação de usuários via e-mail/senha ou Google OAuth (quando configurado
 - JWT em cookie (`buildAuthCookieOptions`).
 - `/auth/me` retorna usuário serializado (sem senha).
 - Logout limpa cookie.
+
+### Deploy (Vercel + Railway, API direta)
+
+Frontend na Vercel chama a API no Railway **sem proxy**. Cookies httpOnly exigem configuração cross-domain:
+
+| Onde | Variável | Valor |
+|---|---|---|
+| Vercel | `VITE_API_URL` | `https://<railway-host>/api` |
+| Railway | `CORS_ORIGIN` | URL exata do frontend (Vercel) |
+| Railway | `FRONTEND_URL` | Mesma URL do frontend |
+| Railway | `COOKIE_SAME_SITE` | `none` |
+| Railway | `GOOGLE_REDIRECT_URI` | `https://<railway-host>/api/auth/google/callback` |
+| Google Cloud Console | Authorized redirect URI | Mesmo valor de `GOOGLE_REDIRECT_URI` |
+
+OAuth Google: início (`/auth/google`) e callback (`/auth/google/callback`) rodam no domínio Railway; cookie de state usa `SameSite=lax` (navegação top-level). Após login, o frontend na Vercel consome a API com `withCredentials` e cookie de sessão `SameSite=none`.
 
 ---
 

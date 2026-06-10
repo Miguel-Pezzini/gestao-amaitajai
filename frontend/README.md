@@ -32,6 +32,12 @@ npm run build
 
 Variável típica no `.env`: URL base da API (`VITE_API_URL` ou conforme `.env.example`).
 
+### Produção (Vercel)
+
+- `VITE_API_URL` aponta para a URL completa da API no Railway (sem proxy em `vercel.json`).
+- Após alterar variáveis `VITE_*`, é necessário redeploy.
+- Variáveis do backend para sessão cross-domain: ver [`docs/modules/auth.md`](../docs/modules/auth.md).
+
 ---
 
 ## Estrutura de pastas

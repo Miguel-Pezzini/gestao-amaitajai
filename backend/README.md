@@ -192,7 +192,10 @@ Copie `.env.example` para `.env`. Campos típicos:
 
 - `DATABASE_URL` — conexão PostgreSQL
 - `JWT_SECRET` — assinatura do token de sessão
-- `CORS_ORIGIN` — origem do frontend (ex.: `http://localhost:5173`)
+- `CORS_ORIGIN` — origem do frontend (ex.: `http://localhost:5173`; em produção, URL da Vercel)
+- `FRONTEND_URL` — base do frontend (redirects OAuth; em produção, mesma URL da Vercel)
+- `COOKIE_SAME_SITE` — `none` em produção com frontend Vercel + API Railway (ver `docs/modules/auth.md`)
+- `GOOGLE_REDIRECT_URI` — callback OAuth no domínio Railway (não no domínio Vercel)
 - `PORT` — porta da API (padrão 3000)
 - `LOGIN_RATE_LIMIT_MAX` / `LOGIN_RATE_LIMIT_WINDOW_MS` — limite de tentativas de login
 
