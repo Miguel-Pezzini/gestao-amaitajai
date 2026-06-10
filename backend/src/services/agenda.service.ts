@@ -117,7 +117,11 @@ const SESSION_LIST_INCLUDE = {
   sessionType: { select: { id: true, name: true, slug: true } },
   room: { select: { id: true, name: true } },
   patients: {
-    include: { patient: { select: { id: true, fullName: true, fundingSource: true } } },
+    include: {
+      patient: {
+        select: { id: true, fullName: true, fundingSource: { select: { id: true, name: true } } },
+      },
+    },
   },
   professionals: {
     include: { professional: { select: { id: true, name: true, email: true, role: true } } },
@@ -155,10 +159,22 @@ export class AgendaService {
       },
       orderBy: { fullName: "asc" },
       take: limit,
-      select: { id: true, fullName: true, guardianName: true, fundingSource: true },
+      select: {
+        id: true,
+        fullName: true,
+        guardianName: true,
+        fundingSource: { select: { id: true, name: true } },
+      },
     });
 
-    return { items: withMongoIdList(rows) };
+    return {
+      items: rows.map((row) => ({
+        _id: row.id,
+        fullName: row.fullName,
+        guardianName: row.guardianName,
+        fundingSource: row.fundingSource.name,
+      })),
+    };
   }
 
   async searchProfessionals(query: Record<string, unknown>) {
@@ -320,7 +336,12 @@ export class AgendaService {
       where: patientWhere,
       orderBy: { fullName: "asc" },
       take: input.limit,
-      select: { id: true, fullName: true, guardianName: true, fundingSource: true },
+      select: {
+        id: true,
+        fullName: true,
+        guardianName: true,
+        fundingSource: { select: { id: true, name: true } },
+      },
     });
 
     const patientIds = patients.map((item) => item.id);
@@ -349,7 +370,10 @@ export class AgendaService {
     const items = patients.map((patient) => {
       const conflictSession = conflictsById.get(patient.id) ?? null;
       return {
-        ...withMongoId(patient),
+        _id: patient.id,
+        fullName: patient.fullName,
+        guardianName: patient.guardianName,
+        fundingSource: patient.fundingSource.name,
         isAvailable: conflictSession === null,
         conflictSession,
       };

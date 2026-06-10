@@ -5,6 +5,7 @@ import { AppLayout } from "@/layouts/AppLayout";
 import { AgendaPage } from "@/pages/AgendaPage";
 import { ModalidadesPage } from "@/pages/cadastros/ModalidadesPage";
 import { SalasPage } from "@/pages/cadastros/SalasPage";
+import { TiposCusteioPage } from "@/pages/cadastros/TiposCusteioPage";
 import { TiposProtocoloPage } from "@/pages/cadastros/TiposProtocoloPage";
 import { TiposSessaoPage } from "@/pages/cadastros/TiposSessaoPage";
 import { UsuariosPage } from "@/pages/cadastros/UsuariosPage";
@@ -76,6 +77,14 @@ export function AppRoutes() {
             element={
               <RequireAdminRoute>
                 <TiposProtocoloPage />
+              </RequireAdminRoute>
+            }
+          />
+          <Route
+            path="/cadastros/tipos-custeio"
+            element={
+              <RequireAdminRoute>
+                <TiposCusteioPage />
               </RequireAdminRoute>
             }
           />

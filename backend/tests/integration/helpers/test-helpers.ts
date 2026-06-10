@@ -34,6 +34,29 @@ export async function loginAndGetCookie(email: string, password: string) {
   return cookie as string;
 }
 
+const DEFAULT_PATIENT_FUNDING_SOURCES = [
+  { name: "Municipal", key: "MUNICIPAL" },
+  { name: "Estadual", key: "ESTADUAL" },
+  { name: "Particular", key: "PARTICULAR" },
+] as const;
+
+export type DefaultFundingSourceKey = (typeof DEFAULT_PATIENT_FUNDING_SOURCES)[number]["key"];
+
+export async function seedPatientFundingSources(): Promise<Record<DefaultFundingSourceKey, string>> {
+  const result = {} as Record<DefaultFundingSourceKey, string>;
+
+  for (const item of DEFAULT_PATIENT_FUNDING_SOURCES) {
+    const row = await prisma.patientFundingSource.upsert({
+      where: { name: item.name },
+      create: { name: item.name, isActive: true },
+      update: {},
+    });
+    result[item.key] = row.id;
+  }
+
+  return result;
+}
+
 export async function seedAgendaBase() {
   const adminPassword = "admin123456";
   const admin = await createUser({
@@ -48,6 +71,7 @@ export async function seedAgendaBase() {
     password: "prof123456",
     role: "TECNICO",
   });
+  const fundingSources = await seedPatientFundingSources();
   const paciente = withMongoId(
     await prisma.patient.create({
       data: {
@@ -55,7 +79,7 @@ export async function seedAgendaBase() {
         birthDate: new Date("2018-01-01"),
         guardianName: "Responsavel",
         phone: "(47) 99999-0001",
-        fundingSource: "MUNICIPAL",
+        fundingSourceId: fundingSources.MUNICIPAL,
         isActive: true,
       },
     }),
@@ -88,11 +112,32 @@ export async function createPatient(data: {
   birthDate: Date;
   guardianName: string;
   phone: string;
-  fundingSource: "MUNICIPAL" | "ESTADUAL" | "PARTICULAR";
+  fundingSource?: DefaultFundingSourceKey;
+  fundingSourceId?: string;
   isActive?: boolean;
 }) {
+  const fundingSources = await seedPatientFundingSources();
+  const fundingSourceId =
+    data.fundingSourceId ??
+    fundingSources[data.fundingSource ?? "MUNICIPAL"];
+
   return withMongoId(
     await prisma.patient.create({
+      data: {
+        fullName: data.fullName,
+        birthDate: data.birthDate,
+        guardianName: data.guardianName,
+        phone: data.phone,
+        fundingSourceId,
+        isActive: data.isActive ?? true,
+      },
+    }),
+  );
+}
+
+export async function createPatientFundingSource(data: { name: string; isActive?: boolean }) {
+  return withMongoId(
+    await prisma.patientFundingSource.create({
       data: { isActive: true, ...data },
     }),
   );

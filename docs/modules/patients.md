@@ -1,6 +1,6 @@
 # Módulo: Pacientes
 
-**Última atualização:** 2026-06-09  
+**Última atualização:** 2026-06-10  
 **Escopo:** fullstack
 
 ---
@@ -15,9 +15,9 @@ Cadastro e gestão de pacientes da instituição. Inclui desativação com impac
 
 ### Cadastro
 
-Paciente possui: nome completo, data de nascimento, responsável, telefone, fonte de custeio e flag `isActive`.
+Paciente possui: nome completo, data de nascimento, responsável, telefone, fonte de custeio (`fundingSourceId`) e flag `isActive`.
 
-Fontes de custeio: `Municipal`, `Estadual`, `Particular`.
+Fontes de custeio são cadastradas em **Cadastros gerais → Fontes de Custeio** (`PatientFundingSource`). Valores iniciais migrados: Municipal, Estadual, Particular. Apenas fontes ativas podem ser atribuídas a novos pacientes ou em edição.
 
 ### Desativação (`isActive: false`)
 
@@ -37,7 +37,7 @@ Ao desativar, o sistema analisa sessões `AGENDADA` futuras do paciente:
 
 ### Listagem
 
-Filtros: `search` (nome ou responsável), `fundingSource`, `status` (`active`/`inactive`). Paginação: page/limit (máx 100).
+Filtros: `search` (nome ou responsável), `fundingSourceId`, `status` (`active`/`inactive`). Paginação: page/limit (máx 100).
 
 ---
 
@@ -75,7 +75,7 @@ Hook: `usePatientDeactivation.js`.
 | `birthDate` | válida, não futura, ≤120 anos | `patients.routes.ts` |
 | `guardianName` | obrigatório | `patients.routes.ts` |
 | `phone` | 10–11 dígitos, formatado `(XX) XXXXX-XXXX` | `patients.routes.ts` |
-| `fundingSource` | um de Municipal/Estadual/Particular | `patients.routes.ts` |
+| `fundingSourceId` | UUID de fonte ativa | `patients.routes.ts` |
 | `isActive` | booleano no PATCH status | `patients.routes.ts` |
 | `replacements` | array com `replacementPatientId` + `seriesId` XOR `sessionId` | `patient-deactivation.validator.ts` |
 | Cobertura de substituições | todas as séries/sessões que exigem substituto devem ter entrada | `agenda.service.ts` |

@@ -1,15 +1,19 @@
 import { Router, type Request, type Response } from "express";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../db/prisma.js";
-import { withMongoId, withMongoIdList } from "../db/serialize.js";
-import { FUNDING_SOURCES, type FundingSource } from "../domain/agenda.js";
+import { serializePatient, serializePatientList } from "../db/serialize.js";
 import { containsInsensitive, isUuid } from "../validators/agenda/agenda.utils.js";
 import { requireAuth } from "../middlewares/auth.middleware.js";
 import { agendaService } from "../services/agenda.service.js";
+import { patientFundingSourceService } from "../services/patient-funding-source.service.js";
 import { AppError } from "../errors/app-error.js";
 import { validatePatientDeactivationReplacements } from "../validators/patient-deactivation.validator.js";
 
 const router = Router();
+
+const patientInclude = {
+  fundingSource: { select: { id: true, name: true } },
+} as const;
 
 function getRouteId(param: string | string[]): string {
   return Array.isArray(param) ? (param[0] ?? "") : param;
@@ -32,7 +36,7 @@ interface PatientPayload {
   birthDate?: unknown;
   guardianName?: unknown;
   phone?: unknown;
-  fundingSource?: unknown;
+  fundingSourceId?: unknown;
 }
 
 interface PatientUpdateFields {
@@ -40,7 +44,7 @@ interface PatientUpdateFields {
   birthDate?: Date;
   guardianName?: string;
   phone?: string;
-  fundingSource?: FundingSource;
+  fundingSourceId?: string;
 }
 
 interface ValidationResult {
@@ -86,10 +90,9 @@ function normalizePhone(value: unknown): string | null {
   return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
 }
 
-function normalizeFundingSource(value: unknown): FundingSource | null {
+function normalizeFundingSourceId(value: unknown): string | null {
   const raw = normalizeText(value);
-  const found = FUNDING_SOURCES.find((item) => item.toLowerCase() === raw.toLowerCase());
-  return found ?? null;
+  return isUuid(raw) ? raw : null;
 }
 
 function validatePatientPayload(
@@ -139,14 +142,12 @@ function validatePatientPayload(
     }
   }
 
-  if (!partial || payload.fundingSource !== undefined) {
-    const fundingSource = normalizeFundingSource(payload.fundingSource);
-    if (!fundingSource) {
-      errors.push(
-        `Fonte de custeio inválida. Valores permitidos: ${FUNDING_SOURCES.join(", ")}.`,
-      );
+  if (!partial || payload.fundingSourceId !== undefined) {
+    const fundingSourceId = normalizeFundingSourceId(payload.fundingSourceId);
+    if (!fundingSourceId) {
+      errors.push("Fonte de custeio inválida.");
     } else {
-      update.fundingSource = fundingSource;
+      update.fundingSourceId = fundingSourceId;
     }
   }
 
@@ -168,9 +169,9 @@ function buildWhere(queryParams: Request["query"]): Prisma.PatientWhereInput {
     ];
   }
 
-  const fundingSource = normalizeFundingSource(queryParams.fundingSource);
-  if (fundingSource) {
-    where.fundingSource = fundingSource;
+  const fundingSourceId = normalizeFundingSourceId(queryParams.fundingSourceId);
+  if (fundingSourceId) {
+    where.fundingSourceId = fundingSourceId;
   }
 
   const status = normalizeText(queryParams.status).toLowerCase();
@@ -198,6 +199,7 @@ router.get("/patients", async (req: Request, res: Response) => {
       skip,
       take: limit,
       include: {
+        ...patientInclude,
         _count: {
           select: {
             protocols: {
@@ -211,13 +213,13 @@ router.get("/patients", async (req: Request, res: Response) => {
   ]);
 
   res.status(200).json({
-    items: withMongoIdList(rows).map((patient) => {
-      const { _count, ...rest } = patient as typeof patient & {
+    items: serializePatientList(rows).map((patient, index) => {
+      const row = rows[index] as (typeof rows)[number] & {
         _count?: { protocols: number };
       };
       return {
-        ...rest,
-        pendingProtocolCount: _count?.protocols ?? 0,
+        ...patient,
+        pendingProtocolCount: row._count?.protocols ?? 0,
       };
     }),
     pagination: {
@@ -237,17 +239,24 @@ router.post("/patients", async (req: Request, res: Response) => {
     return;
   }
 
-  const created = await prisma.patient.create({
-    data: {
-      fullName: update.fullName!,
-      birthDate: update.birthDate!,
-      guardianName: update.guardianName!,
-      phone: update.phone!,
-      fundingSource: update.fundingSource!,
-    },
-  });
+  try {
+    await patientFundingSourceService.findActiveFundingSourceOrThrow(update.fundingSourceId!);
 
-  res.status(201).json({ patient: withMongoId(created) });
+    const created = await prisma.patient.create({
+      data: {
+        fullName: update.fullName!,
+        birthDate: update.birthDate!,
+        guardianName: update.guardianName!,
+        phone: update.phone!,
+        fundingSourceId: update.fundingSourceId!,
+      },
+      include: patientInclude,
+    });
+
+    res.status(201).json({ patient: serializePatient(created) });
+  } catch (error) {
+    handleServiceError(res, error);
+  }
 });
 
 router.get("/patients/:id", async (req: Request, res: Response) => {
@@ -258,13 +267,16 @@ router.get("/patients/:id", async (req: Request, res: Response) => {
     return;
   }
 
-  const patient = await prisma.patient.findUnique({ where: { id } });
+  const patient = await prisma.patient.findUnique({
+    where: { id },
+    include: patientInclude,
+  });
   if (!patient) {
     res.status(404).json({ message: "Paciente não encontrado." });
     return;
   }
 
-  res.status(200).json({ patient: withMongoId(patient) });
+  res.status(200).json({ patient: serializePatient(patient) });
 });
 
 router.patch("/patients/:id", async (req: Request, res: Response) => {
@@ -289,12 +301,21 @@ router.patch("/patients/:id", async (req: Request, res: Response) => {
   }
 
   try {
+    if (update.fundingSourceId) {
+      await patientFundingSourceService.findActiveFundingSourceOrThrow(update.fundingSourceId);
+    }
+
     const patient = await prisma.patient.update({
       where: { id },
       data: update,
+      include: patientInclude,
     });
-    res.status(200).json({ patient: withMongoId(patient) });
-  } catch {
+    res.status(200).json({ patient: serializePatient(patient) });
+  } catch (error) {
+    if (error instanceof AppError) {
+      handleServiceError(res, error);
+      return;
+    }
     res.status(404).json({ message: "Paciente não encontrado." });
   }
 });
@@ -358,10 +379,11 @@ router.patch("/patients/:id/status", async (req: Request, res: Response) => {
     const patient = await prisma.patient.update({
       where: { id },
       data: { isActive },
+      include: patientInclude,
     });
 
     res.status(200).json({
-      patient: withMongoId(patient),
+      patient: serializePatient(patient),
       ...sessionImpact,
     });
   } catch (error) {

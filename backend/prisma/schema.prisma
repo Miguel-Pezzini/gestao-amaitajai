@@ -19,12 +19,6 @@ enum UserAccountStatus {
   INATIVO
 }
 
-enum FundingSource {
-  MUNICIPAL
-  ESTADUAL
-  PARTICULAR
-}
-
 enum SessionModality {
   INDIVIDUAL
   DUPLA
@@ -72,23 +66,36 @@ model User {
   @@index([role, accountStatus])
 }
 
-model Patient {
-  id            String        @id @default(uuid()) @db.Uuid
-  fullName      String
-  birthDate     DateTime      @db.Date
-  guardianName  String
-  phone         String
-  fundingSource FundingSource
-  isActive      Boolean       @default(true)
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+model PatientFundingSource {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
+  patients Patient[]
+
+  @@index([isActive])
+}
+
+model Patient {
+  id              String               @id @default(uuid()) @db.Uuid
+  fullName        String
+  birthDate       DateTime             @db.Date
+  guardianName    String
+  phone           String
+  fundingSourceId String               @db.Uuid
+  isActive        Boolean              @default(true)
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  fundingSource         PatientFundingSource  @relation(fields: [fundingSourceId], references: [id])
   sessionPatients       SessionPatient[]
   sessionSeriesPatients SessionSeriesPatient[]
   protocols             PatientProtocol[]
 
   @@index([isActive, fullName])
-  @@index([fundingSource, isActive, fullName])
+  @@index([fundingSourceId, isActive, fullName])
 }
 
 model ProtocolType {

@@ -87,7 +87,7 @@ function serializeProtocol(protocol: {
   updatedById: string;
   createdAt: Date;
   updatedAt: Date;
-  patient?: { id: string; fullName: string; fundingSource: string };
+  patient?: { id: string; fullName: string; fundingSource: { id: string; name: string } };
   protocolType?: { id: string; name: string; isActive: boolean; createdAt: Date; updatedAt: Date };
   createdBy?: { id: string; name: string };
   updatedBy?: { id: string; name: string };
@@ -133,7 +133,7 @@ function buildWhere(query: Record<string, unknown>): Prisma.PatientProtocolWhere
 
 const protocolInclude = {
   patient: {
-    select: { id: true, fullName: true, fundingSource: true },
+    select: { id: true, fullName: true, fundingSource: { select: { id: true, name: true } } },
   },
   protocolType: {
     select: { id: true, name: true, isActive: true, createdAt: true, updatedAt: true },

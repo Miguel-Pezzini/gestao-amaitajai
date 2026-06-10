@@ -4,9 +4,6 @@ export type UserRole = (typeof USER_ROLES)[number];
 export const USER_ACCOUNT_STATUSES = ["PENDENTE", "ATIVO", "INATIVO"] as const;
 export type UserAccountStatus = (typeof USER_ACCOUNT_STATUSES)[number];
 
-export const FUNDING_SOURCES = ["MUNICIPAL", "ESTADUAL", "PARTICULAR"] as const;
-export type FundingSource = (typeof FUNDING_SOURCES)[number];
-
 export const SESSION_MODALITIES = ["INDIVIDUAL", "DUPLA", "GRUPO"] as const;
 export type SessionModality = (typeof SESSION_MODALITIES)[number];
 

@@ -12,19 +12,19 @@ import {
   createUser,
   loginAndGetCookie,
   seedAgendaBase,
+  seedPatientFundingSources,
 } from "./helpers/test-helpers.js";
 import { useIntegrationTestDatabase } from "./helpers/integration-db.js";
 
-const validPatientPayload = {
-  fullName: "João da Silva",
-  birthDate: "2015-03-10",
-  guardianName: "Maria da Silva",
-  phone: "(47) 99999-1234",
-  fundingSource: "MUNICIPAL",
-};
-
 describe("Pacientes", () => {
   let adminCookie: string;
+  let validPatientPayload: {
+    fullName: string;
+    birthDate: string;
+    guardianName: string;
+    phone: string;
+    fundingSourceId: string;
+  };
 
   useIntegrationTestDatabase();
 
@@ -36,6 +36,15 @@ describe("Pacientes", () => {
       role: "ADMINISTRADOR",
     });
     adminCookie = await loginAndGetCookie(admin.email, "admin123456");
+
+    const fundingSources = await seedPatientFundingSources();
+    validPatientPayload = {
+      fullName: "João da Silva",
+      birthDate: "2015-03-10",
+      guardianName: "Maria da Silva",
+      phone: "(47) 99999-1234",
+      fundingSourceId: fundingSources.MUNICIPAL,
+    };
   });
 
   it("exige autenticação para listar pacientes", async () => {
@@ -51,7 +60,8 @@ describe("Pacientes", () => {
 
     expect(response.status).toBe(201);
     expect(response.body.patient.fullName).toBe(validPatientPayload.fullName);
-    expect(response.body.patient.fundingSource).toBe("MUNICIPAL");
+    expect(response.body.patient.fundingSource).toBe("Municipal");
+    expect(response.body.patient.fundingSourceId).toBe(validPatientPayload.fundingSourceId);
     expect(response.body.patient.isActive).toBe(true);
   });
 

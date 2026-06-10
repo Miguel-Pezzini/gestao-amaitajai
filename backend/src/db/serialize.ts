@@ -31,13 +31,44 @@ export function serializeSessionTypeRef(ref: SessionTypeRef | null | undefined) 
   };
 }
 
-type PatientRef = { id: string; fullName: string; fundingSource: string };
+type PatientFundingSourceRef = { id: string; name: string };
+
+type PatientWithFundingSource = {
+  id: string;
+  fullName: string;
+  birthDate?: Date;
+  guardianName?: string;
+  phone?: string;
+  fundingSourceId?: string;
+  isActive?: boolean;
+  createdAt?: Date;
+  updatedAt?: Date;
+  fundingSource: PatientFundingSourceRef;
+};
+
+export function serializePatient(record: PatientWithFundingSource) {
+  const { id, fundingSource, fundingSourceId, ...rest } = record;
+  return {
+    ...rest,
+    _id: id,
+    fundingSourceId: fundingSourceId ?? fundingSource.id,
+    fundingSource: fundingSource.name,
+  };
+}
+
+export function serializePatientList(records: PatientWithFundingSource[]) {
+  return records.map(serializePatient);
+}
+
+type PatientRef = { id: string; fullName: string; fundingSource: PatientFundingSourceRef | string };
 
 export function serializePatientRef(ref: PatientRef) {
+  const fundingSourceName =
+    typeof ref.fundingSource === "string" ? ref.fundingSource : ref.fundingSource.name;
   return {
     _id: ref.id,
     fullName: ref.fullName,
-    fundingSource: ref.fundingSource,
+    fundingSource: fundingSourceName,
   };
 }
 
@@ -71,7 +102,7 @@ export type SessionListInclude = {
   updatedAt: Date;
   sessionType: { id: string; name: string; slug: string };
   room: { id: string; name: string };
-  patients: Array<{ patient: { id: string; fullName: string; fundingSource: string } }>;
+  patients: Array<{ patient: { id: string; fullName: string; fundingSource: PatientFundingSourceRef } }>;
   professionals: Array<{ professional: { id: string; name: string; email: string; role: string } }>;
 };
 

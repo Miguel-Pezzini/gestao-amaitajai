@@ -33,16 +33,15 @@ import { DeactivatePatientDialog } from "@/features/patients/components/Deactiva
 import { PatientProtocolsDialog } from "@/features/protocols/components/PatientProtocolsDialog";
 import { PendingProtocolBadge } from "@/features/protocols/components/PendingProtocolBadge";
 import { usePatientDeactivation } from "@/hooks/usePatientDeactivation";
+import { listFundingSources } from "@/services/funding-sources";
 import { createPatient, listPatients, updatePatient } from "@/services/patients";
-
-const FUNDING_OPTIONS = ["MUNICIPAL", "ESTADUAL", "PARTICULAR"];
 
 const EMPTY_FORM = {
   fullName: "",
   birthDate: "",
   guardianName: "",
   phone: "",
-  fundingSource: "MUNICIPAL",
+  fundingSourceId: "",
 };
 
 function formatPhone(value) {
@@ -137,8 +136,8 @@ function validatePatientForm(formData) {
     errors.phone = "Telefone inválido. Use DDD + número com 10 ou 11 dígitos.";
   }
 
-  if (!formData.fundingSource) {
-    errors.fundingSource = "Fonte de custeio é obrigatória.";
+  if (!formData.fundingSourceId) {
+    errors.fundingSourceId = "Fonte de custeio é obrigatória.";
   }
 
   return errors;
@@ -149,6 +148,7 @@ function PatientForm({
   fieldErrors,
   saving,
   isEditing,
+  fundingOptions,
   onSubmit,
   onCancel,
   onFormChange,
@@ -213,25 +213,31 @@ function PatientForm({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="patient-fundingSource">Fonte de custeio</Label>
+        <Label htmlFor="patient-fundingSourceId">Fonte de custeio</Label>
         <Select
-          value={form.fundingSource}
-          onValueChange={(value) => onFormChange("fundingSource", value)}
-          disabled={saving}
+          value={form.fundingSourceId}
+          onValueChange={(value) => onFormChange("fundingSourceId", value)}
+          disabled={saving || fundingOptions.length === 0}
         >
-          <SelectTrigger id="patient-fundingSource" className="w-full">
-            <SelectValue placeholder="Selecione a fonte" />
+          <SelectTrigger id="patient-fundingSourceId" className="w-full">
+            <SelectValue
+              placeholder={
+                fundingOptions.length === 0
+                  ? "Nenhuma fonte ativa cadastrada"
+                  : "Selecione a fonte"
+              }
+            />
           </SelectTrigger>
           <SelectContent>
-            {FUNDING_OPTIONS.map((option) => (
-              <SelectItem key={option} value={option}>
-                {option}
+            {fundingOptions.map((option) => (
+              <SelectItem key={option._id} value={option._id}>
+                {option.name}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
-        {fieldErrors.fundingSource ? (
-          <p className="text-sm text-destructive">{fieldErrors.fundingSource}</p>
+        {fieldErrors.fundingSourceId ? (
+          <p className="text-sm text-destructive">{fieldErrors.fundingSourceId}</p>
         ) : null}
       </div>
 
@@ -260,6 +266,7 @@ export function PatientsPage() {
   const [fundingFilter, setFundingFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("active");
   const [patients, setPatients] = useState([]);
+  const [fundingSources, setFundingSources] = useState([]);
   const [editingId, setEditingId] = useState("");
   const [form, setForm] = useState(EMPTY_FORM);
   const [fieldErrors, setFieldErrors] = useState({});
@@ -269,13 +276,40 @@ export function PatientsPage() {
 
   const isEditing = Boolean(editingId);
 
+  const activeFundingSources = useMemo(
+    () => fundingSources.filter((item) => item.isActive),
+    [fundingSources],
+  );
+
+  const formFundingOptions = useMemo(() => {
+    if (!isEditing) {
+      return activeFundingSources;
+    }
+
+    const current = fundingSources.find((item) => item._id === form.fundingSourceId);
+    if (!current || activeFundingSources.some((item) => item._id === current._id)) {
+      return activeFundingSources;
+    }
+
+    return [...activeFundingSources, current];
+  }, [isEditing, form.fundingSourceId, activeFundingSources, fundingSources]);
+
+  async function loadFundingSources() {
+    try {
+      const response = await listFundingSources();
+      setFundingSources(response.items ?? []);
+    } catch {
+      setFundingSources([]);
+    }
+  }
+
   async function loadPatients() {
     setLoading(true);
     setError("");
     try {
       const response = await listPatients({
         search: search || undefined,
-        fundingSource: fundingFilter || undefined,
+        fundingSourceId: fundingFilter || undefined,
         status: statusFilter,
       });
       setPatients(response.items ?? []);
@@ -292,6 +326,7 @@ export function PatientsPage() {
   const deactivation = usePatientDeactivation({ onCompleted: loadPatients });
 
   useEffect(() => {
+    loadFundingSources();
     loadPatients();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -314,6 +349,10 @@ export function PatientsPage() {
 
   function openCreateDialog() {
     resetForm();
+    setForm({
+      ...EMPTY_FORM,
+      fundingSourceId: activeFundingSources[0]?._id ?? "",
+    });
     setFormDialogOpen(true);
   }
 
@@ -325,7 +364,7 @@ export function PatientsPage() {
       birthDate: patient.birthDate ? String(patient.birthDate).slice(0, 10) : "",
       guardianName: patient.guardianName ?? "",
       phone: formatPhone(patient.phone ?? ""),
-      fundingSource: patient.fundingSource ?? "MUNICIPAL",
+      fundingSourceId: patient.fundingSourceId ?? activeFundingSources[0]?._id ?? "",
     });
     setFormDialogOpen(true);
   }
@@ -442,6 +481,7 @@ export function PatientsPage() {
           fieldErrors={fieldErrors}
           saving={saving}
           isEditing={isEditing}
+          fundingOptions={formFundingOptions}
           onSubmit={handleSubmit}
           onCancel={closeFormDialog}
           onFormChange={handleFormChange}
@@ -486,9 +526,9 @@ export function PatientsPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value={SELECT_ALL_VALUE}>Todas as fontes</SelectItem>
-                  {FUNDING_OPTIONS.map((option) => (
-                    <SelectItem key={option} value={option}>
-                      {option}
+                  {fundingSources.map((option) => (
+                    <SelectItem key={option._id} value={option._id}>
+                      {option.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
