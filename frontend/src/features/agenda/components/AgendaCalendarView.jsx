@@ -31,6 +31,7 @@ export function AgendaCalendarView({
   setReferenceDate,
   onCompleteSession,
   onCancelSession,
+  onEditSession,
   onOpenCreate,
   isAdmin,
 }) {
@@ -218,6 +219,7 @@ export function AgendaCalendarView({
         isAdmin={isAdmin}
         onCompleteSession={onCompleteSession}
         onCancelSession={onCancelSession}
+        onEditSession={onEditSession}
       />
     </Card>
   );

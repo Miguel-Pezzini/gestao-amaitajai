@@ -1,6 +1,6 @@
 # Módulo: Pacientes
 
-**Última atualização:** 2026-06-10  
+**Última atualização:** 2026-06-11  
 **Escopo:** fullstack
 
 ---
@@ -63,7 +63,9 @@ Filtros: `search` (nome ou responsável), `fundingSourceId`, `status` (`active`/
 Componentes de desativação: `DeactivatePatientDialog`, `PatientReplacementPicker`.  
 Hook: `usePatientDeactivation.js`.
 
-**Lista de pacientes:** ações por item (`Protocolos`, `Editar`, `Inativar`/`Reativar`) exibidas como ícones compactos com tooltip no hover, via `EntityListIconAction` + `Tooltip` em `EntityListItem.jsx`.
+**Lista de pacientes:** ações por item (`Sessões`, `Protocolos`, `Editar`, `Inativar`/`Reativar`) exibidas como ícones compactos com tooltip no hover, via `EntityListIconAction` + `Tooltip` em `EntityListItem.jsx`.
+
+**Histórico de sessões:** ícone `Sessões` abre `PatientSessionsDialog` com listagem paginada via `GET /agenda/sessions?patientId=…&includeCancelled=true&page&limit`, filtros de status (`AGENDADA`, `REALIZADA`, `CANCELADA`) e intervalo de datas. Resumo `Mostrando X–Y de Z` e controles Anterior/Próxima (20 itens por página).
 
 **Paginação:** a listagem consome `page`/`limit` da API (20 itens por página). Resumo `Mostrando X–Y de Z` no cabeçalho; controles Anterior/Próxima via `EntityListPagination` quando há mais de uma página. Nova busca com filtros reinicia na página 1.
 

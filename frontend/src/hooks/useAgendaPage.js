@@ -9,10 +9,12 @@ import {
   listSessionTypes,
   searchAgendaPatients,
   searchAgendaProfessionals,
+  updateSession,
 } from "@/services/agenda";
 import { useToast } from "@/contexts/toast-context";
 import {
   buildInitialSessionForm,
+  buildSessionFormFromSession,
   DEFAULT_SESSION_START_TIME,
   buildSessionLimitsMap,
   canAddSessionPatient,
@@ -53,6 +55,10 @@ export function useAgendaPage(user) {
   const [form, setForm] = useState(() => buildInitialSessionForm());
   const [fieldErrors, setFieldErrors] = useState(EMPTY_FIELD_ERRORS);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editSessionId, setEditSessionId] = useState("");
+  const [editSessionHasSeries, setEditSessionHasSeries] = useState(false);
+  const [updateScope, setUpdateScope] = useState("SINGLE");
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [cancelSessionId, setCancelSessionId] = useState("");
   const [cancelSessionHasSeries, setCancelSessionHasSeries] = useState(false);
@@ -113,8 +119,10 @@ export function useAgendaPage(user) {
     loadSessions();
   }, []);
 
+  const sessionFormOpen = createDialogOpen || editDialogOpen;
+
   useEffect(() => {
-    if (!createDialogOpen || catalogsLoaded) {
+    if (!sessionFormOpen || catalogsLoaded) {
       return;
     }
 
@@ -136,6 +144,7 @@ export function useAgendaPage(user) {
             ),
           );
           setCreateDialogOpen(false);
+          setEditDialogOpen(false);
         }
       } finally {
         if (mounted) {
@@ -149,10 +158,10 @@ export function useAgendaPage(user) {
     return () => {
       mounted = false;
     };
-  }, [createDialogOpen, catalogsLoaded]);
+  }, [sessionFormOpen, catalogsLoaded]);
 
   useEffect(() => {
-    if (!createDialogOpen) {
+    if (!sessionFormOpen) {
       return;
     }
 
@@ -175,10 +184,10 @@ export function useAgendaPage(user) {
     }, 250);
 
     return () => clearTimeout(timeoutId);
-  }, [patientTerm, createDialogOpen]);
+  }, [patientTerm, sessionFormOpen]);
 
   useEffect(() => {
-    if (!createDialogOpen) {
+    if (!sessionFormOpen) {
       return;
     }
 
@@ -207,7 +216,7 @@ export function useAgendaPage(user) {
     }, 250);
 
     return () => clearTimeout(timeoutId);
-  }, [createDialogOpen, form.startDate, form.startTime, form.durationMinutes]);
+  }, [sessionFormOpen, form.startDate, form.startTime, form.durationMinutes]);
 
   function clearFieldError(field) {
     setFieldErrors((current) => {
@@ -303,6 +312,32 @@ export function useAgendaPage(user) {
     resetCreateForm();
   }
 
+  function closeEditDialog() {
+    setEditDialogOpen(false);
+    setEditSessionId("");
+    setEditSessionHasSeries(false);
+    setUpdateScope("SINGLE");
+    resetCreateForm();
+  }
+
+  function openEditDialog(sessionId) {
+    const session = sessions.find((item) => item._id === sessionId);
+    if (!session || session.status !== "AGENDADA") {
+      return;
+    }
+
+    setEditSessionId(sessionId);
+    setEditSessionHasSeries(Boolean(session.seriesId));
+    setUpdateScope("SINGLE");
+    setForm(buildSessionFormFromSession(session));
+    setFieldErrors(EMPTY_FIELD_ERRORS);
+    setPatientTerm("");
+    setPatientOptions([]);
+    setProfessionalRoster([]);
+    setProfessionalAvailabilityMeta(null);
+    setEditDialogOpen(true);
+  }
+
   function openCreateDialog(day, startTime = DEFAULT_SESSION_START_TIME) {
     if (day) {
       const { startDate } = splitStartDateTime(day);
@@ -342,6 +377,20 @@ export function useAgendaPage(user) {
       return { ...current, sessionTypeId, roomId, modality };
     });
   }, [createDialogOpen, sessionTypes, rooms]);
+
+  useEffect(() => {
+    if (!editDialogOpen || sessionTypes.length === 0 || rooms.length === 0) {
+      return;
+    }
+    setForm((current) => {
+      const allowed = getAllowedModalitiesBySessionType(current.sessionTypeId);
+      const modality = allowed.includes(current.modality) ? current.modality : allowed[0] ?? current.modality;
+      if (modality === current.modality) {
+        return current;
+      }
+      return { ...current, modality };
+    });
+  }, [editDialogOpen, sessionTypes, rooms]);
 
   function openCancelDialog(sessionId) {
     const session = sessions.find((item) => item._id === sessionId);
@@ -445,6 +494,55 @@ export function useAgendaPage(user) {
       selectedProfessionals: current.selectedProfessionals.filter((item) => item.id !== professionalId),
     }));
     clearFieldError("professionals");
+  }
+
+  async function handleUpdateSession(event) {
+    event.preventDefault();
+    if (!editSessionId) {
+      return;
+    }
+
+    setSaving(true);
+
+    const errors = getSessionFormFieldErrors(form, sessionLimits);
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      setSaving(false);
+      return;
+    }
+
+    setFieldErrors(EMPTY_FIELD_ERRORS);
+
+    const payload = {
+      sessionTypeId: form.sessionTypeId,
+      modality: form.modality,
+      roomId: form.roomId,
+      startAt: new Date(combineStartDateTime(form.startDate, form.startTime)).toISOString(),
+      durationMinutes: Number.parseInt(form.durationMinutes, 10),
+      patientIds: form.selectedPatients.map((item) => item.id),
+      professionalIds: form.selectedProfessionals.map((item) => item.id),
+      notes: form.notes.trim(),
+      updateScope,
+    };
+
+    try {
+      const result = await updateSession(editSessionId, payload);
+      closeEditDialog();
+      const count = result.sessionsUpdated ?? 1;
+      toast.success(
+        count > 1 ? `${count} sessões atualizadas com sucesso.` : "Sessão atualizada com sucesso.",
+      );
+      await loadSessions();
+    } catch (err) {
+      toast.error(
+        getApiErrorMessage(
+          err,
+          "Não foi possível atualizar a sessão. Verifique os dados e tente novamente.",
+        ),
+      );
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function handleCreateSession(event) {
@@ -554,6 +652,11 @@ export function useAgendaPage(user) {
     fieldErrors,
     createDialogOpen,
     setCreateDialogOpen,
+    editDialogOpen,
+    setEditDialogOpen,
+    editSessionHasSeries,
+    updateScope,
+    handleUpdateScopeChange: setUpdateScope,
     cancelDialogOpen,
     setCancelDialogOpen,
     cancelReason,
@@ -575,6 +678,8 @@ export function useAgendaPage(user) {
     handleFormChange,
     openCreateDialog,
     closeCreateDialog,
+    openEditDialog,
+    closeEditDialog,
     openCancelDialog,
     closeCancelDialog,
     addPatient,
@@ -582,6 +687,7 @@ export function useAgendaPage(user) {
     addProfessional,
     removeProfessional,
     handleCreateSession,
+    handleUpdateSession,
     handleCompleteSession,
     handleCancelSession,
     handleToggleRecurrence,

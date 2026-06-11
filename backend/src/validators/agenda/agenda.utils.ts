@@ -62,6 +62,22 @@ export function parseLimit(value: unknown, fallback = 10, max = 30): number {
   return Math.min(parsed, max);
 }
 
+export function parsePage(value: unknown, fallback = 1): number {
+  const parsed = Number.parseInt(String(value), 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return fallback;
+  }
+  return parsed;
+}
+
+export function parseListLimit(value: unknown, fallback = 20, max = 100): number {
+  return parseLimit(value, fallback, max);
+}
+
+export function shouldPaginateList(query: Record<string, unknown>): boolean {
+  return query.page !== undefined || query.limit !== undefined;
+}
+
 export function containsInsensitive(term: string): Prisma.StringFilter {
   return { contains: term, mode: "insensitive" };
 }

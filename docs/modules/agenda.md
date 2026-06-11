@@ -1,6 +1,6 @@
 # Módulo: Agenda
 
-**Última atualização:** 2026-06-09  
+**Última atualização:** 2026-06-11  
 **Escopo:** fullstack
 
 ---
@@ -41,7 +41,8 @@ Uma sessão tem: data/hora, duração, sala, tipo de atendimento, modalidade (`I
 - Ao criar sessão com `recurrence.enabled = true`, gera série (`SessionSeries`) e múltiplas ocorrências.
 - Campos: `weekdays` (0=dom … 6=sáb), `endsAt` (default: +90 dias do início).
 - Conflitos em qualquer data da série bloqueiam a criação inteira.
-- Edição/cancelamento suportam escopo: `SINGLE` (só esta), `FUTURE` (esta e futuras), `ALL` (toda a série, só cancelamento).
+- Edição/cancelamento suportam escopo: `SINGLE` (só esta), `FUTURE` (esta e futuras), `ALL` (toda a série).
+- Sessões `CANCELADA` não aparecem na listagem padrão da agenda (calendário); permanecem consultáveis no histórico do paciente.
 
 ### Tipos de atendimento
 
@@ -79,11 +80,11 @@ Uma sessão tem: data/hora, duração, sala, tipo de atendimento, modalidade (`I
 | PATCH | `/agenda/session-modalities/:modality` | admin | Atualizar limites |
 | GET | `/agenda/sessions` | auth | Lista sessões (técnico: só as suas) |
 | POST | `/agenda/sessions` | admin | Criar sessão (com ou sem recorrência) |
-| PATCH | `/agenda/sessions/:id` | admin | Editar sessão (escopo SINGLE/FUTURE) |
+| PATCH | `/agenda/sessions/:id` | admin | Editar sessão (escopo SINGLE/FUTURE/ALL) |
 | PATCH | `/agenda/sessions/:id/cancel` | admin | Cancelar (escopo SINGLE/FUTURE/ALL) |
 | PATCH | `/agenda/sessions/:id/complete` | auth | Marcar como realizada |
 
-Filtros de listagem: `status`, `startAt`, `endAt`, `professionalId` (só admin).
+Filtros de listagem: `status`, `startAt`, `endAt`, `professionalId` (só admin), `patientId`, `includeCancelled` (inclui canceladas quando `status` não é informado). Com `page`/`limit`, retorna `pagination` (20 itens por página no histórico do paciente; agenda sem paginação).
 
 ### Frontend
 
@@ -91,7 +92,9 @@ Filtros de listagem: `status`, `startAt`, `endAt`, `professionalId` (só admin).
 |---|---|---|
 | `/agenda` | `AgendaPage` | Calendário dia/semana/mês; criar, editar, cancelar, detalhar sessões |
 
-Visões: dia, semana (grade horária), mês, semana por slot. Suporte a recorrência na criação/edição/cancelamento.
+Visões: dia, semana (grade horária), mês, semana por slot. Suporte a recorrência na criação/cancelamento; edição com escopo em séries recorrentes. Sessões canceladas somem do calendário após o cancelamento.
+
+**Pacientes → Sessões:** `PatientSessionsDialog` lista o histórico de sessões do paciente com filtros de status e período (inclui canceladas).
 
 ---
 

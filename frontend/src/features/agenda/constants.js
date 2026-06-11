@@ -8,6 +8,7 @@ import {
   defaultRecurrenceEndsAt,
   getWeekdayFromDateString,
 } from "@/features/agenda/utils/recurrence";
+import { splitStartDateTime } from "@/features/agenda/utils";
 import {
   OCCUPANCY_START_HOUR,
   OCCUPANCY_TOTAL_SLOTS,
@@ -240,5 +241,32 @@ export function buildInitialSessionForm(sessionTypes = [], rooms = [], overrides
     recurrenceEndsAt: overrides.recurrenceEndsAt ?? defaultRecurrenceEndsAt(startDate),
     recurrenceWeekdays:
       overrides.recurrenceWeekdays ?? (weekday !== null ? [weekday] : []),
+  };
+}
+
+export function buildSessionFormFromSession(session) {
+  const { startDate, startTime } = splitStartDateTime(session?.startAt);
+  const sessionTypeRef = session?.sessionTypeId;
+  const roomRef = session?.roomId;
+
+  return {
+    ...EMPTY_FORM,
+    sessionTypeId: sessionTypeRef?._id ?? sessionTypeRef ?? "",
+    modality: session?.modality ?? "INDIVIDUAL",
+    roomId: roomRef?._id ?? roomRef ?? "",
+    startDate,
+    startTime,
+    durationMinutes: String(session?.durationMinutes ?? 60),
+    notes: session?.notes ?? "",
+    selectedPatients: (session?.patientIds ?? []).map((patient) => ({
+      id: patient._id ?? patient.id ?? patient,
+      label: patient.fullName ?? patient.label ?? "Paciente",
+    })),
+    selectedProfessionals: (session?.professionalIds ?? []).map((professional) => ({
+      id: professional._id ?? professional.id ?? professional,
+      label: professional.name
+        ? `${professional.name}${professional.role ? ` (${professional.role})` : ""}`
+        : professional.label ?? "Profissional",
+    })),
   };
 }

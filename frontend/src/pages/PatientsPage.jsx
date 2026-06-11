@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ClipboardList, Pencil, UserCheck, UserX } from "lucide-react";
+import { CalendarDays, ClipboardList, Pencil, UserCheck, UserX } from "lucide-react";
 import {
   EntityList,
   EntityListItem,
@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/select";
 import { SELECT_ALL_VALUE } from "@/constants/select";
 import { useSession } from "@/contexts/session-context";
+import { PatientSessionsDialog } from "@/features/agenda/components/PatientSessionsDialog";
 import { DeactivatePatientDialog } from "@/features/patients/components/DeactivatePatientDialog";
 import { PatientProtocolsDialog } from "@/features/protocols/components/PatientProtocolsDialog";
 import { PendingProtocolBadge } from "@/features/protocols/components/PendingProtocolBadge";
@@ -281,6 +282,8 @@ export function PatientsPage() {
   const [formDialogOpen, setFormDialogOpen] = useState(false);
   const [protocolsPatient, setProtocolsPatient] = useState(null);
   const [protocolsDialogOpen, setProtocolsDialogOpen] = useState(false);
+  const [sessionsPatient, setSessionsPatient] = useState(null);
+  const [sessionsDialogOpen, setSessionsDialogOpen] = useState(false);
 
   const isEditing = Boolean(editingId);
 
@@ -436,6 +439,16 @@ export function PatientsPage() {
     setProtocolsPatient(null);
   }
 
+  function openSessionsDialog(patient) {
+    setSessionsPatient(patient);
+    setSessionsDialogOpen(true);
+  }
+
+  function closeSessionsDialog() {
+    setSessionsDialogOpen(false);
+    setSessionsPatient(null);
+  }
+
   return (
     <div className="relative min-w-0 space-y-4 pb-24 sm:space-y-6">
       <Card className="overflow-hidden border-ama-cyan/30">
@@ -463,6 +476,14 @@ export function PatientsPage() {
           if (!open) closeProtocolsDialog();
         }}
         onChanged={loadPatients}
+      />
+
+      <PatientSessionsDialog
+        patient={sessionsPatient}
+        open={sessionsDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) closeSessionsDialog();
+        }}
       />
 
       <DeactivatePatientDialog
@@ -609,6 +630,11 @@ export function PatientsPage() {
                   <EntityListItemFooterRow
                     actions={
                       <>
+                        <EntityListIconAction
+                          icon={CalendarDays}
+                          label="Sessões"
+                          onClick={() => openSessionsDialog(patient)}
+                        />
                         <EntityListIconAction
                           icon={ClipboardList}
                           label="Protocolos"

@@ -16,7 +16,7 @@ export type SessionSeriesStatus = (typeof SESSION_SERIES_STATUSES)[number];
 export const CANCEL_SCOPES = ["SINGLE", "FUTURE", "ALL"] as const;
 export type CancelScope = (typeof CANCEL_SCOPES)[number];
 
-export const UPDATE_SCOPES = ["SINGLE", "FUTURE"] as const;
+export const UPDATE_SCOPES = ["SINGLE", "FUTURE", "ALL"] as const;
 export type UpdateScope = (typeof UPDATE_SCOPES)[number];
 
 export function buildPatientDeactivatedCancelReason(patientFullName: string): string {

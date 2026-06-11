@@ -20,6 +20,7 @@ import {
   SESSION_MODALITIES,
   USER_ROLES,
   type SessionModality,
+  type UpdateScope,
   type UserRole,
 } from "../domain/agenda.js";
 import {
@@ -28,6 +29,9 @@ import {
   normalizeText,
   parseDate,
   parseLimit,
+  parseListLimit,
+  parsePage,
+  shouldPaginateList,
   isUuid,
 } from "../validators/agenda/agenda.utils.js";
 import {
@@ -518,13 +522,41 @@ export class AgendaService {
 
   async listSessions(query: Record<string, unknown>, currentUser: AuthenticatedUser) {
     const where = this.buildSessionListWhere(query, currentUser);
-    const sessions = await prisma.session.findMany({
-      where,
-      orderBy: { startAt: "asc" },
-      include: SESSION_LIST_INCLUDE,
-    });
 
-    return { items: sessions.map(serializeSessionForList) };
+    if (!shouldPaginateList(query)) {
+      const sessions = await prisma.session.findMany({
+        where,
+        orderBy: { startAt: "asc" },
+        include: SESSION_LIST_INCLUDE,
+      });
+
+      return { items: sessions.map(serializeSessionForList) };
+    }
+
+    const page = parsePage(query.page, 1);
+    const limit = parseListLimit(query.limit, 20, 100);
+    const skip = (page - 1) * limit;
+
+    const [sessions, total] = await Promise.all([
+      prisma.session.findMany({
+        where,
+        orderBy: { startAt: "desc" },
+        skip,
+        take: limit,
+        include: SESSION_LIST_INCLUDE,
+      }),
+      prisma.session.count({ where }),
+    ]);
+
+    return {
+      items: sessions.map(serializeSessionForList),
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit) || 1,
+      },
+    };
   }
 
   async createSession(payload: SessionPayloadWithRecurrence, currentUser: AuthenticatedUser) {
@@ -607,72 +639,84 @@ export class AgendaService {
       normalized.patientIds.length,
       normalized.professionalIds.length,
     );
-    const startAt = normalized.startAt as Date;
+    const payloadStartAt = normalized.startAt as Date;
 
     const references = await this.loadSessionReferences(normalized);
     validateSessionModality(references.sessionType.allowedModalities, normalized.modality);
 
-    const endAt = this.computeSessionEndAt(startAt, normalized.durationMinutes);
-    await this.assertNoSchedulingConflicts({
-      startAt,
-      endAt,
-      roomId: normalized.roomId,
-      patientIds: normalized.patientIds,
-      professionalIds: normalized.professionalIds,
-      excludeSessionId: sessionId,
-    });
+    const targetSessions = await this.getSessionsForUpdateScope(existing, updateScope);
+    const excludeSessionIds = targetSessions.map((item) => item.id);
 
-    const existingProfessionalIds = existing.professionals
-      .map((row) => row.professionalId)
-      .sort();
-    const nextProfessionalIds = [...normalized.professionalIds].sort();
-    const professionalsChanged =
-      existingProfessionalIds.length !== nextProfessionalIds.length ||
-      existingProfessionalIds.some((id, index) => id !== nextProfessionalIds[index]);
+    for (const target of targetSessions) {
+      const { startAt, endAt } = this.computeUpdatedSessionTimes(
+        updateScope,
+        target.startAt,
+        payloadStartAt,
+        normalized.durationMinutes,
+      );
+      await this.assertNoSchedulingConflicts({
+        startAt,
+        endAt,
+        roomId: normalized.roomId,
+        patientIds: normalized.patientIds,
+        professionalIds: normalized.professionalIds,
+        excludeSessionIds,
+      });
+    }
 
     const session = await prisma.$transaction(async (tx) => {
-      await tx.sessionPatient.deleteMany({ where: { sessionId } });
-      await tx.sessionProfessional.deleteMany({ where: { sessionId } });
+      for (const target of targetSessions) {
+        const { startAt, endAt } = this.computeUpdatedSessionTimes(
+          updateScope,
+          target.startAt,
+          payloadStartAt,
+          normalized.durationMinutes,
+        );
 
-      const updated = await tx.session.update({
-        where: { id: sessionId },
-        data: {
-          sessionTypeId: normalized.sessionTypeId,
-          modality: normalized.modality,
-          roomId: normalized.roomId,
-          startAt,
-          endAt,
-          durationMinutes: normalized.durationMinutes,
-          notes: normalized.notes,
-          updatedById: currentUser._id,
-          patients: {
-            create: normalized.patientIds.map((patientId) => ({ patientId })),
-          },
-          professionals: {
-            create: normalized.professionalIds.map((professionalId) => ({ professionalId })),
-          },
-        },
-        include: SESSION_LIST_INCLUDE,
-      });
+        await tx.sessionPatient.deleteMany({ where: { sessionId: target.id } });
+        await tx.sessionProfessional.deleteMany({ where: { sessionId: target.id } });
 
-      if (
-        professionalsChanged &&
-        updateScope === "FUTURE" &&
-        existing.seriesId
-      ) {
-        await this.applySeriesProfessionalUpdate(
+        await tx.session.update({
+          where: { id: target.id },
+          data: {
+            sessionTypeId: normalized.sessionTypeId,
+            modality: normalized.modality,
+            roomId: normalized.roomId,
+            startAt,
+            endAt,
+            durationMinutes: normalized.durationMinutes,
+            notes: normalized.notes,
+            updatedById: currentUser._id,
+            patients: {
+              create: normalized.patientIds.map((patientId) => ({ patientId })),
+            },
+            professionals: {
+              create: normalized.professionalIds.map((professionalId) => ({ professionalId })),
+            },
+          },
+        });
+      }
+
+      if (existing.seriesId && updateScope !== "SINGLE") {
+        await this.applySeriesMetadataUpdate(
           tx,
           existing.seriesId,
-          existing.startAt,
-          normalized.professionalIds,
+          normalized,
+          payloadStartAt,
           currentUser,
         );
       }
 
-      return updated;
+      return tx.session.findUniqueOrThrow({
+        where: { id: sessionId },
+        include: SESSION_LIST_INCLUDE,
+      });
     });
 
-    return { session: serializeSessionRecord(session) };
+    return {
+      session: serializeSessionRecord(session),
+      sessionsUpdated: targetSessions.length,
+    };
   }
 
   async cancelSession(
@@ -1204,6 +1248,8 @@ export class AgendaService {
     const status = normalizeText(query.status).toUpperCase();
     if (status && ["AGENDADA", "REALIZADA", "CANCELADA"].includes(status)) {
       where.status = status as PrismaSessionStatus;
+    } else if (!this.queryIncludesCancelled(query)) {
+      where.status = { not: "CANCELADA" };
     }
 
     const startAt = parseDate(query.startAt);
@@ -1211,6 +1257,11 @@ export class AgendaService {
     if (startAt && endAt) {
       where.startAt = { lt: endAt };
       where.endAt = { gt: startAt };
+    }
+
+    const patientId = normalizeText(query.patientId);
+    if (patientId && isUuid(patientId)) {
+      where.patients = { some: { patientId } };
     }
 
     const professionalId = normalizeText(query.professionalId);
@@ -1223,6 +1274,11 @@ export class AgendaService {
     }
 
     return where;
+  }
+
+  private queryIncludesCancelled(query: Record<string, unknown>): boolean {
+    const raw = query.includeCancelled;
+    return raw === true || raw === "true" || raw === "1";
   }
 
   private computeSessionEndAt(startAt: Date, durationMinutes: number): Date {
@@ -1350,45 +1406,85 @@ export class AgendaService {
     return conflicts;
   }
 
-  private async applySeriesProfessionalUpdate(
+  private async getSessionsForUpdateScope(
+    existing: Awaited<ReturnType<AgendaService["findSessionOrThrow"]>>,
+    updateScope: UpdateScope,
+  ) {
+    if (updateScope === "SINGLE" || !existing.seriesId) {
+      return [existing];
+    }
+
+    const where: Prisma.SessionWhereInput =
+      updateScope === "FUTURE"
+        ? {
+            seriesId: existing.seriesId,
+            status: "AGENDADA",
+            startAt: { gte: existing.startAt },
+          }
+        : {
+            seriesId: existing.seriesId,
+            status: "AGENDADA",
+          };
+
+    return prisma.session.findMany({
+      where,
+      orderBy: { startAt: "asc" },
+      include: {
+        patients: { select: { patientId: true } },
+        professionals: { select: { professionalId: true } },
+      },
+    });
+  }
+
+  private computeUpdatedSessionTimes(
+    updateScope: UpdateScope,
+    originalStartAt: Date,
+    payloadStartAt: Date,
+    durationMinutes: number,
+  ): { startAt: Date; endAt: Date } {
+    let startAt: Date;
+    if (updateScope === "SINGLE") {
+      startAt = payloadStartAt;
+    } else {
+      startAt = new Date(originalStartAt);
+      startAt.setHours(payloadStartAt.getHours(), payloadStartAt.getMinutes(), 0, 0);
+    }
+
+    return {
+      startAt,
+      endAt: this.computeSessionEndAt(startAt, durationMinutes),
+    };
+  }
+
+  private async applySeriesMetadataUpdate(
     tx: Prisma.TransactionClient,
     seriesId: string,
-    fromStartAt: Date,
-    professionalIds: string[],
+    normalized: ReturnType<typeof normalizeSessionInput>,
+    payloadStartAt: Date,
     currentUser: AuthenticatedUser,
   ) {
+    await tx.sessionSeriesPatient.deleteMany({ where: { seriesId } });
+    await tx.sessionSeriesPatient.createMany({
+      data: normalized.patientIds.map((patientId) => ({ seriesId, patientId })),
+    });
+
     await tx.sessionSeriesProfessional.deleteMany({ where: { seriesId } });
     await tx.sessionSeriesProfessional.createMany({
-      data: professionalIds.map((professionalId) => ({ seriesId, professionalId })),
+      data: normalized.professionalIds.map((professionalId) => ({ seriesId, professionalId })),
     });
 
     await tx.sessionSeries.update({
       where: { id: seriesId },
-      data: { updatedById: currentUser._id },
-    });
-
-    const futureSessions = await tx.session.findMany({
-      where: {
-        seriesId,
-        status: "AGENDADA",
-        startAt: { gte: fromStartAt },
+      data: {
+        sessionTypeId: normalized.sessionTypeId,
+        modality: normalized.modality,
+        roomId: normalized.roomId,
+        durationMinutes: normalized.durationMinutes,
+        timeMinutes: getTimeMinutesFromDate(payloadStartAt),
+        notes: normalized.notes,
+        updatedById: currentUser._id,
       },
-      select: { id: true },
     });
-
-    for (const futureSession of futureSessions) {
-      await tx.sessionProfessional.deleteMany({ where: { sessionId: futureSession.id } });
-      await tx.sessionProfessional.createMany({
-        data: professionalIds.map((professionalId) => ({
-          sessionId: futureSession.id,
-          professionalId,
-        })),
-      });
-      await tx.session.update({
-        where: { id: futureSession.id },
-        data: { updatedById: currentUser._id },
-      });
-    }
   }
 
   private async persistRoomCreate(name: string) {
@@ -1570,11 +1666,13 @@ export class AgendaService {
     patientIds: string[];
     professionalIds: string[];
     excludeSessionId?: string;
+    excludeSessionIds?: string[];
   }) {
     const overlapWhere = buildSessionOverlapWhere({
       startAt: params.startAt,
       endAt: params.endAt,
       excludeSessionId: params.excludeSessionId,
+      excludeSessionIds: params.excludeSessionIds,
     });
 
     const [roomConflict, professionalConflict, patientConflict] = await Promise.all([

@@ -67,6 +67,20 @@ export async function listSessions(params = {}, config = {}) {
   return data;
 }
 
+export async function listPatientSessions(patientId, params = {}) {
+  const query = {
+    patientId,
+    page: 1,
+    limit: 20,
+    ...params,
+  };
+  if (!query.status) {
+    query.includeCancelled = "true";
+  }
+  const { data } = await getOnce("/agenda/sessions", { params: query });
+  return data;
+}
+
 export async function createSession(payload) {
   const { data } = await api.post("/agenda/sessions", payload);
   return data;

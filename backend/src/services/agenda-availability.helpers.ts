@@ -4,20 +4,23 @@ export type SessionOverlapWhere = {
   status: { not: "CANCELADA" };
   startAt: { lt: Date };
   endAt: { gt: Date };
-  id?: { not: string };
+  id?: { not: string } | { notIn: string[] };
 };
 
 export function buildSessionOverlapWhere(params: {
   startAt: Date;
   endAt: Date;
   excludeSessionId?: string;
+  excludeSessionIds?: string[];
 }): SessionOverlapWhere {
   const where: SessionOverlapWhere = {
     status: { not: "CANCELADA" },
     startAt: { lt: params.endAt },
     endAt: { gt: params.startAt },
   };
-  if (params.excludeSessionId) {
+  if (params.excludeSessionIds?.length) {
+    where.id = { notIn: params.excludeSessionIds };
+  } else if (params.excludeSessionId) {
     where.id = { not: params.excludeSessionId };
   }
   return where;

@@ -17,13 +17,14 @@ import {
   getParticipantCountLabels,
   SESSION_FORMAT_LABELS,
 } from "@/features/agenda/constants";
-import { WEEKDAY_OPTIONS } from "@/features/agenda/utils/recurrence";
+import { UPDATE_SCOPE_OPTIONS, WEEKDAY_OPTIONS } from "@/features/agenda/utils/recurrence";
 
 export function CreateSessionDialog({
   open,
   setOpen,
   saving,
   loadingCatalogs = false,
+  mode = "create",
   form,
   fieldErrors,
   sessionTypes,
@@ -47,7 +48,11 @@ export function CreateSessionDialog({
   onRemoveProfessional,
   onToggleRecurrence,
   onToggleRecurrenceWeekday,
+  hasSeries = false,
+  updateScope = "SINGLE",
+  onUpdateScopeChange,
 }) {
+  const isEdit = mode === "edit";
   const participantCounts = getParticipantCountLabels(
     form.modality,
     form.selectedPatients.length,
@@ -75,7 +80,12 @@ export function CreateSessionDialog({
         }
         setOpen(true);
       }}
-      title="Nova sessão"
+      title={isEdit ? "Editar sessão" : "Nova sessão"}
+      description={
+        isEdit
+          ? "Altere os dados da sessão. Sessões recorrentes permitem escolher o escopo da edição."
+          : undefined
+      }
     >
       {loadingCatalogs ? (
         <p className="text-sm text-muted-foreground">Carregando…</p>
@@ -228,6 +238,31 @@ export function CreateSessionDialog({
             />
           </div>
 
+          {isEdit && hasSeries ? (
+            <fieldset className="space-y-2 rounded-lg border border-ama-cyan/20 bg-ama-light/20 p-3">
+              <legend className="px-1 text-sm font-medium">Escopo da edição</legend>
+              <div className="space-y-2">
+                {UPDATE_SCOPE_OPTIONS.map((option) => (
+                  <label
+                    key={option.value}
+                    className="flex cursor-pointer items-center gap-2 rounded-md border border-ama-cyan/20 px-3 py-2 text-sm"
+                  >
+                    <input
+                      type="radio"
+                      name="updateScope"
+                      value={option.value}
+                      checked={updateScope === option.value}
+                      onChange={() => onUpdateScopeChange?.(option.value)}
+                      disabled={saving}
+                    />
+                    {option.label}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          ) : null}
+
+          {!isEdit ? (
           <div className="space-y-3 rounded-lg border border-ama-cyan/20 bg-ama-light/20 p-3">
             <label className="flex cursor-pointer items-center gap-2 text-sm font-medium">
               <input
@@ -284,6 +319,7 @@ export function CreateSessionDialog({
               </div>
             ) : null}
           </div>
+          ) : null}
 
           <div className="flex flex-col gap-2 pt-2 sm:flex-row">
             <Button
@@ -293,9 +329,11 @@ export function CreateSessionDialog({
             >
               {saving
                 ? "Salvando..."
-                : form.recurrenceEnabled
-                  ? "Criar série recorrente"
-                  : "Criar sessão"}
+                : isEdit
+                  ? "Salvar alterações"
+                  : form.recurrenceEnabled
+                    ? "Criar série recorrente"
+                    : "Criar sessão"}
             </Button>
             <Button
               type="button"

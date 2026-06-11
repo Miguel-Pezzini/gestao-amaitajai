@@ -878,6 +878,93 @@ describe("Agenda integration", () => {
         .send({ cancelReason: "Reagendamento" });
       expect(cancelled.status).toBe(200);
       expect(cancelled.body.session.status).toBe("CANCELADA");
+
+      const defaultList = await request(app)
+        .get("/api/agenda/sessions")
+        .set("Cookie", adminCookie);
+      expect(defaultList.status).toBe(200);
+      expect(defaultList.body.items.some((item: { _id: string }) => item._id === sessionId)).toBe(
+        false,
+      );
+
+      const cancelledList = await request(app)
+        .get("/api/agenda/sessions")
+        .set("Cookie", adminCookie)
+        .query({ status: "CANCELADA" });
+      expect(cancelledList.status).toBe(200);
+      expect(cancelledList.body.items.some((item: { _id: string }) => item._id === sessionId)).toBe(
+        true,
+      );
+    });
+
+    it("pagina sessões por paciente quando page e limit são informados", async () => {
+      const { adminCookie, paciente, profissional, room, sessionType } = await seedAgendaBase();
+
+      for (let index = 0; index < 3; index += 1) {
+        const day = String(10 + index).padStart(2, "0");
+        await request(app)
+          .post("/api/agenda/sessions")
+          .set("Cookie", adminCookie)
+          .send(
+            buildSessionPayload({
+              sessionTypeId: sessionType._id,
+              roomId: room._id,
+              patientIds: [paciente._id],
+              professionalIds: [profissional._id],
+              startAt: `2026-06-${day}T10:00:00.000Z`,
+            }),
+          );
+      }
+
+      const page1 = await request(app)
+        .get("/api/agenda/sessions")
+        .set("Cookie", adminCookie)
+        .query({ patientId: paciente._id, includeCancelled: "true", page: 1, limit: 2 });
+      expect(page1.status).toBe(200);
+      expect(page1.body.items).toHaveLength(2);
+      expect(page1.body.pagination).toMatchObject({
+        page: 1,
+        limit: 2,
+        total: 3,
+        totalPages: 2,
+      });
+
+      const page2 = await request(app)
+        .get("/api/agenda/sessions")
+        .set("Cookie", adminCookie)
+        .query({ patientId: paciente._id, includeCancelled: "true", page: 2, limit: 2 });
+      expect(page2.status).toBe(200);
+      expect(page2.body.items).toHaveLength(1);
+    });
+
+    it("filtra sessões por paciente e inclui canceladas com includeCancelled", async () => {
+      const { adminCookie, paciente, profissional, room, sessionType } = await seedAgendaBase();
+
+      const created = await request(app)
+        .post("/api/agenda/sessions")
+        .set("Cookie", adminCookie)
+        .send(
+          buildSessionPayload({
+            sessionTypeId: sessionType._id,
+            roomId: room._id,
+            patientIds: [paciente._id],
+            professionalIds: [profissional._id],
+          }),
+        );
+      const sessionId = created.body.session._id as string;
+
+      await request(app)
+        .patch(`/api/agenda/sessions/${sessionId}/cancel`)
+        .set("Cookie", adminCookie)
+        .send({ cancelReason: "Teste histórico paciente" });
+
+      const patientHistory = await request(app)
+        .get("/api/agenda/sessions")
+        .set("Cookie", adminCookie)
+        .query({ patientId: paciente._id, includeCancelled: "true" });
+      expect(patientHistory.status).toBe(200);
+      expect(patientHistory.body.items).toHaveLength(1);
+      expect(patientHistory.body.items[0].status).toBe("CANCELADA");
     });
 
     it("permite técnico concluir somente sessão própria", async () => {
@@ -1134,6 +1221,75 @@ describe("Agenda integration", () => {
         .send({ cancelReason: "Encerramento", scope: "ALL" });
       expect(cancelAll.status).toBe(200);
       expect(cancelAll.body.sessionsCancelled).toBe(seriesSessions.length);
+    });
+
+    it("edita sessões recorrentes com escopo futuro e todos", async () => {
+      const { adminCookie, paciente, profissional, room, sessionType } = await seedAgendaBase();
+
+      const created = await request(app)
+        .post("/api/agenda/sessions")
+        .set("Cookie", adminCookie)
+        .send(
+          buildRecurringSessionPayload({
+            sessionTypeId: sessionType._id,
+            roomId: room._id,
+            patientIds: [paciente._id],
+            professionalIds: [profissional._id],
+            startAt: "2026-06-02T13:00:00.000Z",
+            weekdays: [1, 3],
+            endsAt: "2026-06-30",
+          }),
+        );
+      expect(created.status).toBe(201);
+
+      const list = await request(app).get("/api/agenda/sessions").set("Cookie", adminCookie);
+      const sessions = list.body.items as Array<{ _id: string; startAt: string; notes: string }>;
+      const sorted = [...sessions].sort(
+        (a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime(),
+      );
+      const middleSession = sorted[Math.floor(sorted.length / 2)];
+
+      const updatedFuture = await request(app)
+        .patch(`/api/agenda/sessions/${middleSession._id}`)
+        .set("Cookie", adminCookie)
+        .send({ notes: "Série ajustada", updateScope: "FUTURE" });
+      expect(updatedFuture.status).toBe(200);
+      expect(updatedFuture.body.sessionsUpdated).toBeGreaterThan(1);
+
+      const afterFuture = await request(app).get("/api/agenda/sessions").set("Cookie", adminCookie);
+      const withNotes = afterFuture.body.items.filter(
+        (item: { notes: string }) => item.notes === "Série ajustada",
+      );
+      expect(withNotes.length).toBe(updatedFuture.body.sessionsUpdated);
+
+      const created2 = await request(app)
+        .post("/api/agenda/sessions")
+        .set("Cookie", adminCookie)
+        .send(
+          buildRecurringSessionPayload({
+            sessionTypeId: sessionType._id,
+            roomId: room._id,
+            patientIds: [paciente._id],
+            professionalIds: [profissional._id],
+            startAt: "2026-07-01T13:00:00.000Z",
+            weekdays: [2],
+            endsAt: "2026-07-31",
+          }),
+        );
+      expect(created2.status).toBe(201);
+
+      const list2 = await request(app).get("/api/agenda/sessions").set("Cookie", adminCookie);
+      const seriesSessions = (list2.body.items as Array<{ _id: string; seriesId: string | null }>).filter(
+        (item) => item.seriesId === created2.body.series._id,
+      );
+      const firstSeriesSession = seriesSessions[0];
+
+      const updatedAll = await request(app)
+        .patch(`/api/agenda/sessions/${firstSeriesSession._id}`)
+        .set("Cookie", adminCookie)
+        .send({ notes: "Série completa ajustada", updateScope: "ALL" });
+      expect(updatedAll.status).toBe(200);
+      expect(updatedAll.body.sessionsUpdated).toBe(seriesSessions.length);
     });
   });
 });

@@ -33,6 +33,7 @@ export function AgendaPage() {
         setReferenceDate={setReferenceDate}
         onCompleteSession={agenda.handleCompleteSession}
         onCancelSession={agenda.openCancelDialog}
+        onEditSession={agenda.openEditDialog}
         onOpenCreate={agenda.openCreateDialog}
         isAdmin={agenda.isAdmin}
       />
@@ -65,6 +66,38 @@ export function AgendaPage() {
         onRemoveProfessional={agenda.removeProfessional}
         onToggleRecurrence={agenda.handleToggleRecurrence}
         onToggleRecurrenceWeekday={agenda.handleToggleRecurrenceWeekday}
+      />
+
+      <CreateSessionDialog
+        open={agenda.editDialogOpen}
+        setOpen={agenda.setEditDialogOpen}
+        mode="edit"
+        saving={agenda.saving}
+        loadingCatalogs={agenda.loadingCatalogs}
+        form={agenda.form}
+        fieldErrors={agenda.fieldErrors}
+        sessionTypes={agenda.sessionTypes}
+        rooms={agenda.rooms}
+        modalityOptions={modalityOptions}
+        sessionLimits={sessionLimits}
+        onFormChange={agenda.handleFormChange}
+        onSubmit={agenda.handleUpdateSession}
+        onClose={agenda.closeEditDialog}
+        participantSlotReady={agenda.participantSlotReady}
+        patientTerm={agenda.patientTerm}
+        setPatientTerm={agenda.setPatientTerm}
+        patientOptions={agenda.patientOptions}
+        loadingPatients={agenda.loadingPatients}
+        onAddPatient={agenda.addPatient}
+        onRemovePatient={agenda.removePatient}
+        professionalRoster={agenda.professionalRoster}
+        professionalAvailabilityMeta={agenda.professionalAvailabilityMeta}
+        loadingProfessionals={agenda.loadingProfessionals}
+        onAddProfessional={agenda.addProfessional}
+        onRemoveProfessional={agenda.removeProfessional}
+        hasSeries={agenda.editSessionHasSeries}
+        updateScope={agenda.updateScope}
+        onUpdateScopeChange={agenda.handleUpdateScopeChange}
       />
 
       <CancelSessionDialog

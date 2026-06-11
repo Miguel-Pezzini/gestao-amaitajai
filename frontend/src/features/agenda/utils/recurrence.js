@@ -14,6 +14,8 @@ export const CANCEL_SCOPE_OPTIONS = [
   { value: "ALL", label: "Todos os eventos da série" },
 ];
 
+export const UPDATE_SCOPE_OPTIONS = CANCEL_SCOPE_OPTIONS;
+
 export function getWeekdayFromDateString(dateString) {
   if (!dateString) {
     return null;

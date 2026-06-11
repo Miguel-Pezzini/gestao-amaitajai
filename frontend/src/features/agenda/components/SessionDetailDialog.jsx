@@ -1,4 +1,4 @@
-import { Check, X } from "lucide-react";
+import { Check, Pencil, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
@@ -30,14 +30,16 @@ export function SessionDetailDialog({
   isAdmin,
   onCompleteSession,
   onCancelSession,
+  onEditSession,
 }) {
   if (!session) {
     return null;
   }
 
   const canComplete = session.status === "AGENDADA";
+  const canEdit = isAdmin && session.status === "AGENDADA";
   const canCancel = isAdmin && session.status !== "CANCELADA";
-  const hasActions = canComplete || canCancel;
+  const hasActions = canComplete || canCancel || canEdit;
   const notes = String(session.notes ?? "").trim();
   const cancelReason = String(session.cancelReason ?? "").trim();
 
@@ -101,7 +103,21 @@ export function SessionDetailDialog({
         ) : null}
 
         {hasActions ? (
-          <div className="flex flex-col gap-2 border-t border-ama-cyan/15 pt-4 sm:flex-row sm:justify-end">
+          <div className="flex flex-col gap-2 border-t border-ama-cyan/15 pt-4 sm:flex-row sm:flex-wrap sm:justify-end">
+            {canEdit ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="border-ama-cyan/40"
+                onClick={() => {
+                  onOpenChange(false);
+                  onEditSession(session._id);
+                }}
+              >
+                <Pencil className="size-4" aria-hidden="true" />
+                Editar sessão
+              </Button>
+            ) : null}
             {canCancel ? (
               <Button
                 type="button"
