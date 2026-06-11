@@ -382,7 +382,24 @@ export function getSessionProfessionals(session) {
   return mapParticipantRefs(session?.professionalIds, "name", "Profissional", (item) => ({
     email: item?.email ?? "",
     role: item?.role ?? "",
+    isApoio: Boolean(item?.isApoio),
+    participationStartAt: item?.participationStartAt ?? null,
+    participationEndAt: item?.participationEndAt ?? null,
   }));
+}
+
+export function formatApoioSchedule(professional) {
+  if (!professional?.isApoio || !professional.participationStartAt || !professional.participationEndAt) {
+    return null;
+  }
+
+  const start = splitStartDateTime(professional.participationStartAt).startTime;
+  const end = splitStartDateTime(professional.participationEndAt).startTime;
+  if (!start || !end) {
+    return null;
+  }
+
+  return `${start} – ${end}`;
 }
 
 export function getSessionParticipantLabel(session) {

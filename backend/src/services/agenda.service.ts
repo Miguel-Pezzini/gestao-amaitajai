@@ -53,10 +53,17 @@ import {
   type SessionPayload,
   validateCancelSession,
   validateCompleteSession,
-  validateSession,
   validateSessionModality,
+  validateSessionWithProfessionals,
   validateUpdateSession,
 } from "../validators/agenda/session.validator.js";
+import {
+  resolveOccurrenceProfessional,
+  toSeriesProfessionalCreateData,
+  toSeriesProfessionalInput,
+  toSessionProfessionalCreateData,
+  type SessionProfessionalInput,
+} from "../validators/agenda/session-professional.validator.js";
 import {
   parseRecurrenceInput,
   validatePatientId,
@@ -78,8 +85,11 @@ import {
 import type { PatientDeactivationReplacementInput } from "../validators/patient-deactivation.validator.js";
 import {
   buildSessionOverlapWhere,
+  hasProfessionalConflictInSessions,
   indexConflictsByParticipantId,
+  indexProfessionalConflictsByEffectiveWindow,
   mapOverlapSessionToConflictShape,
+  type ProfessionalAssignment,
 } from "./agenda-availability.helpers.js";
 
 type AuthenticatedUser = {
@@ -120,7 +130,9 @@ const SESSION_LIST_INCLUDE = {
     },
   },
   professionals: {
-    include: { professional: { select: { id: true, name: true, email: true, role: true } } },
+    include: {
+      professional: { select: { id: true, name: true, email: true, role: true } },
+    },
   },
 } satisfies Prisma.SessionInclude;
 
@@ -131,9 +143,41 @@ const OVERLAP_SESSION_SELECT = {
   modality: true,
   sessionType: { select: { name: true } },
   room: { select: { name: true } },
-  professionals: { select: { professionalId: true } },
+  professionals: {
+    select: {
+      professionalId: true,
+      isApoio: true,
+      participationStartAt: true,
+      participationEndAt: true,
+    },
+  },
   patients: { select: { patientId: true } },
 } satisfies Prisma.SessionSelect;
+
+function mapStoredProfessionals(
+  rows: Array<{
+    professionalId: string;
+    isApoio?: boolean;
+    participationStartAt?: Date | null;
+    participationEndAt?: Date | null;
+  }>,
+): SessionProfessionalInput[] {
+  return rows.map((row) => ({
+    professionalId: row.professionalId,
+    isApoio: row.isApoio ?? false,
+    participationStartAt: row.participationStartAt ?? null,
+    participationEndAt: row.participationEndAt ?? null,
+  }));
+}
+
+function toProfessionalAssignments(professionals: SessionProfessionalInput[]): ProfessionalAssignment[] {
+  return professionals.map((professional) => ({
+    professionalId: professional.professionalId,
+    isApoio: professional.isApoio,
+    participationStartAt: professional.participationStartAt,
+    participationEndAt: professional.participationEndAt,
+  }));
+}
 
 export class AgendaService {
   async searchPatients(query: Record<string, unknown>) {
@@ -243,9 +287,9 @@ export class AgendaService {
             select: OVERLAP_SESSION_SELECT,
           });
 
-    const conflictsById = indexConflictsByParticipantId(
+    const conflictsById = indexProfessionalConflictsByEffectiveWindow(
       overlappingSessions.map(mapOverlapSessionToConflictShape),
-      "professionalIds",
+      { startAt: input.startAt, endAt: input.endAt },
     );
 
     const items = professionals.map((professional) => {
@@ -283,16 +327,20 @@ export class AgendaService {
       excludeSessionId: input.excludeSessionId,
     });
 
-    const [totalCount, busyLinks] = await Promise.all([
+    const [totalCount, overlappingSessions] = await Promise.all([
       prisma.user.count({ where: baseFilter }),
-      prisma.sessionProfessional.findMany({
-        where: { session: overlapWhere },
-        distinct: ["professionalId"],
-        select: { professionalId: true },
+      prisma.session.findMany({
+        where: overlapWhere,
+        select: OVERLAP_SESSION_SELECT,
       }),
     ]);
 
-    const busyProfessionalIds = busyLinks.map((row) => row.professionalId);
+    const conflictsById = indexProfessionalConflictsByEffectiveWindow(
+      overlappingSessions.map(mapOverlapSessionToConflictShape),
+      { startAt: input.startAt, endAt: input.endAt },
+    );
+    const busyProfessionalIds = [...conflictsById.keys()];
+
     const availableCount = await prisma.user.count({
       where: {
         ...baseFilter,
@@ -553,13 +601,14 @@ export class AgendaService {
 
   async createSession(payload: SessionPayloadWithRecurrence, currentUser: AuthenticatedUser) {
     const normalized = normalizeSessionInput(payload);
-    validateSession(normalized);
+    const startAt = normalized.startAt as Date;
+    const endAt = this.computeSessionEndAt(startAt, normalized.durationMinutes);
+    validateSessionWithProfessionals(normalized, endAt);
     await this.validateSessionParticipantsByModality(
       normalized.modality,
       normalized.patientIds.length,
-      normalized.professionalIds.length,
+      normalized.professionals.length,
     );
-    const startAt = normalized.startAt as Date;
 
     const references = await this.loadSessionReferences(normalized);
     validateSessionModality(references.sessionType.allowedModalities, normalized.modality);
@@ -569,13 +618,12 @@ export class AgendaService {
       return this.createRecurringSessions(normalized, recurrenceInput, currentUser);
     }
 
-    const endAt = this.computeSessionEndAt(startAt, normalized.durationMinutes);
     await this.assertNoSchedulingConflicts({
       startAt,
       endAt,
       roomId: normalized.roomId,
       patientIds: normalized.patientIds,
-      professionalIds: normalized.professionalIds,
+      professionals: toProfessionalAssignments(normalized.professionals),
     });
 
     const session = await prisma.session.create({
@@ -594,12 +642,19 @@ export class AgendaService {
           create: normalized.patientIds.map((patientId) => ({ patientId })),
         },
         professionals: {
-          create: normalized.professionalIds.map((professionalId) => ({ professionalId })),
+          create: normalized.professionals.map(toSessionProfessionalCreateData),
         },
       },
       include: {
         patients: { select: { patientId: true } },
-        professionals: { select: { professionalId: true } },
+        professionals: {
+          select: {
+            professionalId: true,
+            isApoio: true,
+            participationStartAt: true,
+            participationEndAt: true,
+          },
+        },
       },
     });
 
@@ -622,19 +677,10 @@ export class AgendaService {
       startAt: existing.startAt,
       durationMinutes: existing.durationMinutes,
       patientIds: existing.patients.map((row) => row.patientId),
-      professionalIds: existing.professionals.map((row) => row.professionalId),
+      professionals: mapStoredProfessionals(existing.professionals),
       notes: existing.notes,
     });
-    validateSession(normalized);
-    await this.validateSessionParticipantsByModality(
-      normalized.modality,
-      normalized.patientIds.length,
-      normalized.professionalIds.length,
-    );
     const payloadStartAt = normalized.startAt as Date;
-
-    const references = await this.loadSessionReferences(normalized);
-    validateSessionModality(references.sessionType.allowedModalities, normalized.modality);
 
     const targetSessions = await this.getSessionsForUpdateScope(existing, updateScope);
     const excludeSessionIds = targetSessions.map((item) => item.id);
@@ -646,15 +692,25 @@ export class AgendaService {
         payloadStartAt,
         normalized.durationMinutes,
       );
+      validateSessionWithProfessionals(normalized, endAt);
       await this.assertNoSchedulingConflicts({
         startAt,
         endAt,
         roomId: normalized.roomId,
         patientIds: normalized.patientIds,
-        professionalIds: normalized.professionalIds,
+        professionals: toProfessionalAssignments(normalized.professionals),
         excludeSessionIds,
       });
     }
+
+    await this.validateSessionParticipantsByModality(
+      normalized.modality,
+      normalized.patientIds.length,
+      normalized.professionals.length,
+    );
+
+    const references = await this.loadSessionReferences(normalized);
+    validateSessionModality(references.sessionType.allowedModalities, normalized.modality);
 
     const session = await prisma.$transaction(async (tx) => {
       for (const target of targetSessions) {
@@ -683,7 +739,18 @@ export class AgendaService {
               create: normalized.patientIds.map((patientId) => ({ patientId })),
             },
             professionals: {
-              create: normalized.professionalIds.map((professionalId) => ({ professionalId })),
+              create: normalized.professionals.map((professional) => {
+                if (updateScope === "SINGLE") {
+                  return toSessionProfessionalCreateData(professional);
+                }
+
+                const occurrenceProfessional = resolveOccurrenceProfessional(
+                  toSeriesProfessionalInput(professional),
+                  startAt,
+                  endAt,
+                );
+                return toSessionProfessionalCreateData(occurrenceProfessional);
+              }),
             },
           },
         });
@@ -1039,7 +1106,14 @@ export class AgendaService {
       },
       include: {
         patients: { select: { patientId: true } },
-        professionals: { select: { professionalId: true } },
+        professionals: {
+          select: {
+            professionalId: true,
+            isApoio: true,
+            participationStartAt: true,
+            participationEndAt: true,
+          },
+        },
       },
       orderBy: { startAt: "asc" },
     });
@@ -1070,7 +1144,7 @@ export class AgendaService {
         endAt: session.endAt,
         roomId: session.roomId,
         patientIds: nextPatientIds,
-        professionalIds: session.professionals.map((row) => row.professionalId),
+        professionals: toProfessionalAssignments(mapStoredProfessionals(session.professionals)),
         excludeSessionId: session.id,
       });
     }
@@ -1115,7 +1189,14 @@ export class AgendaService {
       where: { id: sessionId },
       include: {
         patients: { select: { patientId: true } },
-        professionals: { select: { professionalId: true } },
+        professionals: {
+          select: {
+            professionalId: true,
+            isApoio: true,
+            participationStartAt: true,
+            participationEndAt: true,
+          },
+        },
       },
     });
 
@@ -1141,7 +1222,7 @@ export class AgendaService {
       endAt: session.endAt,
       roomId: session.roomId,
       patientIds: nextPatientIds,
-      professionalIds: session.professionals.map((row) => row.professionalId),
+      professionals: toProfessionalAssignments(mapStoredProfessionals(session.professionals)),
       excludeSessionId: session.id,
     });
 
@@ -1289,12 +1370,16 @@ export class AgendaService {
       throw new ValidationError("Nenhuma ocorrência encontrada para o período selecionado.");
     }
 
+    const seriesProfessionals = normalized.professionals.map((professional) =>
+      toSeriesProfessionalInput(professional),
+    );
+
     const conflictDates = await this.findRecurrenceConflictDates({
       dates,
       durationMinutes: normalized.durationMinutes,
       roomId: normalized.roomId,
       patientIds: normalized.patientIds,
-      professionalIds: normalized.professionalIds,
+      seriesProfessionals,
     });
 
     if (conflictDates.length > 0) {
@@ -1322,7 +1407,7 @@ export class AgendaService {
             create: normalized.patientIds.map((patientId) => ({ patientId })),
           },
           professionals: {
-            create: normalized.professionalIds.map((professionalId) => ({ professionalId })),
+            create: seriesProfessionals.map(toSeriesProfessionalCreateData),
           },
         },
       });
@@ -1332,6 +1417,10 @@ export class AgendaService {
           occurrenceStart,
           normalized.durationMinutes,
         );
+        const occurrenceProfessionals = seriesProfessionals.map((professional) =>
+          resolveOccurrenceProfessional(professional, occurrenceStart, occurrenceEnd),
+        );
+
         await tx.session.create({
           data: {
             seriesId: series.id,
@@ -1349,9 +1438,7 @@ export class AgendaService {
               create: normalized.patientIds.map((patientId) => ({ patientId })),
             },
             professionals: {
-              create: normalized.professionalIds.map((professionalId) => ({
-                professionalId,
-              })),
+              create: occurrenceProfessionals.map(toSessionProfessionalCreateData),
             },
           },
         });
@@ -1371,19 +1458,23 @@ export class AgendaService {
     durationMinutes: number;
     roomId: string;
     patientIds: string[];
-    professionalIds: string[];
+    seriesProfessionals: ReturnType<typeof toSeriesProfessionalInput>[];
   }): Promise<Date[]> {
     const conflicts: Date[] = [];
 
     for (const startAt of params.dates) {
       const endAt = this.computeSessionEndAt(startAt, params.durationMinutes);
+      const occurrenceProfessionals = params.seriesProfessionals.map((professional) =>
+        resolveOccurrenceProfessional(professional, startAt, endAt),
+      );
+
       try {
         await this.assertNoSchedulingConflicts({
           startAt,
           endAt,
           roomId: params.roomId,
           patientIds: params.patientIds,
-          professionalIds: params.professionalIds,
+          professionals: toProfessionalAssignments(occurrenceProfessionals),
         });
       } catch (error) {
         if (error instanceof ConflictError) {
@@ -1454,6 +1545,10 @@ export class AgendaService {
     payloadStartAt: Date,
     currentUser: AuthenticatedUser,
   ) {
+    const seriesProfessionals = normalized.professionals.map((professional) =>
+      toSeriesProfessionalInput(professional),
+    );
+
     await tx.sessionSeriesPatient.deleteMany({ where: { seriesId } });
     await tx.sessionSeriesPatient.createMany({
       data: normalized.patientIds.map((patientId) => ({ seriesId, patientId })),
@@ -1461,7 +1556,10 @@ export class AgendaService {
 
     await tx.sessionSeriesProfessional.deleteMany({ where: { seriesId } });
     await tx.sessionSeriesProfessional.createMany({
-      data: normalized.professionalIds.map((professionalId) => ({ seriesId, professionalId })),
+      data: seriesProfessionals.map((professional) => ({
+        seriesId,
+        ...toSeriesProfessionalCreateData(professional),
+      })),
     });
 
     await tx.sessionSeries.update({
@@ -1531,7 +1629,14 @@ export class AgendaService {
       where: { id: sessionId },
       include: {
         patients: { select: { patientId: true } },
-        professionals: { select: { professionalId: true } },
+        professionals: {
+          select: {
+            professionalId: true,
+            isApoio: true,
+            participationStartAt: true,
+            participationEndAt: true,
+          },
+        },
       },
     });
     if (!session) {
@@ -1605,6 +1710,7 @@ export class AgendaService {
   }
 
   private async loadSessionReferences(input: ReturnType<typeof normalizeSessionInput>) {
+    const professionalIds = input.professionals.map((item) => item.professionalId);
     const [sessionType, room, patientsCount, professionalsCount] = await Promise.all([
       prisma.sessionType.findUnique({ where: { id: input.sessionTypeId } }),
       prisma.room.findUnique({ where: { id: input.roomId } }),
@@ -1613,7 +1719,7 @@ export class AgendaService {
       }),
       prisma.user.count({
         where: {
-          id: { in: input.professionalIds },
+          id: { in: professionalIds },
           role: { in: [...USER_ROLES] },
           accountStatus: "ATIVO",
         },
@@ -1629,7 +1735,7 @@ export class AgendaService {
     if (patientsCount !== input.patientIds.length) {
       throw new ValidationError("Um ou mais pacientes selecionados não existem ou estão inativos.");
     }
-    if (professionalsCount !== input.professionalIds.length) {
+    if (professionalsCount !== professionalIds.length) {
       throw new ValidationError(
         "Um ou mais profissionais selecionados não existem ou estão inativos.",
       );
@@ -1655,7 +1761,7 @@ export class AgendaService {
     endAt: Date;
     roomId: string;
     patientIds: string[];
-    professionalIds: string[];
+    professionals: ProfessionalAssignment[];
     excludeSessionId?: string;
     excludeSessionIds?: string[];
   }) {
@@ -1666,14 +1772,20 @@ export class AgendaService {
       excludeSessionIds: params.excludeSessionIds,
     });
 
-    const [roomConflict, professionalConflict, patientConflict] = await Promise.all([
+    const professionalIds = params.professionals.map((item) => item.professionalId);
+    const candidateBounds = { startAt: params.startAt, endAt: params.endAt };
+
+    const [roomConflict, overlappingSessions, patientConflict] = await Promise.all([
       prisma.session.findFirst({ where: { ...overlapWhere, roomId: params.roomId } }),
-      prisma.session.findFirst({
-        where: {
-          ...overlapWhere,
-          professionals: { some: { professionalId: { in: params.professionalIds } } },
-        },
-      }),
+      professionalIds.length === 0
+        ? Promise.resolve([])
+        : prisma.session.findMany({
+            where: {
+              ...overlapWhere,
+              professionals: { some: { professionalId: { in: professionalIds } } },
+            },
+            select: OVERLAP_SESSION_SELECT,
+          }),
       prisma.session.findFirst({
         where: {
           ...overlapWhere,
@@ -1685,9 +1797,16 @@ export class AgendaService {
     if (roomConflict) {
       throw new ConflictError("A sala já está ocupada nesse horário. Escolha outro horário ou sala.");
     }
+
+    const professionalConflict = hasProfessionalConflictInSessions(
+      overlappingSessions.map(mapOverlapSessionToConflictShape),
+      params.professionals,
+      candidateBounds,
+    );
     if (professionalConflict) {
       throw new ConflictError("Um dos profissionais já possui sessão nesse horário.");
     }
+
     if (patientConflict) {
       throw new ConflictError("Um dos pacientes já possui sessão nesse horário.");
     }

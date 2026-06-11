@@ -15,13 +15,17 @@ import { useToast } from "@/contexts/toast-context";
 import {
   buildInitialSessionForm,
   buildSessionFormFromSession,
+  buildSessionProfessionalsPayload,
+  createSelectedProfessional,
   DEFAULT_SESSION_START_TIME,
   buildSessionLimitsMap,
   canAddSessionPatient,
   canAddSessionProfessional,
+  getApoioFieldErrors,
   getParticipantFieldErrors,
   getSessionFormFieldErrors,
   pickDefaultCatalogId,
+  suggestApoioEndTime,
 } from "@/features/agenda/constants";
 import { getApiErrorMessage } from "@/lib/api-error";
 import {
@@ -39,15 +43,47 @@ import {
 const EMPTY_FIELD_ERRORS = {};
 
 function buildSessionPayload(form) {
-  return {
+  const payload = {
     sessionTypeId: form.sessionTypeId,
     modality: form.modality,
     roomId: form.roomId,
     startAt: new Date(combineStartDateTime(form.startDate, form.startTime)).toISOString(),
     durationMinutes: Number.parseInt(form.durationMinutes, 10),
     patientIds: form.selectedPatients.map((item) => item.id),
-    professionalIds: form.selectedProfessionals.map((item) => item.id),
     notes: form.notes.trim(),
+  };
+
+  if (form.modality === "GRUPO") {
+    payload.professionals = buildSessionProfessionalsPayload(form);
+  } else {
+    payload.professionalIds = form.selectedProfessionals.map((item) => item.id);
+  }
+
+  return payload;
+}
+
+function getApoioAvailabilityQuery(form, professional) {
+  if (
+    !professional.isApoio ||
+    !form.startDate ||
+    !professional.participationStartTime ||
+    !professional.participationEndTime
+  ) {
+    return null;
+  }
+
+  const startAt = new Date(
+    combineStartDateTime(form.startDate, professional.participationStartTime),
+  );
+  const endAt = new Date(combineStartDateTime(form.startDate, professional.participationEndTime));
+  if (Number.isNaN(startAt.getTime()) || Number.isNaN(endAt.getTime()) || endAt <= startAt) {
+    return null;
+  }
+
+  const durationMinutes = Math.round((endAt.getTime() - startAt.getTime()) / 60000);
+  return {
+    startAt: startAt.toISOString(),
+    durationMinutes,
   };
 }
 
@@ -230,6 +266,88 @@ export function useAgendaPage(user) {
     return () => clearTimeout(timeoutId);
   }, [sessionFormOpen, form.startDate, form.startTime, form.durationMinutes]);
 
+  const apoioAvailabilityKey = form.selectedProfessionals
+    .filter((item) => item.isApoio)
+    .map(
+      (item) =>
+        `${item.id}:${item.participationStartTime}:${item.participationEndTime}:${item.isApoio}`,
+    )
+    .join("|");
+
+  useEffect(() => {
+    if (!sessionFormOpen || form.modality !== "GRUPO") {
+      return;
+    }
+
+    const apoioProfessionals = form.selectedProfessionals.filter((item) => item.isApoio);
+    if (apoioProfessionals.length === 0) {
+      return;
+    }
+
+    const apoioErrors = getApoioFieldErrors(form);
+    const professionalsToCheck = apoioProfessionals.filter((item) => !apoioErrors[`apoio_${item.id}`]);
+    if (professionalsToCheck.length === 0) {
+      return;
+    }
+
+    let mounted = true;
+    const timeoutId = setTimeout(async () => {
+      const updates = await Promise.all(
+        professionalsToCheck.map(async (professional) => {
+          const query = getApoioAvailabilityQuery(form, professional);
+          if (!query) {
+            return { id: professional.id, apoioConflict: null };
+          }
+
+          try {
+            const response = await searchAgendaProfessionals({
+              ...query,
+              availableOnly: "false",
+              excludeSessionId: editSessionId || undefined,
+            });
+            const match = (response.items ?? []).find((item) => item._id === professional.id);
+            return {
+              id: professional.id,
+              apoioConflict: match?.isAvailable === false ? match.conflictSession : null,
+            };
+          } catch {
+            return { id: professional.id, apoioConflict: null };
+          }
+        }),
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      setForm((current) => ({
+        ...current,
+        selectedProfessionals: current.selectedProfessionals.map((item) => {
+          const update = updates.find((entry) => entry.id === item.id);
+          if (!update) {
+            return item;
+          }
+          if (item.apoioConflict === update.apoioConflict) {
+            return item;
+          }
+          return { ...item, apoioConflict: update.apoioConflict };
+        }),
+      }));
+    }, 300);
+
+    return () => {
+      mounted = false;
+      clearTimeout(timeoutId);
+    };
+  }, [
+    sessionFormOpen,
+    form.modality,
+    form.startDate,
+    form.durationMinutes,
+    apoioAvailabilityKey,
+    editSessionId,
+  ]);
+
   function clearFieldError(field) {
     setFieldErrors((current) => {
       if (!current[field]) {
@@ -257,8 +375,28 @@ export function useAgendaPage(user) {
         const next = { ...current };
         delete next.patients;
         delete next.professionals;
+        Object.keys(next)
+          .filter((key) => key.startsWith("apoio_"))
+          .forEach((key) => delete next[key]);
         return next;
       });
+      setForm((current) => ({
+        ...current,
+        modality: value,
+        selectedProfessionals:
+          value === "GRUPO"
+            ? current.selectedProfessionals
+            : current.selectedProfessionals.map((item) => ({
+                id: item.id,
+                label: item.label,
+                isApoio: false,
+                participationStartTime: "",
+                participationEndTime: "",
+                apoioFieldError: "",
+                apoioConflict: null,
+              })),
+      }));
+      return;
     }
     if (field === "startDate" || field === "startTime") {
       clearFieldError("startAt");
@@ -493,11 +631,56 @@ export function useAgendaPage(user) {
         ...current,
         selectedProfessionals: [
           ...current.selectedProfessionals,
-          { id: option._id, label: `${option.name} (${option.role})` },
+          createSelectedProfessional({
+            ...option,
+            label: `${option.name} (${option.role})`,
+            rosterConflict: option.isAvailable === false ? option.conflictSession ?? null : null,
+          }),
         ],
       };
     });
     clearFieldError("professionals");
+  }
+
+  function toggleProfessionalApoio(professionalId, isApoio) {
+    setForm((current) => ({
+      ...current,
+      selectedProfessionals: current.selectedProfessionals.map((item) => {
+        if (item.id !== professionalId) {
+          return item;
+        }
+
+        return {
+          ...item,
+          isApoio,
+          participationStartTime: isApoio ? current.startTime : "",
+          participationEndTime: isApoio
+            ? suggestApoioEndTime(current, item.rosterConflict) ||
+              (() => {
+                const durationMinutes = Number.parseInt(current.durationMinutes, 10);
+                if (!current.startDate || !current.startTime || !Number.isFinite(durationMinutes)) {
+                  return "";
+                }
+                const startAt = new Date(combineStartDateTime(current.startDate, current.startTime));
+                const endAt = new Date(startAt.getTime() + durationMinutes * 60 * 1000);
+                return `${String(endAt.getHours()).padStart(2, "0")}:${String(endAt.getMinutes()).padStart(2, "0")}`;
+              })()
+            : "",
+          apoioConflict: null,
+        };
+      }),
+    }));
+    clearFieldError(`apoio_${professionalId}`);
+  }
+
+  function updateProfessionalApoioTime(professionalId, field, value) {
+    setForm((current) => ({
+      ...current,
+      selectedProfessionals: current.selectedProfessionals.map((item) =>
+        item.id === professionalId ? { ...item, [field]: value, apoioConflict: null } : item,
+      ),
+    }));
+    clearFieldError(`apoio_${professionalId}`);
   }
 
   function removeProfessional(professionalId) {
@@ -679,6 +862,8 @@ export function useAgendaPage(user) {
     removePatient,
     addProfessional,
     removeProfessional,
+    toggleProfessionalApoio,
+    updateProfessionalApoioTime,
     handleCreateSession,
     handleUpdateSession,
     handleCompleteSession,

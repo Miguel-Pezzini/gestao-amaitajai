@@ -3,20 +3,28 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { FieldError } from "@/features/agenda/components/FieldError";
 import { SelectedItems } from "@/features/agenda/components/SelectedItems";
+import { SelectedProfessionalsEditor } from "@/features/agenda/components/SelectedProfessionalsEditor";
 import { formatAvailabilityBadge, formatConflictSessionLabel } from "@/features/agenda/utils";
 
-function ProfessionalRow({ item, label, onAdd }) {
+function ProfessionalRow({ item, label, onAdd, allowPartialSelection = false }) {
   const busy = !item.isAvailable;
+  const blocked = busy && !allowPartialSelection;
 
   return (
     <button
       type="button"
-      disabled={busy}
+      disabled={blocked}
       onClick={() => onAdd(item)}
       className={`flex w-full items-start gap-2 rounded px-1.5 py-1 text-left text-sm ${
-        busy ? "cursor-not-allowed opacity-50" : "hover:bg-ama-light"
+        blocked ? "cursor-not-allowed opacity-50" : busy ? "hover:bg-amber-50" : "hover:bg-ama-light"
       }`}
-      title={busy ? formatConflictSessionLabel(item.conflictSession) : undefined}
+      title={
+        busy
+          ? allowPartialSelection
+            ? "Ocupado parcialmente — selecione e use Apoio para ajustar o horário"
+            : formatConflictSessionLabel(item.conflictSession)
+          : undefined
+      }
     >
       <span
         className={`mt-1.5 size-1.5 shrink-0 rounded-full ${busy ? "bg-amber-400" : "bg-emerald-500"}`}
@@ -26,7 +34,9 @@ function ProfessionalRow({ item, label, onAdd }) {
         <span className="block truncate font-medium text-ama-blue-dark">{label}</span>
         {busy && item.conflictSession ? (
           <span className="block truncate text-[11px] text-muted-foreground">
-            {formatConflictSessionLabel(item.conflictSession)}
+            {allowPartialSelection
+              ? "Parcialmente ocupado · use Apoio após selecionar"
+              : formatConflictSessionLabel(item.conflictSession)}
           </span>
         ) : null}
       </span>
@@ -45,6 +55,9 @@ export function ProfessionalAvailabilityList({
   selectedIds,
   onAdd,
   onRemove,
+  onToggleApoio,
+  onApoioTimeChange,
+  modality,
   fieldError,
   saving,
   getOptionLabel,
@@ -102,6 +115,7 @@ export function ProfessionalAvailabilityList({
                     item={item}
                     label={getOptionLabel(item)}
                     onAdd={onAdd}
+                    allowPartialSelection={modality === "GRUPO"}
                   />
                 ))
               )}
@@ -110,8 +124,24 @@ export function ProfessionalAvailabilityList({
         </>
       ) : null}
 
-      <SelectedItems items={selectedItems} onRemove={onRemove} />
-      <FieldError message={fieldError} />
+      {modality === "GRUPO" ? (
+        <SelectedProfessionalsEditor
+          items={selectedItems.map((item) => ({
+            ...item,
+            apoioFieldError: fieldError?.[`apoio_${item.id}`] ?? item.apoioFieldError ?? "",
+          }))}
+          onRemove={onRemove}
+          onToggleApoio={onToggleApoio}
+          onApoioTimeChange={onApoioTimeChange}
+          fieldError={typeof fieldError === "string" ? fieldError : fieldError?.professionals}
+          saving={saving}
+        />
+      ) : (
+        <>
+          <SelectedItems items={selectedItems} onRemove={onRemove} />
+          <FieldError message={typeof fieldError === "string" ? fieldError : fieldError?.professionals} />
+        </>
+      )}
     </div>
   );
 }

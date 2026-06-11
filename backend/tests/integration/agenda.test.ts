@@ -1292,4 +1292,405 @@ describe("Agenda integration", () => {
       expect(updatedAll.body.sessionsUpdated).toBe(seriesSessions.length);
     });
   });
+
+  describe("profissionais de apoio em sessão grupo", () => {
+    async function seedGrupoBase() {
+      const base = await seedAgendaBase();
+      const paciente2 = await createPatient({
+        fullName: "Paciente Grupo 2",
+        birthDate: new Date("2018-02-01"),
+        guardianName: "Responsavel 2",
+        phone: "(47) 99999-0002",
+      });
+      const profissional2 = await createUser({
+        name: "Profissional Grupo 2",
+        email: `prof-grupo-2-${Date.now()}@agenda.test`,
+        password: "prof123456",
+        role: "TECNICO",
+      });
+      const groupType = await createSessionType({
+        name: "Grupo Apoio",
+        slug: `grupo-apoio-${Date.now()}`,
+        defaultDurationMinutes: 120,
+        allowedModalities: ["GRUPO"],
+      });
+
+      return {
+        ...base,
+        paciente2,
+        profissional2,
+        groupType,
+      };
+    }
+
+    it("persiste profissional de apoio com horários parciais", async () => {
+      const { adminCookie, paciente, paciente2, profissional, profissional2, room, groupType } =
+        await seedGrupoBase();
+
+      const response = await request(app)
+        .post("/api/agenda/sessions")
+        .set("Cookie", adminCookie)
+        .send(
+          buildSessionPayload({
+            sessionTypeId: groupType._id,
+            roomId: room._id,
+            patientIds: [paciente._id, paciente2._id],
+            modality: "GRUPO",
+            durationMinutes: 120,
+            startAt: "2026-06-10T10:00:00.000Z",
+            professionals: [
+              { professionalId: profissional._id, isApoio: false },
+              {
+                professionalId: profissional2._id,
+                isApoio: true,
+                participationStartAt: "2026-06-10T10:15:00.000Z",
+                participationEndAt: "2026-06-10T10:45:00.000Z",
+              },
+            ],
+          }),
+        );
+
+      expect(response.status).toBe(201);
+      const apoio = response.body.session.professionalIds.find(
+        (item: { _id: string; isApoio: boolean }) => item._id === profissional2._id,
+      );
+      expect(apoio.isApoio).toBe(true);
+      expect(apoio.participationStartAt).toBe("2026-06-10T10:15:00.000Z");
+      expect(apoio.participationEndAt).toBe("2026-06-10T10:45:00.000Z");
+    });
+
+    it("rejeita apoio fora dos limites da sessão", async () => {
+      const { adminCookie, paciente, paciente2, profissional, profissional2, room, groupType } =
+        await seedGrupoBase();
+
+      const response = await request(app)
+        .post("/api/agenda/sessions")
+        .set("Cookie", adminCookie)
+        .send(
+          buildSessionPayload({
+            sessionTypeId: groupType._id,
+            roomId: room._id,
+            patientIds: [paciente._id, paciente2._id],
+            modality: "GRUPO",
+            durationMinutes: 120,
+            startAt: "2026-06-10T10:00:00.000Z",
+            professionals: [
+              { professionalId: profissional._id, isApoio: false },
+              {
+                professionalId: profissional2._id,
+                isApoio: true,
+                participationStartAt: "2026-06-10T09:45:00.000Z",
+                participationEndAt: "2026-06-10T10:30:00.000Z",
+              },
+            ],
+          }),
+        );
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain("início da sessão");
+    });
+
+    it("rejeita apoio em modalidade individual", async () => {
+      const { adminCookie, paciente, profissional, room, sessionType } = await seedAgendaBase();
+
+      const response = await request(app)
+        .post("/api/agenda/sessions")
+        .set("Cookie", adminCookie)
+        .send(
+          buildSessionPayload({
+            sessionTypeId: sessionType._id,
+            roomId: room._id,
+            patientIds: [paciente._id],
+            modality: "INDIVIDUAL",
+            professionals: [
+              {
+                professionalId: profissional._id,
+                isApoio: true,
+                participationStartAt: "2026-06-10T13:00:00.000Z",
+                participationEndAt: "2026-06-10T13:30:00.000Z",
+              },
+            ],
+          }),
+        );
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain("sessões em grupo");
+    });
+
+    it("permite nova sessão após término do apoio parcial", async () => {
+      const { adminCookie, paciente, paciente2, profissional, profissional2, room, groupType } =
+        await seedGrupoBase();
+      const room2 = await createRoom({ name: `Sala Apoio ${Date.now()}` });
+      const profissional3 = await createUser({
+        name: "Profissional Grupo 3",
+        email: `prof-grupo-3-${Date.now()}@agenda.test`,
+        password: "prof123456",
+        role: "TECNICO",
+      });
+      const paciente3 = await createPatient({
+        fullName: "Paciente Grupo 3",
+        birthDate: new Date("2018-03-01"),
+        guardianName: "Responsavel 3",
+        phone: "(47) 99999-0003",
+      });
+      const paciente4 = await createPatient({
+        fullName: "Paciente Grupo 4",
+        birthDate: new Date("2018-04-01"),
+        guardianName: "Responsavel 4",
+        phone: "(47) 99999-0004",
+      });
+
+      await request(app)
+        .post("/api/agenda/sessions")
+        .set("Cookie", adminCookie)
+        .send(
+          buildSessionPayload({
+            sessionTypeId: groupType._id,
+            roomId: room._id,
+            patientIds: [paciente._id, paciente2._id],
+            modality: "GRUPO",
+            durationMinutes: 120,
+            startAt: "2026-06-10T10:00:00.000Z",
+            professionals: [
+              { professionalId: profissional._id, isApoio: false },
+              {
+                professionalId: profissional2._id,
+                isApoio: true,
+                participationStartAt: "2026-06-10T10:00:00.000Z",
+                participationEndAt: "2026-06-10T10:30:00.000Z",
+              },
+            ],
+          }),
+        );
+
+      const response = await request(app)
+        .post("/api/agenda/sessions")
+        .set("Cookie", adminCookie)
+        .send(
+          buildSessionPayload({
+            sessionTypeId: groupType._id,
+            roomId: room2._id,
+            patientIds: [paciente3._id, paciente4._id],
+            modality: "GRUPO",
+            durationMinutes: 60,
+            startAt: "2026-06-10T10:30:00.000Z",
+            professionalIds: [profissional2._id, profissional3._id],
+          }),
+        );
+
+      expect(response.status).toBe(201);
+    });
+
+    it("bloqueia conflito parcial de apoio", async () => {
+      const { adminCookie, paciente, paciente2, profissional, profissional2, room, groupType } =
+        await seedGrupoBase();
+      const room2 = await createRoom({ name: `Sala Apoio Conflito ${Date.now()}` });
+
+      await request(app)
+        .post("/api/agenda/sessions")
+        .set("Cookie", adminCookie)
+        .send(
+          buildSessionPayload({
+            sessionTypeId: groupType._id,
+            roomId: room._id,
+            patientIds: [paciente._id, paciente2._id],
+            modality: "GRUPO",
+            durationMinutes: 120,
+            startAt: "2026-06-10T10:00:00.000Z",
+            professionals: [
+              { professionalId: profissional._id, isApoio: false },
+              {
+                professionalId: profissional2._id,
+                isApoio: true,
+                participationStartAt: "2026-06-10T10:00:00.000Z",
+                participationEndAt: "2026-06-10T10:30:00.000Z",
+              },
+            ],
+          }),
+        );
+
+      const response = await request(app)
+        .post("/api/agenda/sessions")
+        .set("Cookie", adminCookie)
+        .send(
+          buildSessionPayload({
+            sessionTypeId: groupType._id,
+            roomId: room2._id,
+            patientIds: [paciente._id, paciente2._id],
+            modality: "GRUPO",
+            durationMinutes: 60,
+            startAt: "2026-06-10T10:15:00.000Z",
+            professionalIds: [profissional2._id, profissional._id],
+          }),
+        );
+
+      expect(response.status).toBe(409);
+      expect(response.body.message).toContain("profissionais");
+    });
+
+    it("marca profissional disponível fora da janela de apoio existente", async () => {
+      const { adminCookie, paciente, paciente2, profissional, profissional2, room, groupType } =
+        await seedGrupoBase();
+
+      await request(app)
+        .post("/api/agenda/sessions")
+        .set("Cookie", adminCookie)
+        .send(
+          buildSessionPayload({
+            sessionTypeId: groupType._id,
+            roomId: room._id,
+            patientIds: [paciente._id, paciente2._id],
+            modality: "GRUPO",
+            durationMinutes: 120,
+            startAt: "2026-06-10T10:00:00.000Z",
+            professionals: [
+              { professionalId: profissional._id, isApoio: false },
+              {
+                professionalId: profissional2._id,
+                isApoio: true,
+                participationStartAt: "2026-06-10T10:00:00.000Z",
+                participationEndAt: "2026-06-10T10:30:00.000Z",
+              },
+            ],
+          }),
+        );
+
+      const lookup = await request(app)
+        .get("/api/agenda/lookups/professionals")
+        .query({
+          startAt: "2026-06-10T10:30:00.000Z",
+          durationMinutes: 60,
+          availableOnly: "false",
+        })
+        .set("Cookie", adminCookie);
+
+      expect(lookup.status).toBe(200);
+      const prof2 = lookup.body.items.find(
+        (item: { _id: string }) => item._id === profissional2._id,
+      );
+      expect(prof2.isAvailable).toBe(true);
+    });
+
+    it("replica horário fixo de apoio em sessão recorrente", async () => {
+      const { adminCookie, paciente, paciente2, profissional, profissional2, room, groupType } =
+        await seedGrupoBase();
+
+      const response = await request(app)
+        .post("/api/agenda/sessions")
+        .set("Cookie", adminCookie)
+        .send({
+          ...buildSessionPayload({
+            sessionTypeId: groupType._id,
+            roomId: room._id,
+            patientIds: [paciente._id, paciente2._id],
+            modality: "GRUPO",
+            durationMinutes: 120,
+            startAt: "2026-06-02T10:00:00.000Z",
+            professionals: [
+              { professionalId: profissional._id, isApoio: false },
+              {
+                professionalId: profissional2._id,
+                isApoio: true,
+                participationStartAt: "2026-06-02T10:15:00.000Z",
+                participationEndAt: "2026-06-02T10:45:00.000Z",
+              },
+            ],
+          }),
+          recurrence: {
+            enabled: true,
+            weekdays: [1, 3],
+            endsAt: "2026-06-16",
+          },
+        });
+
+      expect(response.status).toBe(201);
+      expect(response.body.sessionsCreated).toBeGreaterThan(1);
+
+      const list = await request(app)
+        .get("/api/agenda/sessions")
+        .query({ startAt: "2026-06-01", endAt: "2026-06-30" })
+        .set("Cookie", adminCookie);
+
+      const seriesSessions = list.body.items.filter(
+        (item: { seriesId: string | null }) => item.seriesId === response.body.series._id,
+      );
+      expect(seriesSessions.length).toBeGreaterThan(1);
+
+      for (const session of seriesSessions) {
+        const apoio = session.professionalIds.find(
+          (item: { _id: string; isApoio: boolean }) => item._id === profissional2._id,
+        );
+        expect(apoio.isApoio).toBe(true);
+        expect(new Date(apoio.participationStartAt).getUTCHours()).toBe(10);
+        expect(new Date(apoio.participationStartAt).getUTCMinutes()).toBe(15);
+        expect(new Date(apoio.participationEndAt).getUTCHours()).toBe(10);
+        expect(new Date(apoio.participationEndAt).getUTCMinutes()).toBe(45);
+      }
+    });
+
+    it("permite apoio antes de conflito que ocupa só parte da sessão", async () => {
+      const { adminCookie, paciente, paciente2, profissional, profissional2, room, groupType } =
+        await seedGrupoBase();
+      const room2 = await createRoom({ name: `Sala Apoio Parcial ${Date.now()}` });
+      const profissional3 = await createUser({
+        name: "Profissional Grupo 3",
+        email: `prof-grupo-3-${Date.now()}@agenda.test`,
+        password: "prof123456",
+        role: "TECNICO",
+      });
+      const paciente3 = await createPatient({
+        fullName: "Paciente Grupo 3",
+        birthDate: new Date("2018-03-01"),
+        guardianName: "Responsavel 3",
+        phone: "(47) 99999-0003",
+      });
+      const paciente4 = await createPatient({
+        fullName: "Paciente Grupo 4",
+        birthDate: new Date("2018-04-01"),
+        guardianName: "Responsavel 4",
+        phone: "(47) 99999-0004",
+      });
+
+      const existing = await request(app)
+        .post("/api/agenda/sessions")
+        .set("Cookie", adminCookie)
+        .send(
+          buildSessionPayload({
+            sessionTypeId: groupType._id,
+            roomId: room._id,
+            patientIds: [paciente._id, paciente2._id],
+            modality: "GRUPO",
+            durationMinutes: 60,
+            startAt: "2026-06-10T08:00:00.000Z",
+            professionalIds: [profissional2._id, profissional._id],
+          }),
+        );
+      expect(existing.status).toBe(201);
+
+      const response = await request(app)
+        .post("/api/agenda/sessions")
+        .set("Cookie", adminCookie)
+        .send(
+          buildSessionPayload({
+            sessionTypeId: groupType._id,
+            roomId: room2._id,
+            patientIds: [paciente3._id, paciente4._id],
+            modality: "GRUPO",
+            durationMinutes: 60,
+            startAt: "2026-06-10T07:30:00.000Z",
+            professionals: [
+              { professionalId: profissional3._id, isApoio: false },
+              {
+                professionalId: profissional2._id,
+                isApoio: true,
+                participationStartAt: "2026-06-10T07:30:00.000Z",
+                participationEndAt: "2026-06-10T08:00:00.000Z",
+              },
+            ],
+          }),
+        );
+
+      expect(response.status).toBe(201);
+    });
+  });
 });

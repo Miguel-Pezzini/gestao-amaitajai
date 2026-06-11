@@ -26,6 +26,51 @@ export function buildSessionOverlapWhere(params: {
   return where;
 }
 
+export type ProfessionalAssignment = {
+  professionalId: string;
+  isApoio: boolean;
+  participationStartAt: Date | null;
+  participationEndAt: Date | null;
+};
+
+export type SessionTimeBounds = {
+  startAt: Date;
+  endAt: Date;
+};
+
+export type EffectiveWindow = {
+  startAt: Date;
+  endAt: Date;
+};
+
+export function getProfessionalEffectiveWindow(
+  assignment: Pick<ProfessionalAssignment, "isApoio" | "participationStartAt" | "participationEndAt">,
+  session: SessionTimeBounds,
+): EffectiveWindow {
+  if (
+    assignment.isApoio &&
+    assignment.participationStartAt &&
+    assignment.participationEndAt
+  ) {
+    return {
+      startAt: assignment.participationStartAt,
+      endAt: assignment.participationEndAt,
+    };
+  }
+
+  return {
+    startAt: session.startAt,
+    endAt: session.endAt,
+  };
+}
+
+export function doTimeWindowsOverlap(
+  windowA: SessionTimeBounds,
+  windowB: SessionTimeBounds,
+): boolean {
+  return windowA.startAt < windowB.endAt && windowA.endAt > windowB.startAt;
+}
+
 export type ConflictSessionSummary = {
   _id: string;
   startAt: string;
@@ -42,7 +87,7 @@ export type PopulatedConflictSession = {
   modality: SessionModality | string;
   sessionType: { name: string } | null;
   room: { name: string } | null;
-  professionalIds: string[];
+  professionals: ProfessionalAssignment[];
   patientIds: string[];
 };
 
@@ -57,9 +102,34 @@ export function formatConflictSession(session: PopulatedConflictSession): Confli
   };
 }
 
+export function indexProfessionalConflictsByEffectiveWindow(
+  sessions: PopulatedConflictSession[],
+  checkWindow: SessionTimeBounds,
+): Map<string, ConflictSessionSummary> {
+  const conflicts = new Map<string, ConflictSessionSummary>();
+
+  for (const session of sessions) {
+    const summary = formatConflictSession(session);
+    const sessionBounds = { startAt: session.startAt, endAt: session.endAt };
+
+    for (const assignment of session.professionals) {
+      if (conflicts.has(assignment.professionalId)) {
+        continue;
+      }
+
+      const effectiveWindow = getProfessionalEffectiveWindow(assignment, sessionBounds);
+      if (doTimeWindowsOverlap(effectiveWindow, checkWindow)) {
+        conflicts.set(assignment.professionalId, summary);
+      }
+    }
+  }
+
+  return conflicts;
+}
+
 export function indexConflictsByParticipantId(
   sessions: PopulatedConflictSession[],
-  participantField: "professionalIds" | "patientIds",
+  participantField: "patientIds",
 ): Map<string, ConflictSessionSummary> {
   const conflicts = new Map<string, ConflictSessionSummary>();
 
@@ -75,6 +145,33 @@ export function indexConflictsByParticipantId(
   return conflicts;
 }
 
+export function hasProfessionalConflictInSessions(
+  sessions: PopulatedConflictSession[],
+  candidateAssignments: ProfessionalAssignment[],
+  candidateSessionBounds: SessionTimeBounds,
+): boolean {
+  for (const candidate of candidateAssignments) {
+    const candidateWindow = getProfessionalEffectiveWindow(candidate, candidateSessionBounds);
+
+    for (const session of sessions) {
+      const sessionBounds = { startAt: session.startAt, endAt: session.endAt };
+
+      for (const existing of session.professionals) {
+        if (existing.professionalId !== candidate.professionalId) {
+          continue;
+        }
+
+        const existingWindow = getProfessionalEffectiveWindow(existing, sessionBounds);
+        if (doTimeWindowsOverlap(candidateWindow, existingWindow)) {
+          return true;
+        }
+      }
+    }
+  }
+
+  return false;
+}
+
 export function mapOverlapSessionToConflictShape(session: {
   id: string;
   startAt: Date;
@@ -82,7 +179,12 @@ export function mapOverlapSessionToConflictShape(session: {
   modality: string;
   sessionType: { name: string } | null;
   room: { name: string } | null;
-  professionals: Array<{ professionalId: string }>;
+  professionals: Array<{
+    professionalId: string;
+    isApoio?: boolean;
+    participationStartAt?: Date | null;
+    participationEndAt?: Date | null;
+  }>;
   patients: Array<{ patientId: string }>;
 }): PopulatedConflictSession {
   return {
@@ -92,7 +194,12 @@ export function mapOverlapSessionToConflictShape(session: {
     modality: session.modality,
     sessionType: session.sessionType,
     room: session.room,
-    professionalIds: session.professionals.map((row) => row.professionalId),
+    professionals: session.professionals.map((row) => ({
+      professionalId: row.professionalId,
+      isApoio: row.isApoio ?? false,
+      participationStartAt: row.participationStartAt ?? null,
+      participationEndAt: row.participationEndAt ?? null,
+    })),
     patientIds: session.patients.map((row) => row.patientId),
   };
 }

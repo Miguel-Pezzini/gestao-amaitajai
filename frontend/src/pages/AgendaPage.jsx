@@ -64,6 +64,8 @@ export function AgendaPage() {
         loadingProfessionals={agenda.loadingProfessionals}
         onAddProfessional={agenda.addProfessional}
         onRemoveProfessional={agenda.removeProfessional}
+        onToggleApoio={agenda.toggleProfessionalApoio}
+        onApoioTimeChange={agenda.updateProfessionalApoioTime}
         onToggleRecurrence={agenda.handleToggleRecurrence}
         onToggleRecurrenceWeekday={agenda.handleToggleRecurrenceWeekday}
       />
@@ -95,6 +97,8 @@ export function AgendaPage() {
         loadingProfessionals={agenda.loadingProfessionals}
         onAddProfessional={agenda.addProfessional}
         onRemoveProfessional={agenda.removeProfessional}
+        onToggleApoio={agenda.toggleProfessionalApoio}
+        onApoioTimeChange={agenda.updateProfessionalApoioTime}
         hasSeries={agenda.editSessionHasSeries}
         updateScope={agenda.updateScope}
         onUpdateScopeChange={agenda.handleUpdateScopeChange}

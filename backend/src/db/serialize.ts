@@ -74,12 +74,28 @@ export function serializePatientRef(ref: PatientRef) {
 
 type ProfessionalRef = { id: string; name: string; email: string; role: string };
 
+type ProfessionalAssignmentRef = {
+  professional: ProfessionalRef;
+  isApoio?: boolean;
+  participationStartAt?: Date | null;
+  participationEndAt?: Date | null;
+};
+
 export function serializeProfessionalRef(ref: ProfessionalRef) {
   return {
     _id: ref.id,
     name: ref.name,
     email: ref.email,
     role: ref.role,
+  };
+}
+
+export function serializeProfessionalAssignment(row: ProfessionalAssignmentRef) {
+  return {
+    ...serializeProfessionalRef(row.professional),
+    isApoio: row.isApoio ?? false,
+    participationStartAt: row.participationStartAt ?? null,
+    participationEndAt: row.participationEndAt ?? null,
   };
 }
 
@@ -103,7 +119,12 @@ export type SessionListInclude = {
   sessionType: { id: string; name: string; slug: string };
   room: { id: string; name: string };
   patients: Array<{ patient: { id: string; fullName: string; fundingSource: PatientFundingSourceRef } }>;
-  professionals: Array<{ professional: { id: string; name: string; email: string; role: string } }>;
+  professionals: Array<{
+    professional: { id: string; name: string; email: string; role: string };
+    isApoio?: boolean;
+    participationStartAt?: Date | null;
+    participationEndAt?: Date | null;
+  }>;
 };
 
 export function serializeSessionForList(session: SessionListInclude) {
@@ -125,7 +146,7 @@ export function serializeSessionForList(session: SessionListInclude) {
     createdAt: session.createdAt,
     updatedAt: session.updatedAt,
     patientIds: session.patients.map((row) => serializePatientRef(row.patient)),
-    professionalIds: session.professionals.map((row) => serializeProfessionalRef(row.professional)),
+    professionalIds: session.professionals.map((row) => serializeProfessionalAssignment(row)),
   };
 }
 
@@ -149,11 +170,28 @@ export function serializeSessionPlain(session: {
   patientIds?: string[];
   professionalIds?: string[];
   patients?: Array<{ patientId: string }>;
-  professionals?: Array<{ professionalId: string }>;
+  professionals?: Array<{
+    professionalId: string;
+    isApoio?: boolean;
+    participationStartAt?: Date | null;
+    participationEndAt?: Date | null;
+  }>;
 }) {
   const patientIds = session.patientIds ?? session.patients?.map((row) => row.patientId) ?? [];
   const professionalIds =
-    session.professionalIds ?? session.professionals?.map((row) => row.professionalId) ?? [];
+    session.professionals?.map((row) => ({
+      _id: row.professionalId,
+      isApoio: row.isApoio ?? false,
+      participationStartAt: row.participationStartAt ?? null,
+      participationEndAt: row.participationEndAt ?? null,
+    })) ??
+    session.professionalIds?.map((id) => ({
+      _id: id,
+      isApoio: false,
+      participationStartAt: null,
+      participationEndAt: null,
+    })) ??
+    [];
 
   return {
     _id: session.id,

@@ -182,20 +182,38 @@ export function buildSessionPayload(params: {
   sessionTypeId: string;
   roomId: string;
   patientIds: string[];
-  professionalIds: string[];
+  professionalIds?: string[];
+  professionals?: Array<{
+    professionalId: string;
+    isApoio?: boolean;
+    participationStartAt?: string;
+    participationEndAt?: string;
+  }>;
   startAt?: string;
   modality?: string;
   durationMinutes?: number;
+  notes?: string;
 }) {
-  return {
+  const payload: Record<string, unknown> = {
     sessionTypeId: params.sessionTypeId,
     modality: params.modality ?? "INDIVIDUAL",
     roomId: params.roomId,
     startAt: params.startAt ?? "2026-06-10T13:00:00.000Z",
     durationMinutes: params.durationMinutes ?? 30,
     patientIds: params.patientIds,
-    professionalIds: params.professionalIds,
   };
+
+  if (params.professionals?.length) {
+    payload.professionals = params.professionals;
+  } else {
+    payload.professionalIds = params.professionalIds;
+  }
+
+  if (params.notes !== undefined) {
+    payload.notes = params.notes;
+  }
+
+  return payload;
 }
 
 export function buildRecurringSessionPayload(params: {

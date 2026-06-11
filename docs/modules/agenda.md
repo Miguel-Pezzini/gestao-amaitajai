@@ -32,7 +32,17 @@ Uma sessão tem: data/hora, duração, sala, tipo de atendimento, modalidade (`I
 | dupla | 2 | 2 |
 | grupo | 1–15 | 2–4 |
 
-**Conflitos bloqueiam agendamento:** profissional, paciente ou sala não podem ter sobreposição de horário com outra sessão `AGENDADA`.
+**Conflitos bloqueiam agendamento:** profissional, paciente ou sala não podem ter sobreposição de horário com outra sessão `AGENDADA`. Para profissionais de **apoio** em sessão `GRUPO`, a ocupação considera apenas a janela parcial informada (entrada/saída), não a sessão inteira.
+
+### Profissionais de apoio (GRUPO)
+
+- Disponível **somente** em modalidade `GRUPO`.
+- Cada vínculo profissional↔sessão pode ter `isApoio=true` com `participationStartAt` e `participationEndAt`.
+- Sem apoio (`isApoio=false`): profissional ocupa a sessão inteira (comportamento anterior).
+- Horários de apoio devem estar contidos em `[session.startAt, session.endAt]`.
+- Profissionais de apoio contam para min/max de profissionais da modalidade.
+- Em recorrência semanal, horários de apoio são **fixos de relógio** em cada ocorrência (ex.: sempre 10:15–10:45).
+- Disponibilidade na UI: profissionais parcialmente ocupados na sessão **podem ser selecionados** em GRUPO; marque Apoio e ajuste entrada/saída. A validação final usa só a janela do apoio.
 
 **Status:** `AGENDADA` → `REALIZADA` ou `CANCELADA`. Sessão cancelada não pode ser editada nem concluída.
 
@@ -106,6 +116,9 @@ Visões: dia, semana (grade horária), mês, semana por slot. Suporte a recorrê
 | Mín/máx pacientes e profissionais por modalidade | ValidationError | `agenda.service.ts` |
 | Modalidade permitida pelo tipo | ValidationError | `session.validator.ts` |
 | Conflito sala/paciente/profissional | ConflictError | `agenda-availability.helpers.ts` |
+| Apoio só em GRUPO | ValidationError | `session-professional.validator.ts` |
+| Horários de apoio dentro da sessão | ValidationError | `session-professional.validator.ts` |
+| Conflito parcial de apoio | ConflictError | `agenda.service.ts` |
 | Motivo obrigatório no cancelamento | ValidationError | `session.validator.ts` |
 | Recorrência: ≥1 weekday, endsAt ≥ startsAt | ValidationError | `recurrence.validator.ts` |
 | Técnico só conclui sessão própria | ForbiddenError | `agenda.service.ts` |
@@ -135,11 +148,13 @@ Auditoria: `createdById`, `updatedById` em sessões e séries.
 | Helpers recorrência | `backend/src/services/session-recurrence.helpers.ts` |
 | Helpers conflitos | `backend/src/services/agenda-availability.helpers.ts` |
 | Validators | `backend/src/validators/agenda/*.ts` |
+| Validator apoio | `backend/src/validators/agenda/session-professional.validator.ts` |
 | Domínio | `backend/src/domain/agenda.ts` |
 | Schema | `backend/prisma/schema.prisma` (Session, SessionSeries, Room, SessionType) |
 | Página | `frontend/src/pages/AgendaPage.jsx` |
 | Hook | `frontend/src/hooks/useAgendaPage.js` |
 | Feature | `frontend/src/features/agenda/` |
+| Editor apoio (GRUPO) | `frontend/src/features/agenda/components/SelectedProfessionalsEditor.jsx` |
 | Service API | `frontend/src/services/agenda.js` |
 | Testes integração | `backend/tests/integration/agenda.test.ts` |
 | Testes unitários | `backend/tests/unit/session-recurrence.helpers.test.ts` |

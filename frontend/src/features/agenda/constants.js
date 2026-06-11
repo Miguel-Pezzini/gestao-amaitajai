@@ -8,7 +8,7 @@ import {
   defaultRecurrenceEndsAt,
   getWeekdayFromDateString,
 } from "@/features/agenda/utils/recurrence";
-import { splitStartDateTime } from "@/features/agenda/utils";
+import { splitStartDateTime, combineStartDateTime } from "@/features/agenda/utils";
 import {
   OCCUPANCY_START_HOUR,
   OCCUPANCY_TOTAL_SLOTS,
@@ -206,7 +206,122 @@ export function getSessionFormFieldErrors(form, limitsByModality = SESSION_FORMA
     }
   }
 
+  if (form.modality === "GRUPO") {
+    const apoioErrors = getApoioFieldErrors(form);
+    Object.assign(errors, apoioErrors);
+  }
+
   return { ...errors, ...participantErrors };
+}
+
+function getSessionEndTime(form) {
+  const durationMinutes = Number.parseInt(form.durationMinutes, 10);
+  if (!form.startDate || !form.startTime || !Number.isFinite(durationMinutes) || durationMinutes <= 0) {
+    return null;
+  }
+
+  const startAt = new Date(combineStartDateTime(form.startDate, form.startTime));
+  if (Number.isNaN(startAt.getTime())) {
+    return null;
+  }
+
+  const endAt = new Date(startAt.getTime() + durationMinutes * 60 * 1000);
+  const hours = String(endAt.getHours()).padStart(2, "0");
+  const minutes = String(endAt.getMinutes()).padStart(2, "0");
+  return `${hours}:${minutes}`;
+}
+
+export function suggestApoioEndTime(form, rosterConflict) {
+  const sessionEnd = getSessionEndTime(form);
+  if (!sessionEnd || !rosterConflict?.startAt) {
+    return sessionEnd ?? "";
+  }
+
+  const conflictStart = splitStartDateTime(rosterConflict.startAt).startTime;
+  const sessionStart = form.startTime;
+  if (
+    sessionStart &&
+    conflictStart &&
+    conflictStart > sessionStart &&
+    conflictStart <= sessionEnd
+  ) {
+    return conflictStart;
+  }
+
+  return sessionEnd;
+}
+
+export function getApoioFieldErrors(form) {
+  const errors = {};
+  const sessionStart = form.startTime;
+  const sessionEnd = getSessionEndTime(form);
+
+  form.selectedProfessionals.forEach((professional) => {
+    const key = `apoio_${professional.id}`;
+
+    if (professional.rosterConflict && !professional.isApoio) {
+      errors[key] = "Marque Apoio e defina horário compatível com a agenda do profissional.";
+      return;
+    }
+
+    if (!professional.isApoio) {
+      return;
+    }
+
+    if (!professional.participationStartTime || !professional.participationEndTime) {
+      errors[key] = "Informe horário de entrada e saída do apoio.";
+      return;
+    }
+
+    if (sessionStart && professional.participationStartTime < sessionStart) {
+      errors[key] = "Entrada do apoio não pode ser anterior ao início da sessão.";
+      return;
+    }
+
+    if (sessionEnd && professional.participationEndTime > sessionEnd) {
+      errors[key] = "Saída do apoio não pode ser posterior ao fim da sessão.";
+      return;
+    }
+
+    if (professional.participationStartTime >= professional.participationEndTime) {
+      errors[key] = "Saída do apoio deve ser posterior à entrada.";
+    }
+  });
+
+  return errors;
+}
+
+export function buildSessionProfessionalsPayload(form) {
+  return form.selectedProfessionals.map((professional) => {
+    const payload = {
+      professionalId: professional.id,
+      isApoio: Boolean(professional.isApoio),
+    };
+
+    if (professional.isApoio) {
+      payload.participationStartAt = new Date(
+        combineStartDateTime(form.startDate, professional.participationStartTime),
+      ).toISOString();
+      payload.participationEndAt = new Date(
+        combineStartDateTime(form.startDate, professional.participationEndTime),
+      ).toISOString();
+    }
+
+    return payload;
+  });
+}
+
+export function createSelectedProfessional(option) {
+  return {
+    id: option._id ?? option.id,
+    label: option.label ?? `${option.name}${option.role ? ` (${option.role})` : ""}`,
+    isApoio: false,
+    participationStartTime: "",
+    participationEndTime: "",
+    apoioFieldError: "",
+    apoioConflict: null,
+    rosterConflict: option.rosterConflict ?? null,
+  };
 }
 
 export const EMPTY_FORM = {
@@ -262,11 +377,26 @@ export function buildSessionFormFromSession(session) {
       id: patient._id ?? patient.id ?? patient,
       label: patient.fullName ?? patient.label ?? "Paciente",
     })),
-    selectedProfessionals: (session?.professionalIds ?? []).map((professional) => ({
-      id: professional._id ?? professional.id ?? professional,
-      label: professional.name
-        ? `${professional.name}${professional.role ? ` (${professional.role})` : ""}`
-        : professional.label ?? "Profissional",
-    })),
+    selectedProfessionals: (session?.professionalIds ?? []).map((professional) => {
+      const participationStartTime = professional.participationStartAt
+        ? splitStartDateTime(professional.participationStartAt).startTime
+        : "";
+      const participationEndTime = professional.participationEndAt
+        ? splitStartDateTime(professional.participationEndAt).startTime
+        : "";
+
+      return {
+        id: professional._id ?? professional.id ?? professional,
+        label: professional.name
+          ? `${professional.name}${professional.role ? ` (${professional.role})` : ""}`
+          : professional.label ?? "Profissional",
+        isApoio: Boolean(professional.isApoio),
+        participationStartTime: professional.isApoio ? participationStartTime : "",
+        participationEndTime: professional.isApoio ? participationEndTime : "",
+        apoioFieldError: "",
+        apoioConflict: null,
+        rosterConflict: null,
+      };
+    }),
   };
 }

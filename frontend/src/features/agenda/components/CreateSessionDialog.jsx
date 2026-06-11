@@ -46,6 +46,8 @@ export function CreateSessionDialog({
   loadingProfessionals,
   onAddProfessional,
   onRemoveProfessional,
+  onToggleApoio,
+  onApoioTimeChange,
   onToggleRecurrence,
   onToggleRecurrenceWeekday,
   hasSeries = false,
@@ -223,7 +225,10 @@ export function CreateSessionDialog({
             selectedIds={selectedProfessionalIds}
             onAdd={onAddProfessional}
             onRemove={onRemoveProfessional}
-            fieldError={fieldErrors.professionals}
+            onToggleApoio={onToggleApoio}
+            onApoioTimeChange={onApoioTimeChange}
+            modality={form.modality}
+            fieldError={fieldErrors}
             saving={saving}
             getOptionLabel={(item) => item.name}
           />

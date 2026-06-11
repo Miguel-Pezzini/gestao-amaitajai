@@ -9,6 +9,11 @@ import {
   type SessionModality,
 } from "../../domain/agenda.js";
 import { isUuid, normalizeText, parseDate, parseUniqueIdArray } from "./agenda.utils.js";
+import {
+  parseSessionProfessionals,
+  type SessionProfessionalInput,
+  validateSessionProfessionals,
+} from "./session-professional.validator.js";
 
 export type SessionPayload = {
   sessionTypeId?: unknown;
@@ -18,6 +23,7 @@ export type SessionPayload = {
   durationMinutes?: unknown;
   patientIds?: unknown;
   professionalIds?: unknown;
+  professionals?: unknown;
   notes?: unknown;
 };
 
@@ -28,7 +34,7 @@ export type NormalizedSessionInput = {
   startAt: Date | null;
   durationMinutes: number;
   patientIds: string[];
-  professionalIds: string[];
+  professionals: SessionProfessionalInput[];
   notes: string;
 };
 
@@ -41,7 +47,7 @@ export function normalizeSessionInput(
     startAt: Date;
     durationMinutes: number;
     patientIds: string[];
-    professionalIds: string[];
+    professionals: SessionProfessionalInput[];
     notes: string;
   },
 ): NormalizedSessionInput {
@@ -54,7 +60,7 @@ export function normalizeSessionInput(
   const durationMinutes =
     Number.parseInt(String(payload.durationMinutes), 10) || fallback?.durationMinutes || 0;
   const patientIds = parseUniqueIdArray(payload.patientIds);
-  const professionalIds = parseUniqueIdArray(payload.professionalIds);
+  const professionals = parseSessionProfessionals(payload, fallback?.professionals);
   const notes =
     payload.notes === undefined ? (fallback?.notes ?? "") : normalizeText(payload.notes);
 
@@ -65,8 +71,7 @@ export function normalizeSessionInput(
     startAt,
     durationMinutes,
     patientIds: patientIds.length > 0 ? patientIds : (fallback?.patientIds ?? []),
-    professionalIds:
-      professionalIds.length > 0 ? professionalIds : (fallback?.professionalIds ?? []),
+    professionals,
     notes,
   };
 }
@@ -90,16 +95,21 @@ export function validateSession(input: NormalizedSessionInput): void {
   if (input.patientIds.length === 0) {
     throw new ValidationError("Adicione ao menos um paciente à sessão.");
   }
-  if (input.professionalIds.length === 0) {
-    throw new ValidationError("Adicione ao menos um profissional à sessão.");
-  }
-  if (
-    !input.patientIds.every((id) => isUuid(id)) ||
-    !input.professionalIds.every((id) => isUuid(id))
-  ) {
+  if (!input.patientIds.every((id) => isUuid(id))) {
     throw new ValidationError("Paciente ou profissional selecionado é inválido.");
   }
+}
 
+export function validateSessionWithProfessionals(
+  input: NormalizedSessionInput,
+  sessionEndAt: Date,
+): void {
+  validateSession(input);
+  validateSessionProfessionals(input.professionals, {
+    modality: input.modality,
+    sessionStartAt: input.startAt as Date,
+    sessionEndAt,
+  });
 }
 
 export function validateSessionModality(
