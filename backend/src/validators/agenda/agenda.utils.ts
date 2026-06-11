@@ -1,5 +1,4 @@
 import { Prisma } from "@prisma/client";
-import { duplicateRoomMessage as buildDuplicateRoomMessage, isPrismaUniqueViolation } from "../../db/errors.js";
 
 export function normalizeText(value: unknown): string {
   return String(value ?? "").trim();
@@ -13,15 +12,6 @@ export function slugify(value: string): string {
     .trim()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
-}
-
-export { isPrismaUniqueViolation };
-
-export function duplicateRoomMessage(error: unknown): string {
-  if (isPrismaUniqueViolation(error)) {
-    return buildDuplicateRoomMessage(error);
-  }
-  return "Sala já cadastrada.";
 }
 
 export function parseDate(value: unknown): Date | null {
@@ -47,9 +37,6 @@ export function isUuid(value: string): boolean {
   return UUID_REGEX.test(value);
 }
 
-/** @deprecated use isUuid — mantido como alias durante a migração da API */
-export const isObjectId = isUuid;
-
 export function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -68,10 +55,6 @@ export function parsePage(value: unknown, fallback = 1): number {
     return fallback;
   }
   return parsed;
-}
-
-export function parseListLimit(value: unknown, fallback = 20, max = 100): number {
-  return parseLimit(value, fallback, max);
 }
 
 export function shouldPaginateList(query: Record<string, unknown>): boolean {

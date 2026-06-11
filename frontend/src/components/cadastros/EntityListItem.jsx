@@ -1,5 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Tooltip } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
@@ -151,5 +153,47 @@ export function EntityListIconAction({
         <Icon className={cn("size-4", iconClassName)} aria-hidden="true" />
       </Button>
     </Tooltip>
+  );
+}
+
+export function EntityNameForm({
+  id,
+  label,
+  form,
+  fieldErrors,
+  saving,
+  isEditing,
+  onSubmit,
+  onCancel,
+  onFormChange,
+  createLabel = "Cadastrar",
+}) {
+  return (
+    <form onSubmit={onSubmit} className="space-y-4" noValidate>
+      <div className="space-y-2">
+        <Label htmlFor={id}>{label}</Label>
+        <Input
+          id={id}
+          value={form.name}
+          onChange={(event) => onFormChange("name", event.target.value)}
+          disabled={saving}
+        />
+        {fieldErrors.name ? (
+          <p className="text-sm text-destructive">{fieldErrors.name}</p>
+        ) : null}
+      </div>
+      <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+        <Button type="button" variant="outline" onClick={onCancel} disabled={saving}>
+          Cancelar
+        </Button>
+        <Button
+          type="submit"
+          className="bg-ama-cyan text-ama-blue-dark hover:bg-ama-cyan/90"
+          disabled={saving}
+        >
+          {saving ? "Salvando..." : isEditing ? "Salvar" : createLabel}
+        </Button>
+      </div>
+    </form>
   );
 }

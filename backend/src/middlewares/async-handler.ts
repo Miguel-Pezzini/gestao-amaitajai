@@ -1,5 +1,9 @@
 import type { NextFunction, Request, Response } from "express";
 
+export function getRouteId(param: string | string[]): string {
+  return Array.isArray(param) ? (param[0] ?? "") : param;
+}
+
 type AsyncRouteHandler = (
   req: Request,
   res: Response,

@@ -1,5 +1,8 @@
 import { ValidationError } from "../../errors/http-errors.js";
+import { validateIsActive } from "../agenda/room.validator.js";
 import { isUuid, normalizeText } from "../agenda/agenda.utils.js";
+
+export { validateIsActive };
 
 export function validateCreatePatientFundingSource(payload: { name?: unknown }): { name: string } {
   const name = normalizeText(payload.name);
@@ -31,11 +34,4 @@ export function validatePatientFundingSourceId(fundingSourceId: string): void {
   if (!isUuid(fundingSourceId)) {
     throw new ValidationError("Identificador de fonte de custeio inválido.");
   }
-}
-
-export function validateIsActive(value: unknown): boolean {
-  if (typeof value !== "boolean") {
-    throw new ValidationError("O campo isActive deve ser booleano.");
-  }
-  return value;
 }

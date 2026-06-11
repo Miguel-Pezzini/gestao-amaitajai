@@ -9,16 +9,6 @@ import {
   validateUpdatePatientFundingSource,
 } from "../validators/patient/patient-funding-source.validator.js";
 
-function serializePatientFundingSource(fundingSource: {
-  id: string;
-  name: string;
-  isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-}) {
-  return withMongoId(fundingSource);
-}
-
 export class PatientFundingSourceService {
   async listFundingSources() {
     const items = await prisma.patientFundingSource.findMany({ orderBy: { name: "asc" } });
@@ -30,7 +20,7 @@ export class PatientFundingSourceService {
 
     try {
       const fundingSource = await prisma.patientFundingSource.create({ data: { name } });
-      return { fundingSource: serializePatientFundingSource(fundingSource) };
+      return { fundingSource: withMongoId(fundingSource) };
     } catch (error) {
       if (isPrismaUniqueViolation(error)) {
         throw new ConflictError("Já existe uma fonte de custeio com este nome.");
@@ -47,7 +37,7 @@ export class PatientFundingSourceService {
       const fundingSource = await prisma.patientFundingSource.findUniqueOrThrow({
         where: { id: fundingSourceId },
       });
-      return { fundingSource: serializePatientFundingSource(fundingSource) };
+      return { fundingSource: withMongoId(fundingSource) };
     }
 
     try {
@@ -55,7 +45,7 @@ export class PatientFundingSourceService {
         where: { id: fundingSourceId },
         data: { name: updates.name },
       });
-      return { fundingSource: serializePatientFundingSource(fundingSource) };
+      return { fundingSource: withMongoId(fundingSource) };
     } catch (error) {
       if (isPrismaUniqueViolation(error)) {
         throw new ConflictError("Já existe uma fonte de custeio com este nome.");
@@ -73,21 +63,14 @@ export class PatientFundingSourceService {
         where: { id: fundingSourceId },
         data: { isActive },
       });
-      return { fundingSource: serializePatientFundingSource(fundingSource) };
+      return { fundingSource: withMongoId(fundingSource) };
     } catch {
       throw new NotFoundError("Fonte de custeio não encontrada.");
     }
   }
 
   async findActiveFundingSourceOrThrow(fundingSourceId: string) {
-    validatePatientFundingSourceId(fundingSourceId);
-
-    const fundingSource = await prisma.patientFundingSource.findUnique({
-      where: { id: fundingSourceId },
-    });
-    if (!fundingSource) {
-      throw new NotFoundError("Fonte de custeio não encontrada.");
-    }
+    const fundingSource = await this.findFundingSourceOrThrow(fundingSourceId);
     if (!fundingSource.isActive) {
       throw new ConflictError("A fonte de custeio selecionada está inativa.");
     }

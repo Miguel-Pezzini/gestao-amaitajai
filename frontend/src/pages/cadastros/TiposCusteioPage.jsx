@@ -5,6 +5,7 @@ import {
   EntityListItem,
   EntityListIconAction,
   EntityListItemFooterRow,
+  EntityNameForm,
   EntityStatusBadge,
 } from "@/components/cadastros/EntityListItem";
 import { Button } from "@/components/ui/button";
@@ -33,48 +34,9 @@ import {
   updateFundingSource,
   updateFundingSourceStatus,
 } from "@/services/funding-sources";
+import { getApiErrorMessage } from "@/lib/api-error";
 
 const EMPTY_FORM = { name: "" };
-
-function FundingSourceForm({
-  form,
-  fieldErrors,
-  saving,
-  isEditing,
-  onSubmit,
-  onCancel,
-  onFormChange,
-}) {
-  return (
-    <form onSubmit={onSubmit} className="space-y-4" noValidate>
-      <div className="space-y-2">
-        <Label htmlFor="funding-source-name">Nome da fonte</Label>
-        <Input
-          id="funding-source-name"
-          value={form.name}
-          onChange={(event) => onFormChange("name", event.target.value)}
-          disabled={saving}
-        />
-        {fieldErrors.name ? (
-          <p className="text-sm text-destructive">{fieldErrors.name}</p>
-        ) : null}
-      </div>
-
-      <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-        <Button type="button" variant="outline" onClick={onCancel} disabled={saving}>
-          Cancelar
-        </Button>
-        <Button
-          type="submit"
-          className="bg-ama-cyan text-ama-blue-dark hover:bg-ama-cyan/90"
-          disabled={saving}
-        >
-          {saving ? "Salvando..." : isEditing ? "Salvar" : "Cadastrar"}
-        </Button>
-      </div>
-    </form>
-  );
-}
 
 export function TiposCusteioPage() {
   const { userName } = useSession();
@@ -99,8 +61,7 @@ export function TiposCusteioPage() {
       setFundingSources(response.items ?? []);
     } catch (err) {
       setError(
-        err.response?.data?.message ??
-          "Não foi possível carregar as fontes de custeio. Tente novamente.",
+        getApiErrorMessage(err, "Não foi possível carregar as fontes de custeio. Tente novamente."),
       );
     } finally {
       setLoading(false);
@@ -178,8 +139,10 @@ export function TiposCusteioPage() {
       await loadFundingSources();
     } catch (err) {
       setError(
-        err.response?.data?.message ??
+        getApiErrorMessage(
+          err,
           "Não foi possível salvar a fonte de custeio. Verifique os dados e tente novamente.",
+        ),
       );
     } finally {
       setSaving(false);
@@ -193,8 +156,7 @@ export function TiposCusteioPage() {
       await loadFundingSources();
     } catch (err) {
       setError(
-        err.response?.data?.message ??
-          "Não foi possível atualizar o status da fonte de custeio.",
+        getApiErrorMessage(err, "Não foi possível atualizar o status da fonte de custeio."),
       );
     }
   }
@@ -230,7 +192,9 @@ export function TiposCusteioPage() {
             : "Informe o nome da nova fonte de custeio."
         }
       >
-        <FundingSourceForm
+        <EntityNameForm
+          id="funding-source-name"
+          label="Nome da fonte"
           form={form}
           fieldErrors={fieldErrors}
           saving={saving}

@@ -4,16 +4,11 @@ import {
   type CancelScope,
 } from "./recurrence.validator.js";
 import {
+  SESSION_FORMAT_LABELS,
   SESSION_MODALITIES,
   type SessionModality,
 } from "../../domain/agenda.js";
 import { isUuid, normalizeText, parseDate, parseUniqueIdArray } from "./agenda.utils.js";
-
-const SESSION_FORMAT_LABELS: Record<SessionModality, string> = {
-  INDIVIDUAL: "Individual",
-  DUPLA: "Dupla",
-  GRUPO: "Grupo",
-};
 
 export type SessionPayload = {
   sessionTypeId?: unknown;

@@ -24,6 +24,7 @@ import {
   sessionSummary,
   statusBadgeClass,
 } from "@/features/agenda/utils";
+import { getApiErrorMessage } from "@/lib/api-error";
 import { listPatientSessions } from "@/services/agenda";
 
 const PAGE_SIZE = 20;
@@ -83,10 +84,7 @@ export function PatientSessionsDialog({ patient, open, onOpenChange }) {
       setPagination(response.pagination ?? null);
       setPage(targetPage);
     } catch (err) {
-      setError(
-        err.response?.data?.message ??
-          "Não foi possível carregar as sessões deste paciente.",
-      );
+      setError(getApiErrorMessage(err, "Não foi possível carregar as sessões deste paciente."));
     } finally {
       setLoading(false);
     }

@@ -5,6 +5,7 @@ import {
   EntityListItem,
   EntityListIconAction,
   EntityListItemFooterRow,
+  EntityNameForm,
   EntityStatusBadge,
 } from "@/components/cadastros/EntityListItem";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,7 @@ import {
 } from "@/components/ui/select";
 import { CreateFab } from "@/components/cadastros/CreateFab";
 import { useSession } from "@/contexts/session-context";
+import { getApiErrorMessage } from "@/lib/api-error";
 import {
   createRoom,
   listRooms,
@@ -35,38 +37,6 @@ import {
 } from "@/services/agenda";
 
 const EMPTY_FORM = { name: "" };
-
-function RoomForm({ form, fieldErrors, saving, isEditing, onSubmit, onCancel, onFormChange }) {
-  return (
-    <form onSubmit={onSubmit} className="space-y-4" noValidate>
-      <div className="space-y-2">
-        <Label htmlFor="room-name">Nome da sala</Label>
-        <Input
-          id="room-name"
-          value={form.name}
-          onChange={(event) => onFormChange("name", event.target.value)}
-          disabled={saving}
-        />
-        {fieldErrors.name ? (
-          <p className="text-sm text-destructive">{fieldErrors.name}</p>
-        ) : null}
-      </div>
-
-      <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-        <Button type="button" variant="outline" onClick={onCancel} disabled={saving}>
-          Cancelar
-        </Button>
-        <Button
-          type="submit"
-          className="bg-ama-cyan text-ama-blue-dark hover:bg-ama-cyan/90"
-          disabled={saving}
-        >
-          {saving ? "Salvando..." : isEditing ? "Salvar" : "Cadastrar"}
-        </Button>
-      </div>
-    </form>
-  );
-}
 
 export function SalasPage() {
   const { userName } = useSession();
@@ -90,10 +60,7 @@ export function SalasPage() {
       const response = await listRooms();
       setRooms(response.items ?? []);
     } catch (err) {
-      setError(
-        err.response?.data?.message ??
-          "Não foi possível carregar as salas. Tente novamente.",
-      );
+      setError(getApiErrorMessage(err, "Não foi possível carregar as salas. Tente novamente."));
     } finally {
       setLoading(false);
     }
@@ -170,8 +137,7 @@ export function SalasPage() {
       await loadRooms();
     } catch (err) {
       setError(
-        err.response?.data?.message ??
-          "Não foi possível salvar a sala. Verifique os dados e tente novamente.",
+        getApiErrorMessage(err, "Não foi possível salvar a sala. Verifique os dados e tente novamente."),
       );
     } finally {
       setSaving(false);
@@ -184,10 +150,7 @@ export function SalasPage() {
       await updateRoomStatus(room._id, !room.isActive);
       await loadRooms();
     } catch (err) {
-      setError(
-        err.response?.data?.message ??
-          "Não foi possível atualizar o status da sala.",
-      );
+      setError(getApiErrorMessage(err, "Não foi possível atualizar o status da sala."));
     }
   }
 
@@ -218,7 +181,9 @@ export function SalasPage() {
         title={isEditing ? "Editar sala" : "Nova sala"}
         description={isEditing ? "Altere o nome da sala." : "Informe o nome da nova sala."}
       >
-        <RoomForm
+        <EntityNameForm
+          id="room-name"
+          label="Nome da sala"
           form={form}
           fieldErrors={fieldErrors}
           saving={saving}

@@ -1,5 +1,8 @@
 import { ValidationError } from "../../errors/http-errors.js";
+import { validateIsActive } from "../agenda/room.validator.js";
 import { isUuid, normalizeText } from "../agenda/agenda.utils.js";
+
+export { validateIsActive };
 
 export function validateCreateProtocolType(payload: { name?: unknown }): { name: string } {
   const name = normalizeText(payload.name);
@@ -31,11 +34,4 @@ export function validateProtocolTypeId(protocolTypeId: string): void {
   if (!isUuid(protocolTypeId)) {
     throw new ValidationError("Identificador de tipo de protocolo inválido.");
   }
-}
-
-export function validateIsActive(value: unknown): boolean {
-  if (typeof value !== "boolean") {
-    throw new ValidationError("O campo isActive deve ser booleano.");
-  }
-  return value;
 }

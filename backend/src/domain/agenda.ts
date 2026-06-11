@@ -16,8 +16,14 @@ export type SessionSeriesStatus = (typeof SESSION_SERIES_STATUSES)[number];
 export const CANCEL_SCOPES = ["SINGLE", "FUTURE", "ALL"] as const;
 export type CancelScope = (typeof CANCEL_SCOPES)[number];
 
-export const UPDATE_SCOPES = ["SINGLE", "FUTURE", "ALL"] as const;
-export type UpdateScope = (typeof UPDATE_SCOPES)[number];
+export const UPDATE_SCOPES = CANCEL_SCOPES;
+export type UpdateScope = CancelScope;
+
+export const SESSION_FORMAT_LABELS: Record<SessionModality, string> = {
+  INDIVIDUAL: "Individual",
+  DUPLA: "Dupla",
+  GRUPO: "Grupo",
+};
 
 export function buildPatientDeactivatedCancelReason(patientFullName: string): string {
   return `Paciente desativado: ${patientFullName}`;

@@ -38,6 +38,19 @@ import {
 
 const EMPTY_FIELD_ERRORS = {};
 
+function buildSessionPayload(form) {
+  return {
+    sessionTypeId: form.sessionTypeId,
+    modality: form.modality,
+    roomId: form.roomId,
+    startAt: new Date(combineStartDateTime(form.startDate, form.startTime)).toISOString(),
+    durationMinutes: Number.parseInt(form.durationMinutes, 10),
+    patientIds: form.selectedPatients.map((item) => item.id),
+    professionalIds: form.selectedProfessionals.map((item) => item.id),
+    notes: form.notes.trim(),
+  };
+}
+
 export function useAgendaPage(user) {
   const toast = useToast();
   const role = normalizeRole(user?.role);
@@ -80,9 +93,8 @@ export function useAgendaPage(user) {
   const sessionLimits = buildSessionLimitsMap(sessionModalitySettings);
 
   function getAllowedModalitiesBySessionType(sessionTypeId) {
-    const selected = sessionTypes.find((item) => item._id === sessionTypeId);
-    const allowed = selected?.allowedModalities?.length ? selected.allowedModalities : [];
-    return allowed;
+    const allowed = sessionTypes.find((item) => item._id === sessionTypeId)?.allowedModalities;
+    return allowed?.length ? allowed : [];
   }
 
   async function loadDependencies() {
@@ -513,17 +525,7 @@ export function useAgendaPage(user) {
 
     setFieldErrors(EMPTY_FIELD_ERRORS);
 
-    const payload = {
-      sessionTypeId: form.sessionTypeId,
-      modality: form.modality,
-      roomId: form.roomId,
-      startAt: new Date(combineStartDateTime(form.startDate, form.startTime)).toISOString(),
-      durationMinutes: Number.parseInt(form.durationMinutes, 10),
-      patientIds: form.selectedPatients.map((item) => item.id),
-      professionalIds: form.selectedProfessionals.map((item) => item.id),
-      notes: form.notes.trim(),
-      updateScope,
-    };
+    const payload = { ...buildSessionPayload(form), updateScope };
 
     try {
       const result = await updateSession(editSessionId, payload);
@@ -558,16 +560,7 @@ export function useAgendaPage(user) {
 
     setFieldErrors(EMPTY_FIELD_ERRORS);
 
-    const payload = {
-      sessionTypeId: form.sessionTypeId,
-      modality: form.modality,
-      roomId: form.roomId,
-      startAt: new Date(combineStartDateTime(form.startDate, form.startTime)).toISOString(),
-      durationMinutes: Number.parseInt(form.durationMinutes, 10),
-      patientIds: form.selectedPatients.map((item) => item.id),
-      professionalIds: form.selectedProfessionals.map((item) => item.id),
-      notes: form.notes.trim(),
-    };
+    const payload = buildSessionPayload(form);
 
     if (form.recurrenceEnabled) {
       payload.recurrence = {

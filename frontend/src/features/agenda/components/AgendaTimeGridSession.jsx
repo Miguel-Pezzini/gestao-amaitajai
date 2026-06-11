@@ -5,24 +5,10 @@ import {
   getCalendarSessionStyle,
   getSessionFormatLabel,
   getSessionModalityName,
-  getSessionPatients,
+  getSessionParticipantLabel,
   getSessionRoomName,
   sessionCalendarTooltip,
 } from "@/features/agenda/utils";
-
-function getParticipantLabel(session) {
-  const patients = getSessionPatients(session);
-  if (patients.length === 0) {
-    return "Não informado";
-  }
-  if (session.modality === "GRUPO") {
-    return `Grupo: ${patients.map((item) => item.label).join(", ")}`;
-  }
-  if (patients.length === 1) {
-    return patients[0].label;
-  }
-  return patients.map((item) => item.label).join(", ");
-}
 
 const SESSION_INSET_PX = 2;
 
@@ -32,7 +18,7 @@ export function AgendaTimeGridSession({ session, onOpenSession, compact = false 
   const roomName = getSessionRoomName(session);
   const formatLabel = getSessionFormatLabel(session.modality);
   const time = formatSessionTime(session.startAt);
-  const participantLabel = getParticipantLabel(session);
+  const participantLabel = getSessionParticipantLabel(session);
   const columnIndex = session._gridColumn ?? 0;
   const columnCount = session._gridColumnCount ?? 1;
   const columnWidthPercent = 100 / columnCount;

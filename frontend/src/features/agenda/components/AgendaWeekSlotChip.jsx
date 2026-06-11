@@ -2,30 +2,16 @@ import { cn } from "@/lib/utils";
 import {
   getCalendarSessionStyle,
   getSessionModalityName,
-  getSessionPatients,
+  getSessionParticipantLabel,
   getSessionRoomName,
   sessionCalendarTooltip,
 } from "@/features/agenda/utils";
-
-function getParticipantLabel(session) {
-  const patients = getSessionPatients(session);
-  if (patients.length === 0) {
-    return "Não informado";
-  }
-  if (session.modality === "GRUPO") {
-    return `Grupo: ${patients.map((item) => item.label).join(", ")}`;
-  }
-  if (patients.length === 1) {
-    return patients[0].label;
-  }
-  return patients.map((item) => item.label).join(", ");
-}
 
 export function AgendaWeekSlotChip({ session, onOpenSession }) {
   const { container, accent } = getCalendarSessionStyle(session);
   const roomName = getSessionRoomName(session);
   const modalityName = getSessionModalityName(session);
-  const participantLabel = getParticipantLabel(session);
+  const participantLabel = getSessionParticipantLabel(session);
 
   return (
     <button

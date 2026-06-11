@@ -11,7 +11,7 @@ import { PROTOCOL_MAX_SEQUENCE, PROTOCOL_STATUSES } from "../domain/protocol.js"
 import type { ProtocolStatus } from "../domain/protocol.js";
 import type { AuthUser } from "../types/express.js";
 import { ConflictError, NotFoundError, ValidationError } from "../errors/http-errors.js";
-import { containsInsensitive, isUuid } from "../validators/agenda/agenda.utils.js";
+import { containsInsensitive, isUuid, normalizeText } from "../validators/agenda/agenda.utils.js";
 import {
   validateCreateProtocolType,
   validateIsActive,
@@ -22,10 +22,6 @@ import {
   validateCreateProtocol,
   validateUpdateProtocolStatus,
 } from "../validators/protocol/protocol.validator.js";
-
-function normalizeText(value: unknown): string {
-  return String(value ?? "").trim();
-}
 
 function parsePositiveInt(value: unknown, fallback: number): number {
   const parsed = Number.parseInt(String(value), 10);
@@ -63,16 +59,6 @@ async function generateNextProtocolNumber(
   return yearBase + nextSequence;
 }
 
-function serializeProtocolType(protocolType: {
-  id: string;
-  name: string;
-  isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-}) {
-  return withMongoId(protocolType);
-}
-
 function serializeProtocol(protocol: {
   id: string;
   protocolNumber: number;
@@ -96,7 +82,7 @@ function serializeProtocol(protocol: {
     ...withMongoId(protocol),
     patient: protocol.patient ? serializePatientRef(protocol.patient) : undefined,
     protocolType: protocol.protocolType
-      ? serializeProtocolType(protocol.protocolType)
+      ? withMongoId(protocol.protocolType)
       : undefined,
     createdBy: serializePopulatedNameRef(protocol.createdBy ?? null),
     updatedBy: serializePopulatedNameRef(protocol.updatedBy ?? null),
@@ -157,7 +143,7 @@ export class ProtocolService {
 
     try {
       const protocolType = await prisma.protocolType.create({ data: { name } });
-      return { protocolType: serializeProtocolType(protocolType) };
+      return { protocolType: withMongoId(protocolType) };
     } catch (error) {
       if (isPrismaUniqueViolation(error)) {
         throw new ConflictError("Já existe um tipo de protocolo com este nome.");
@@ -174,7 +160,7 @@ export class ProtocolService {
       const protocolType = await prisma.protocolType.findUniqueOrThrow({
         where: { id: protocolTypeId },
       });
-      return { protocolType: serializeProtocolType(protocolType) };
+      return { protocolType: withMongoId(protocolType) };
     }
 
     try {
@@ -182,7 +168,7 @@ export class ProtocolService {
         where: { id: protocolTypeId },
         data: { name: updates.name },
       });
-      return { protocolType: serializeProtocolType(protocolType) };
+      return { protocolType: withMongoId(protocolType) };
     } catch (error) {
       if (isPrismaUniqueViolation(error)) {
         throw new ConflictError("Já existe um tipo de protocolo com este nome.");
@@ -200,7 +186,7 @@ export class ProtocolService {
         where: { id: protocolTypeId },
         data: { isActive },
       });
-      return { protocolType: serializeProtocolType(protocolType) };
+      return { protocolType: withMongoId(protocolType) };
     } catch {
       throw new NotFoundError("Tipo de protocolo não encontrado.");
     }

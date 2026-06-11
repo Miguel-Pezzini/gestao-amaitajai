@@ -359,33 +359,44 @@ export function getSessionStatusLabel(status) {
   return SESSION_STATUS_LABELS[status] ?? status ?? "";
 }
 
-export function getSessionPatients(session) {
-  const items = session?.patientIds ?? [];
-  return items.map((item) => {
+function mapParticipantRefs(items, labelKey, defaultLabel, extraFields) {
+  return (items ?? []).map((item) => {
     if (item && typeof item === "object") {
       return {
         id: String(item._id ?? item.id ?? ""),
-        label: item.fullName ?? "Paciente",
-        fundingSource: item.fundingSource ?? "",
+        label: item[labelKey] ?? defaultLabel,
+        ...extraFields(item),
       };
     }
-    return { id: String(item), label: "Paciente", fundingSource: "" };
+    return { id: String(item), label: defaultLabel, ...extraFields(null) };
   });
 }
 
+export function getSessionPatients(session) {
+  return mapParticipantRefs(session?.patientIds, "fullName", "Paciente", (item) => ({
+    fundingSource: item?.fundingSource ?? "",
+  }));
+}
+
 export function getSessionProfessionals(session) {
-  const items = session?.professionalIds ?? [];
-  return items.map((item) => {
-    if (item && typeof item === "object") {
-      return {
-        id: String(item._id ?? item.id ?? ""),
-        label: item.name ?? "Profissional",
-        email: item.email ?? "",
-        role: item.role ?? "",
-      };
-    }
-    return { id: String(item), label: "Profissional", email: "", role: "" };
-  });
+  return mapParticipantRefs(session?.professionalIds, "name", "Profissional", (item) => ({
+    email: item?.email ?? "",
+    role: item?.role ?? "",
+  }));
+}
+
+export function getSessionParticipantLabel(session) {
+  const patients = getSessionPatients(session);
+  if (patients.length === 0) {
+    return "Não informado";
+  }
+  if (session.modality === "GRUPO") {
+    return `Grupo: ${patients.map((item) => item.label).join(", ")}`;
+  }
+  if (patients.length === 1) {
+    return patients[0].label;
+  }
+  return patients.map((item) => item.label).join(", ");
 }
 
 export function formatSessionDateTime(value) {

@@ -129,12 +129,6 @@ export function serializeSessionForList(session: SessionListInclude) {
   };
 }
 
-export type SessionRecordInclude = SessionListInclude;
-
-export function serializeSessionRecord(session: SessionRecordInclude) {
-  return serializeSessionForList(session);
-}
-
 export function serializeSessionPlain(session: {
   id: string;
   sessionTypeId: string;

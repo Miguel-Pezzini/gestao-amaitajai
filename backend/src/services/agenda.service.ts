@@ -6,17 +6,17 @@ import {
   ValidationError,
 } from "../errors/http-errors.js";
 import { prisma } from "../db/prisma.js";
-import { isPrismaUniqueViolation } from "../db/errors.js";
+import { duplicateRoomMessage, isPrismaUniqueViolation } from "../db/errors.js";
 import {
   serializeSessionForList,
   serializeSessionPlain,
-  serializeSessionRecord,
   serializeSessionSeries,
   withMongoId,
   withMongoIdList,
 } from "../db/serialize.js";
 import {
   buildPatientDeactivatedCancelReason,
+  SESSION_FORMAT_LABELS,
   SESSION_MODALITIES,
   USER_ROLES,
   type SessionModality,
@@ -24,12 +24,10 @@ import {
   type UserRole,
 } from "../domain/agenda.js";
 import {
-  duplicateRoomMessage,
   containsInsensitive,
   normalizeText,
   parseDate,
   parseLimit,
-  parseListLimit,
   parsePage,
   shouldPaginateList,
   isUuid,
@@ -109,12 +107,6 @@ const DEFAULT_SESSION_MODALITY_SETTINGS: Record<SessionModality, SessionValidati
   INDIVIDUAL: { minPatients: 1, maxPatients: 1, minProfessionals: 1, maxProfessionals: 1 },
   DUPLA: { minPatients: 2, maxPatients: 2, minProfessionals: 2, maxProfessionals: 2 },
   GRUPO: { minPatients: 1, maxPatients: 15, minProfessionals: 2, maxProfessionals: 4 },
-};
-
-const SESSION_FORMAT_LABELS: Record<SessionModality, string> = {
-  INDIVIDUAL: "Individual",
-  DUPLA: "Dupla",
-  GRUPO: "Grupo",
 };
 
 const SESSION_LIST_INCLUDE = {
@@ -534,7 +526,7 @@ export class AgendaService {
     }
 
     const page = parsePage(query.page, 1);
-    const limit = parseListLimit(query.limit, 20, 100);
+    const limit = parseLimit(query.limit, 20, 100);
     const skip = (page - 1) * limit;
 
     const [sessions, total] = await Promise.all([
@@ -714,7 +706,7 @@ export class AgendaService {
     });
 
     return {
-      session: serializeSessionRecord(session),
+      session: serializeSessionForList(session),
       sessionsUpdated: targetSessions.length,
     };
   }
@@ -1020,13 +1012,12 @@ export class AgendaService {
 
     for (const item of requiredReplacements) {
       const replacement = replacementByKey.get(item.key);
-      if (!replacement) {
+      if (!replacement || replacement.replacementPatientId === patientId) {
         throw new ValidationError(
-          "Informe o paciente substituto para todas as sessões que exigem troca.",
+          replacement?.replacementPatientId === patientId
+            ? "O paciente substituto deve ser diferente do paciente inativado."
+            : "Informe o paciente substituto para todas as sessões que exigem troca.",
         );
-      }
-      if (replacement.replacementPatientId === patientId) {
-        throw new ValidationError("O paciente substituto deve ser diferente do paciente inativado.");
       }
     }
   }

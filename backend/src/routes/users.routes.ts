@@ -12,14 +12,11 @@ import {
 } from "../domain/agenda.js";
 import { containsInsensitive, isUuid } from "../validators/agenda/agenda.utils.js";
 import { isAllowedEmailDomain } from "../validators/auth/email-domain.validator.js";
+import { getRouteId } from "../middlewares/async-handler.js";
 import { requireAuth } from "../middlewares/auth.middleware.js";
 import { requireAdmin } from "../middlewares/authz.middleware.js";
 
 const router = Router();
-
-function getRouteId(param: string | string[]): string {
-  return Array.isArray(param) ? (param[0] ?? "") : param;
-}
 
 function normalizeText(value: unknown): string {
   return String(value ?? "").trim();

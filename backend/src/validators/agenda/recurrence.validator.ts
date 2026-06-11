@@ -89,20 +89,20 @@ export function validateRecurrenceInput(
   return { weekdays: recurrence.weekdays, endsAt: recurrence.endsAt };
 }
 
-export function validateCancelScope(value: unknown): CancelScope {
+function validateScope(value: unknown, invalidMessage: string): CancelScope {
   const scope = (normalizeText(value) || "SINGLE").toUpperCase();
   if (!CANCEL_SCOPES.includes(scope as CancelScope)) {
-    throw new ValidationError("Escopo de cancelamento inválido.");
+    throw new ValidationError(invalidMessage);
   }
   return scope as CancelScope;
 }
 
+export function validateCancelScope(value: unknown): CancelScope {
+  return validateScope(value, "Escopo de cancelamento inválido.");
+}
+
 export function validateUpdateScope(value: unknown): UpdateScope {
-  const scope = (normalizeText(value) || "SINGLE").toUpperCase();
-  if (!UPDATE_SCOPES.includes(scope as UpdateScope)) {
-    throw new ValidationError("Escopo de edição inválido.");
-  }
-  return scope as UpdateScope;
+  return validateScope(value, "Escopo de edição inválido.");
 }
 
 export function validatePatientId(patientId: string): void {
