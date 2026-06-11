@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useSession } from "@/contexts/session-context";
 import { buildSessionLimitsMap } from "@/features/agenda/constants";
@@ -9,7 +8,6 @@ import { useAgendaPage } from "@/hooks/useAgendaPage";
 
 export function AgendaPage() {
   const { userName, user } = useSession();
-  const [referenceDate, setReferenceDate] = useState(new Date());
   const agenda = useAgendaPage(user);
   const selectedSessionType = agenda.sessionTypes.find((item) => item._id === agenda.form.sessionTypeId);
   const modalityOptions =
@@ -29,8 +27,11 @@ export function AgendaPage() {
 
       <AgendaCalendarView
         sessions={agenda.sessions}
-        referenceDate={referenceDate}
-        setReferenceDate={setReferenceDate}
+        referenceDate={agenda.referenceDate}
+        setReferenceDate={agenda.setReferenceDate}
+        viewMode={agenda.viewMode}
+        setViewMode={agenda.setViewMode}
+        loadingSessions={agenda.loadingSessions}
         onCompleteSession={agenda.handleCompleteSession}
         onCancelSession={agenda.openCancelDialog}
         onEditSession={agenda.openEditDialog}

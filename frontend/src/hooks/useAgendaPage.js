@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   cancelSession,
   completeSession,
@@ -18,6 +18,7 @@ import {
   buildSessionProfessionalsPayload,
   createSelectedProfessional,
   DEFAULT_SESSION_START_TIME,
+  AGENDA_VIEW_MODES,
   buildSessionLimitsMap,
   canAddSessionPatient,
   canAddSessionProfessional,
@@ -30,6 +31,7 @@ import {
 import { getApiErrorMessage } from "@/lib/api-error";
 import {
   combineStartDateTime,
+  getAgendaQueryRange,
   getSessionFormSlotQuery,
   normalizeRole,
   splitStartDateTime,
@@ -92,11 +94,13 @@ export function useAgendaPage(user) {
   const role = normalizeRole(user?.role);
   const isAdmin = role === "ADMINISTRADOR";
 
-  const [loading, setLoading] = useState(true);
+  const [loadingSessions, setLoadingSessions] = useState(true);
   const [loadingCatalogs, setLoadingCatalogs] = useState(false);
   const [catalogsLoaded, setCatalogsLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [sessions, setSessions] = useState([]);
+  const [referenceDate, setReferenceDate] = useState(() => new Date());
+  const [viewMode, setViewMode] = useState(AGENDA_VIEW_MODES.WEEK);
   const [rooms, setRooms] = useState([]);
   const [sessionTypes, setSessionTypes] = useState([]);
   const [sessionModalitySettings, setSessionModalitySettings] = useState([]);
@@ -144,28 +148,38 @@ export function useAgendaPage(user) {
     setSessionModalitySettings(modalitySettingsResponse.items ?? []);
   }
 
-  async function loadSessions(options = {}) {
-    const { showLoading = true } = options;
-    if (showLoading) {
-      setLoading(true);
-    }
-    try {
-      const response = await listSessions();
-      setSessions(response.items ?? []);
-    } catch (err) {
-      toast.error(
-        getApiErrorMessage(err, "Não foi possível carregar as sessões. Tente novamente."),
-      );
-    } finally {
+  const loadSessions = useCallback(
+    async (options = {}) => {
+      const {
+        referenceDate: date = referenceDate,
+        viewMode: mode = viewMode,
+        showLoading = true,
+      } = options;
+
       if (showLoading) {
-        setLoading(false);
+        setLoadingSessions(true);
       }
-    }
-  }
+
+      try {
+        const range = getAgendaQueryRange(date, mode);
+        const response = await listSessions(range);
+        setSessions(response.items ?? []);
+      } catch (err) {
+        toast.error(
+          getApiErrorMessage(err, "Não foi possível carregar as sessões. Tente novamente."),
+        );
+      } finally {
+        if (showLoading) {
+          setLoadingSessions(false);
+        }
+      }
+    },
+    [referenceDate, viewMode, toast],
+  );
 
   useEffect(() => {
     loadSessions();
-  }, []);
+  }, [referenceDate, viewMode, loadSessions]);
 
   const sessionFormOpen = createDialogOpen || editDialogOpen;
 
@@ -717,7 +731,7 @@ export function useAgendaPage(user) {
       toast.success(
         count > 1 ? `${count} sessões atualizadas com sucesso.` : "Sessão atualizada com sucesso.",
       );
-      await loadSessions();
+      await loadSessions({ showLoading: false });
     } catch (err) {
       toast.error(
         getApiErrorMessage(
@@ -761,7 +775,7 @@ export function useAgendaPage(user) {
       } else {
         toast.success("Sessão criada com sucesso.");
       }
-      await loadSessions();
+      await loadSessions({ showLoading: false });
     } catch (err) {
       toast.error(
         getApiErrorMessage(
@@ -778,7 +792,7 @@ export function useAgendaPage(user) {
     try {
       await completeSession(sessionId);
       toast.success("Sessão marcada como realizada.");
-      await loadSessions();
+      await loadSessions({ showLoading: false });
     } catch (err) {
       toast.error(
         getApiErrorMessage(err, "Não foi possível concluir a sessão selecionada."),
@@ -804,7 +818,7 @@ export function useAgendaPage(user) {
       toast.success(
         count > 1 ? `${count} sessões canceladas com sucesso.` : "Sessão cancelada com sucesso.",
       );
-      await loadSessions();
+      await loadSessions({ showLoading: false });
     } catch (err) {
       toast.error(
         getApiErrorMessage(err, "Não foi possível cancelar a sessão selecionada."),
@@ -817,10 +831,14 @@ export function useAgendaPage(user) {
   return {
     role,
     isAdmin,
-    loading,
+    loadingSessions,
     loadingCatalogs,
     saving,
     sessions,
+    referenceDate,
+    setReferenceDate,
+    viewMode,
+    setViewMode,
     rooms,
     sessionTypes,
     sessionModalitySettings,

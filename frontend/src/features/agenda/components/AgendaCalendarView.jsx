@@ -29,13 +29,15 @@ export function AgendaCalendarView({
   sessions,
   referenceDate,
   setReferenceDate,
+  viewMode,
+  setViewMode,
+  loadingSessions = false,
   onCompleteSession,
   onCancelSession,
   onEditSession,
   onOpenCreate,
   isAdmin,
 }) {
-  const [viewMode, setViewMode] = useState(AGENDA_VIEW_MODES.WEEK);
   const grouped = groupSessionsByDay(sessions);
   const [listDialog, setListDialog] = useState(EMPTY_LIST_DIALOG);
   const [selectedSessionId, setSelectedSessionId] = useState(null);
@@ -155,7 +157,13 @@ export function AgendaCalendarView({
         </div>
       </CardHeader>
 
-      {viewMode === AGENDA_VIEW_MODES.MONTH ? (
+      {loadingSessions ? (
+        <p className="px-4 pb-6 text-sm text-muted-foreground sm:px-6">
+          Carregando sessões...
+        </p>
+      ) : null}
+
+      {!loadingSessions && viewMode === AGENDA_VIEW_MODES.MONTH ? (
         <AgendaMonthView
           referenceDate={referenceDate}
           grouped={grouped}
@@ -163,7 +171,7 @@ export function AgendaCalendarView({
         />
       ) : null}
 
-      {viewMode === AGENDA_VIEW_MODES.WEEK ? (
+      {!loadingSessions && viewMode === AGENDA_VIEW_MODES.WEEK ? (
         <AgendaWeekView
           referenceDate={referenceDate}
           grouped={grouped}
@@ -173,7 +181,7 @@ export function AgendaCalendarView({
         />
       ) : null}
 
-      {viewMode === AGENDA_VIEW_MODES.DAY ? (
+      {!loadingSessions && viewMode === AGENDA_VIEW_MODES.DAY ? (
         <AgendaDayView
           referenceDate={referenceDate}
           sessions={dayViewSessions}

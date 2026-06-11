@@ -191,6 +191,46 @@ export function buildMonthGrid(referenceDate) {
   return { days, emptyCells };
 }
 
+function toQueryRangeIso(startDate, endDate) {
+  const startAt = new Date(startDate);
+  startAt.setHours(0, 0, 0, 0);
+
+  const endAt = new Date(endDate);
+  endAt.setHours(23, 59, 59, 999);
+
+  return {
+    startAt: startAt.toISOString(),
+    endAt: endAt.toISOString(),
+  };
+}
+
+export function getDayQueryRange(referenceDate) {
+  return toQueryRangeIso(referenceDate, referenceDate);
+}
+
+export function getWeekQueryRange(referenceDate) {
+  const days = buildWeekDays(referenceDate);
+  return toQueryRangeIso(days[0], days[6]);
+}
+
+export function getMonthQueryRange(referenceDate) {
+  const year = referenceDate.getFullYear();
+  const month = referenceDate.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  return toQueryRangeIso(firstDay, lastDay);
+}
+
+export function getAgendaQueryRange(referenceDate, viewMode) {
+  if (viewMode === "day") {
+    return getDayQueryRange(referenceDate);
+  }
+  if (viewMode === "week") {
+    return getWeekQueryRange(referenceDate);
+  }
+  return getMonthQueryRange(referenceDate);
+}
+
 export function weekRangeLabel(referenceDate) {
   const days = buildWeekDays(referenceDate);
   const first = days[0];

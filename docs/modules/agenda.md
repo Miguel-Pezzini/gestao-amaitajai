@@ -104,6 +104,16 @@ Filtros de listagem: `status`, `startAt`, `endAt`, `professionalId` (só admin),
 
 Visões: dia, semana (grade horária), mês, semana por slot. Suporte a recorrência na criação/cancelamento; edição com escopo em séries recorrentes. Sessões canceladas somem do calendário após o cancelamento.
 
+**Carregamento por período visível:** ao abrir a agenda ou navegar (setas, troca de visão), o frontend busca sessões apenas do intervalo exibido via `GET /agenda/sessions?startAt=&endAt=`:
+
+| Visão | Intervalo |
+|---|---|
+| Semana (padrão) | domingo 00:00 → sábado 23:59 da semana de `referenceDate` |
+| Mês | dia 1 → último dia do mês |
+| Dia | dia selecionado 00:00 → 23:59 |
+
+Após criar, editar, cancelar ou concluir sessão, re-busca só o período visível. Helpers em `frontend/src/features/agenda/utils.js` (`getAgendaQueryRange`); lógica em `useAgendaPage.js`. Histórico do paciente (`PatientSessionsDialog`) continua com paginação própria.
+
 **Pacientes → Sessões:** `PatientSessionsDialog` lista o histórico de sessões do paciente com filtros de status e período (inclui canceladas).
 
 ---
