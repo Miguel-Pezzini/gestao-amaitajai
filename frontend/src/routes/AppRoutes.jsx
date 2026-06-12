@@ -10,6 +10,7 @@ import { TiposProtocoloPage } from "@/pages/cadastros/TiposProtocoloPage";
 import { TiposSessaoPage } from "@/pages/cadastros/TiposSessaoPage";
 import { UsuariosPage } from "@/pages/cadastros/UsuariosPage";
 import { HomePage } from "@/pages/HomePage";
+import { AuthCallbackPage } from "@/pages/AuthCallbackPage";
 import { LoginPage } from "@/pages/LoginPage";
 import { ModuleComingSoonPage } from "@/pages/ModuleComingSoonPage";
 import { RoomOccupancyPage } from "@/pages/RoomOccupancyPage";
@@ -26,6 +27,7 @@ export function AppRoutes() {
       <SessionProvider>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/auth/callback" element={<AuthCallbackPage />} />
           <Route element={<AuthenticatedLayout />}>
           <Route path="/" element={<HomePage />} />
           <Route

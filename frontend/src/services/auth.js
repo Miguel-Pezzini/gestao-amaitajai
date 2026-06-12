@@ -1,13 +1,17 @@
+import { isBearerAuth } from "@/lib/auth-transport";
+import { persistToken } from "@/lib/auth-session";
 import api, { getOnce } from "./api";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:3000/api";
 
 /**
- * Autenticação via cookie httpOnly (JWT definido pelo backend).
- * O token não fica exposto no JavaScript do navegador.
+ * Autenticação via cookie httpOnly (padrão) ou Bearer + localStorage (modo bearer).
  */
 export async function login({ email, password }) {
   const { data } = await api.post("/auth/login", { email, password });
+  if (isBearerAuth() && data?.token) {
+    persistToken(data.token);
+  }
   return data;
 }
 

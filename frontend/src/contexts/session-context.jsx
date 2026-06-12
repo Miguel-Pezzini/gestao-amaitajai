@@ -1,6 +1,13 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { clearStoredUser, normalizeAuthUser, persistUser, readStoredUser } from "@/lib/auth-session";
+import {
+  clearStoredUser,
+  normalizeAuthUser,
+  persistUser,
+  readStoredToken,
+  readStoredUser,
+} from "@/lib/auth-session";
+import { isBearerAuth } from "@/lib/auth-transport";
 import { getNavigationBySession } from "@/lib/navigation";
 import { getSession, logout } from "@/services/auth";
 import { registerUnauthorizedHandler } from "@/services/api";
@@ -43,7 +50,15 @@ export function SessionProvider({ children }) {
   }, [navigate]);
 
   useEffect(() => {
-    if (readStoredUser()) {
+    const storedUser = readStoredUser();
+    const storedToken = readStoredToken();
+
+    if (storedUser && (!isBearerAuth() || storedToken)) {
+      setHydrating(false);
+      return;
+    }
+
+    if (isBearerAuth() && !storedToken) {
       setHydrating(false);
       return;
     }

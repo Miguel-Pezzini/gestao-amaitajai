@@ -1,4 +1,5 @@
 const STORAGE_KEY = "ama-auth-user";
+const TOKEN_STORAGE_KEY = "ama-access-token";
 
 export function normalizeAuthUser(user) {
   if (!user) {
@@ -34,10 +35,35 @@ export function persistUser(user) {
   }
 }
 
+export function readStoredToken() {
+  try {
+    return localStorage.getItem(TOKEN_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function persistToken(token) {
+  try {
+    localStorage.setItem(TOKEN_STORAGE_KEY, token);
+  } catch {
+    // Ignore storage failures in restricted environments.
+  }
+}
+
+export function clearStoredToken() {
+  try {
+    localStorage.removeItem(TOKEN_STORAGE_KEY);
+  } catch {
+    // Ignore storage failures in restricted environments.
+  }
+}
+
 export function clearStoredUser() {
   try {
     sessionStorage.removeItem(STORAGE_KEY);
   } catch {
     // Ignore storage failures in restricted environments.
   }
+  clearStoredToken();
 }

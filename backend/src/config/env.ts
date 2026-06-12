@@ -25,6 +25,15 @@ const cookieSameSite = cookieSameSiteRaw as (typeof cookieSameSiteOptions)[numbe
 
 const nodeEnv = process.env.NODE_ENV ?? "development";
 
+const authTransportRaw = (process.env.AUTH_TRANSPORT ?? "cookie").toLowerCase();
+const authTransportOptions = ["cookie", "bearer"] as const;
+if (!authTransportOptions.includes(authTransportRaw as (typeof authTransportOptions)[number])) {
+  throw new Error(
+    `AUTH_TRANSPORT inválido: ${process.env.AUTH_TRANSPORT}. Use: cookie ou bearer.`,
+  );
+}
+const authTransport = authTransportRaw as (typeof authTransportOptions)[number];
+
 export const env = {
   port: Number(process.env.PORT),
   databaseUrl: process.env.DATABASE_URL as string,
@@ -44,6 +53,7 @@ export const env = {
   adminPassword: process.env.ADMIN_PASSWORD as string,
   bcryptSaltRounds: Number(process.env.BCRYPT_SALT_ROUNDS ?? 12),
   cookieSameSite,
+  authTransport,
   allowedEmailDomain: (process.env.ALLOWED_EMAIL_DOMAIN ?? "amaitajai.org.br")
     .trim()
     .toLowerCase()

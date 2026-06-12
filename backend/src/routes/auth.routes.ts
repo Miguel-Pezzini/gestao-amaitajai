@@ -10,8 +10,11 @@ import {
   GoogleAuthError,
 } from "../services/google-auth.service.js";
 import {
+  applyAccessTokenToResponse,
   buildAuthCookieOptions,
+  buildAuthenticatedLoginBody,
   buildOAuthStateCookieOptions,
+  buildPostAuthRedirectUrl,
   generateAccessToken,
   loginFailureMessage,
   serializeAuthUser,
@@ -37,6 +40,7 @@ router.get("/auth/config", (_req: Request, res: Response) => {
   res.status(200).json({
     googleAuthEnabled: env.googleAuthEnabled,
     allowedEmailDomain: env.allowedEmailDomain,
+    authTransport: env.authTransport,
   });
 });
 
@@ -73,8 +77,8 @@ router.get(
     try {
       const user = await authenticateGoogleCode(code);
       const token = generateAccessToken(user.id);
-      res.cookie(env.jwtCookieName, token, buildAuthCookieOptions());
-      res.redirect(new URL("/", env.frontendUrl).toString());
+      applyAccessTokenToResponse(res, token);
+      res.redirect(buildPostAuthRedirectUrl(token));
     } catch (error) {
       if (error instanceof GoogleAuthError) {
         res.redirect(buildLoginRedirect(error.code));
@@ -109,16 +113,16 @@ router.post(
     }
 
     const token = generateAccessToken(user.id);
-    res.cookie(env.jwtCookieName, token, buildAuthCookieOptions());
+    applyAccessTokenToResponse(res, token);
 
-    res.status(200).json({
-      user: serializeAuthUser(user),
-    });
+    res.status(200).json(buildAuthenticatedLoginBody(user, token));
   }),
 );
 
 router.post("/auth/logout", (_req: Request, res: Response) => {
-  res.clearCookie(env.jwtCookieName, buildAuthCookieOptions());
+  if (env.authTransport === "cookie") {
+    res.clearCookie(env.jwtCookieName, buildAuthCookieOptions());
+  }
   res.status(200).json({ message: "Logout realizado com sucesso." });
 });
 

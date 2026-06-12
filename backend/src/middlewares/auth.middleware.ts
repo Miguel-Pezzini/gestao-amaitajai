@@ -1,8 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
-import { env } from "../config/env.js";
 import { prisma } from "../db/prisma.js";
 import { withMongoId } from "../db/serialize.js";
-import { verifyAccessToken } from "../services/auth.service.js";
+import { resolveAccessTokenFromRequest, verifyAccessToken } from "../services/auth.service.js";
 
 export async function requireAuth(
   req: Request,
@@ -10,7 +9,7 @@ export async function requireAuth(
   next: NextFunction,
 ): Promise<void> {
   try {
-    const token = req.cookies?.[env.jwtCookieName] as string | undefined;
+    const token = resolveAccessTokenFromRequest(req);
 
     if (!token) {
       res.status(401).json({ message: "Não autenticado." });

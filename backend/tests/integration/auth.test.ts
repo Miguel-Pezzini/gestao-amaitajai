@@ -1,5 +1,5 @@
 import request from "supertest";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import app from "../../src/app.js";
 import { prisma } from "../../src/db/prisma.js";
 import { createUser, loginAndGetCookie } from "./helpers/test-helpers.js";
@@ -58,6 +58,31 @@ describe("Autenticação", () => {
     expect(wrongPassword.body.message).toMatch(/inválidas/i);
   });
 
+  it("expõe sessão em /auth/me com Authorization Bearer", async () => {
+    const password = "bearer123456";
+    const user = await createUser({
+      name: "Usuario Bearer",
+      email: "bearer@auth.test",
+      password,
+      role: "TECNICO",
+    });
+
+    const login = await request(app)
+      .post("/api/auth/login")
+      .send({ email: user.email, password });
+
+    const cookie = login.headers["set-cookie"]?.[0] ?? "";
+    const tokenMatch = cookie.match(/ama_access_token=([^;]+)/);
+    expect(tokenMatch?.[1]).toBeTruthy();
+
+    const withBearer = await request(app)
+      .get("/api/auth/me")
+      .set("Authorization", `Bearer ${tokenMatch?.[1]}`);
+
+    expect(withBearer.status).toBe(200);
+    expect(withBearer.body.user.email).toBe(user.email);
+  });
+
   it("expõe sessão em /auth/me apenas com cookie válido", async () => {
     const password = "me123456";
     const user = await createUser({
@@ -97,6 +122,39 @@ describe("Autenticação", () => {
 
     expect(me.status).toBe(403);
     expect(me.body.message).toMatch(/inativa/i);
+  });
+
+  it("retorna token no body quando AUTH_TRANSPORT=bearer", async () => {
+    const previousTransport = process.env.AUTH_TRANSPORT;
+    process.env.AUTH_TRANSPORT = "bearer";
+    vi.resetModules();
+
+    const { default: bearerApp } = await import("../../src/app.js");
+    const password = "bearer-mode123";
+    const user = await createUser({
+      name: "Bearer Mode",
+      email: "bearermode@auth.test",
+      password,
+      role: "TECNICO",
+    });
+
+    const response = await request(bearerApp)
+      .post("/api/auth/login")
+      .send({ email: user.email, password });
+
+    expect(response.status).toBe(200);
+    expect(response.body.token).toBeTruthy();
+    expect(response.headers["set-cookie"]).toBeUndefined();
+
+    const me = await request(bearerApp)
+      .get("/api/auth/me")
+      .set("Authorization", `Bearer ${response.body.token}`);
+
+    expect(me.status).toBe(200);
+    expect(me.body.user.email).toBe(user.email);
+
+    process.env.AUTH_TRANSPORT = previousTransport;
+    vi.resetModules();
   });
 
   it("realiza logout e limpa o cookie de sessão", async () => {

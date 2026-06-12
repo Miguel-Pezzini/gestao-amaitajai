@@ -1,6 +1,6 @@
 import bcrypt from "bcryptjs";
 import jwt, { type SignOptions } from "jsonwebtoken";
-import type { CookieOptions } from "express";
+import type { CookieOptions, Request, Response } from "express";
 import { env } from "../config/env.js";
 import { prisma } from "../db/prisma.js";
 import type { UserAccountStatus } from "../domain/agenda.js";
@@ -84,6 +84,54 @@ export function generateAccessToken(userId: string): string {
     expiresIn: env.jwtExpiresIn as SignOptions["expiresIn"],
   };
   return jwt.sign({ sub: userId } satisfies AccessTokenPayload, env.jwtSecret, options);
+}
+
+export function resolveAccessTokenFromRequest(req: Request): string | undefined {
+  const cookieToken = req.cookies?.[env.jwtCookieName] as string | undefined;
+  if (cookieToken) {
+    return cookieToken;
+  }
+
+  const authHeader = req.headers.authorization;
+  if (typeof authHeader === "string" && authHeader.startsWith("Bearer ")) {
+    const token = authHeader.slice("Bearer ".length).trim();
+    if (token) {
+      return token;
+    }
+  }
+
+  return undefined;
+}
+
+export function buildAuthenticatedLoginBody(
+  user: Parameters<typeof serializeAuthUser>[0],
+  token: string,
+) {
+  const body: { user: ReturnType<typeof serializeAuthUser>; token?: string } = {
+    user: serializeAuthUser(user),
+  };
+
+  if (env.authTransport === "bearer") {
+    body.token = token;
+  }
+
+  return body;
+}
+
+export function applyAccessTokenToResponse(res: Response, token: string): void {
+  if (env.authTransport === "cookie") {
+    res.cookie(env.jwtCookieName, token, buildAuthCookieOptions());
+  }
+}
+
+export function buildPostAuthRedirectUrl(token: string): string {
+  if (env.authTransport === "bearer") {
+    const url = new URL("/auth/callback", env.frontendUrl);
+    url.hash = `token=${encodeURIComponent(token)}`;
+    return url.toString();
+  }
+
+  return new URL("/", env.frontendUrl).toString();
 }
 
 export function verifyAccessToken(token: string): AccessTokenPayload {

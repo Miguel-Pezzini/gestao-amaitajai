@@ -1,5 +1,6 @@
 import axios from "axios";
-import { clearStoredUser } from "@/lib/auth-session";
+import { clearStoredUser, readStoredToken } from "@/lib/auth-session";
+import { isBearerAuth } from "@/lib/auth-transport";
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL ?? "http://localhost:3000/api",
@@ -10,6 +11,20 @@ const api = axios.create({
 });
 
 let onUnauthorized = null;
+
+api.interceptors.request.use((config) => {
+  if (!isBearerAuth()) {
+    return config;
+  }
+
+  const token = readStoredToken();
+  if (!token) {
+    return config;
+  }
+
+  config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
 
 const inflightGetRequests = new Map();
 const recentGetResponses = new Map();

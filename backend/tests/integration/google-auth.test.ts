@@ -121,6 +121,45 @@ describe("Autenticação Google", () => {
     expect(reactivated.accountStatus).toBe("ATIVO");
   });
 
+  it("redireciona callback Google para /auth/callback em modo bearer", async () => {
+    const activeUser = await createUser({
+      name: "Bearer Google",
+      email: "bearer-google@amaitajai.org.br",
+      password: "senha123456",
+      role: "TECNICO",
+    });
+
+    const previousTransport = process.env.AUTH_TRANSPORT;
+    process.env.AUTH_TRANSPORT = "bearer";
+    vi.resetModules();
+
+    const { default: bearerApp } = await import("../../src/app.js");
+
+    vi.mocked(authenticateGoogleCode).mockResolvedValueOnce({
+      id: activeUser._id,
+      name: activeUser.name,
+      email: activeUser.email,
+      role: activeUser.role,
+      accountStatus: "ATIVO",
+      passwordHash: "hash",
+      googleId: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const bearerSuccess = await request(bearerApp)
+      .get("/api/auth/google/callback?code=ok&state=abc")
+      .set("Cookie", ["ama_google_oauth_state=abc"]);
+
+    expect(bearerSuccess.status).toBe(302);
+    expect(bearerSuccess.headers.location).toMatch(
+      /^http:\/\/localhost:5173\/auth\/callback#token=/,
+    );
+
+    process.env.AUTH_TRANSPORT = previousTransport;
+    vi.resetModules();
+  });
+
   it("permite administrador reativar usuário inativo", async () => {
     const adminPassword = "admin123456";
     const admin = await createUser({

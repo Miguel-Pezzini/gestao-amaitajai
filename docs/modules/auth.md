@@ -1,13 +1,13 @@
 # Módulo: Autenticação
 
-**Última atualização:** 2026-06-10  
+**Última atualização:** 2026-06-12  
 **Escopo:** fullstack
 
 ---
 
 ## Visão geral
 
-Autenticação de usuários via e-mail/senha ou Google OAuth (quando configurado). Sessão mantida em cookie HTTP-only com JWT.
+Autenticação de usuários via e-mail/senha ou Google OAuth (quando configurado). Sessão JWT com transporte configurável: cookie HTTP-only (padrão) ou Bearer + `localStorage` (workaround cross-domain).
 
 ---
 
@@ -31,9 +31,17 @@ Autenticação de usuários via e-mail/senha ou Google OAuth (quando configurado
 
 ### Sessão
 
-- JWT em cookie (`buildAuthCookieOptions`).
-- `/auth/me` retorna usuário serializado (sem senha).
-- Logout limpa cookie.
+Modo controlado por `AUTH_TRANSPORT` (backend) e `VITE_AUTH_TRANSPORT` (frontend) — **devem ter o mesmo valor**.
+
+| Modo | Backend | Frontend |
+|---|---|---|
+| `cookie` (padrão) | JWT em cookie httpOnly (`buildAuthCookieOptions`) | `withCredentials: true` |
+| `bearer` | JWT no JSON do login e no hash do redirect OAuth | `Authorization: Bearer` + `localStorage` |
+
+- `/auth/me` aceita cookie **ou** header `Authorization: Bearer`.
+- `/auth/config` expõe `authTransport` para o frontend.
+- Logout: em modo cookie limpa o cookie; em modo bearer o frontend remove o token do `localStorage`.
+- OAuth Google em modo bearer: callback redireciona para `/auth/callback#token=...` no frontend.
 
 ### Deploy (Vercel + Railway, API direta)
 
@@ -58,7 +66,7 @@ OAuth Google: início (`/auth/google`) e callback (`/auth/google/callback`) roda
 
 | Método | Rota | Permissão | Descrição |
 |---|---|---|---|
-| GET | `/auth/config` | público | Retorna se Google está habilitado e domínio permitido |
+| GET | `/auth/config` | público | Retorna Google habilitado, domínio permitido e `authTransport` |
 | GET | `/auth/google` | público | Redireciona para OAuth Google |
 | GET | `/auth/google/callback` | público | Callback OAuth, seta cookie, redireciona ao frontend |
 | POST | `/auth/login` | público | Login e-mail/senha |
@@ -70,6 +78,7 @@ OAuth Google: início (`/auth/google`) e callback (`/auth/google/callback`) roda
 | Rota | Componente | Descrição |
 |---|---|---|
 | `/login` | `LoginPage` | Formulário senha + botão Google (se habilitado) |
+| `/auth/callback` | `AuthCallbackPage` | Recebe token OAuth em modo bearer |
 
 Contexto de sessão: `SessionProvider` / `session-context`.
 
