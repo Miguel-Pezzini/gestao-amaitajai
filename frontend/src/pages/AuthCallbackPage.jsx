@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSession } from "@/contexts/session-context";
 import { persistToken } from "@/lib/auth-session";
@@ -19,8 +19,14 @@ export function AuthCallbackPage() {
   const navigate = useNavigate();
   const { setUser } = useSession();
   const [error, setError] = useState("");
+  const processedRef = useRef(false);
 
   useEffect(() => {
+    if (processedRef.current) {
+      return;
+    }
+    processedRef.current = true;
+
     let mounted = true;
 
     async function completeOAuthLogin() {

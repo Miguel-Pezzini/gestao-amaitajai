@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   clearStoredUser,
@@ -28,7 +28,7 @@ export function SessionProvider({ children }) {
 
   const userName = user?.name?.trim() || "Equipe AMA";
 
-  function setUser(nextUser) {
+  const setUser = useCallback((nextUser) => {
     const normalized = normalizeAuthUser(nextUser);
     setUserState(normalized);
     if (normalized) {
@@ -36,7 +36,7 @@ export function SessionProvider({ children }) {
       return;
     }
     clearStoredUser();
-  }
+  }, []);
 
   useEffect(() => {
     registerUnauthorizedHandler(() => {
