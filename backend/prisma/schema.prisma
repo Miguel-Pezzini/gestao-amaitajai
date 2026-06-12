@@ -62,6 +62,8 @@ model User {
   sessionSeriesProfessional SessionSeriesProfessional[]
   protocolsCreated          PatientProtocol[]         @relation("ProtocolCreatedBy")
   protocolsUpdated          PatientProtocol[]         @relation("ProtocolUpdatedBy")
+  evolutionsCreated         PatientSessionEvolution[]   @relation("EvolutionCreatedBy")
+  evolutionsUpdated         PatientSessionEvolution[]   @relation("EvolutionUpdatedBy")
 
   @@index([role, accountStatus])
 }
@@ -93,6 +95,7 @@ model Patient {
   sessionPatients       SessionPatient[]
   sessionSeriesPatients SessionSeriesPatient[]
   protocols             PatientProtocol[]
+  sessionEvolutions     PatientSessionEvolution[]
 
   @@index([isActive, fullName])
   @@index([fundingSourceId, isActive, fullName])
@@ -248,6 +251,7 @@ model Session {
   updatedBy     User                  @relation("SessionUpdatedBy", fields: [updatedById], references: [id])
   patients      SessionPatient[]
   professionals SessionProfessional[]
+  evolutions    PatientSessionEvolution[]
 
   @@index([startAt, endAt])
   @@index([roomId, startAt, endAt])
@@ -278,6 +282,26 @@ model SessionProfessional {
 
   @@id([sessionId, professionalId])
   @@index([professionalId])
+}
+
+model PatientSessionEvolution {
+  id          String   @id @default(uuid()) @db.Uuid
+  sessionId   String   @db.Uuid
+  patientId   String   @db.Uuid
+  content     String   @default("")
+  createdById String   @db.Uuid
+  updatedById String   @db.Uuid
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  session   Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  patient   Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  createdBy User    @relation("EvolutionCreatedBy", fields: [createdById], references: [id])
+  updatedBy User    @relation("EvolutionUpdatedBy", fields: [updatedById], references: [id])
+
+  @@unique([sessionId, patientId])
+  @@index([patientId, createdAt])
+  @@index([sessionId])
 }
 
 model SessionModalitySetting {

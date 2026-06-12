@@ -93,6 +93,8 @@ Uma sessão tem: data/hora, duração, sala, tipo de atendimento, modalidade (`I
 | PATCH | `/agenda/sessions/:id` | admin | Editar sessão (escopo SINGLE/FUTURE/ALL) |
 | PATCH | `/agenda/sessions/:id/cancel` | admin | Cancelar (escopo SINGLE/FUTURE/ALL) |
 | PATCH | `/agenda/sessions/:id/complete` | auth | Marcar como realizada |
+| GET | `/agenda/sessions/:id/evolutions` | auth | Evolução atual dos pacientes da sessão (histórico via `/patients/:id/evolutions`) |
+| PUT | `/agenda/sessions/:id/evolutions/:patientId` | auth | Criar/atualizar evolução do paciente na sessão |
 
 Filtros de listagem: `status`, `startAt`, `endAt`, `professionalId` (só admin), `patientId`, `includeCancelled` (inclui canceladas quando `status` não é informado). Com `page`/`limit`, retorna `pagination` (20 itens por página no histórico do paciente; agenda sem paginação).
 
@@ -116,6 +118,8 @@ Após criar, editar, cancelar ou concluir sessão, re-busca só o período visí
 
 **Pacientes → Sessões:** `PatientSessionsDialog` lista o histórico de sessões do paciente com filtros de status e período (inclui canceladas).
 
+**Evolução clínica:** `SessionDetailDialog` exibe, por paciente da sessão, o histórico de evoluções anteriores e um campo de texto livre para a evolução da sessão atual. O histórico agrega **todas** as sessões do paciente (qualquer modalidade), ordenado por data. Salvamento independente de marcar `REALIZADA`.
+
 ---
 
 ## Validações importantes
@@ -133,6 +137,10 @@ Após criar, editar, cancelar ou concluir sessão, re-busca só o período visí
 | Recorrência: ≥1 weekday, endsAt ≥ startsAt | ValidationError | `recurrence.validator.ts` |
 | Técnico só conclui sessão própria | ForbiddenError | `agenda.service.ts` |
 | Tipo tea-14-plus só grupo | ValidationError | `session-type.validator.ts` |
+| Evolução: paciente deve participar da sessão | ValidationError | `patient-evolution.service.ts` |
+| Evolução em sessão cancelada | ValidationError | `patient-evolution.service.ts` |
+| Técnico só acessa evolução da própria sessão | ForbiddenError | `patient-evolution.service.ts` |
+| Conteúdo da evolução: texto, máx. 10.000 caracteres | ValidationError | `patient-evolution.validator.ts` |
 
 ---
 
@@ -142,6 +150,7 @@ Após criar, editar, cancelar ou concluir sessão, re-busca só o período visí
 |---|---|---|
 | Criar/editar/cancelar sessão | sim | não |
 | Marcar realizada | sim (qualquer) | sim (só própria) |
+| Registrar/editar evolução na sessão | sim (qualquer) | sim (só própria) |
 | Ver agenda de outros | sim | não |
 | Cadastros (salas, tipos, modalidades) | sim | não |
 
@@ -165,8 +174,11 @@ Auditoria: `createdById`, `updatedById` em sessões e séries.
 | Hook | `frontend/src/hooks/useAgendaPage.js` |
 | Feature | `frontend/src/features/agenda/` |
 | Editor apoio (GRUPO) | `frontend/src/features/agenda/components/SelectedProfessionalsEditor.jsx` |
-| Service API | `frontend/src/services/agenda.js` |
-| Testes integração | `backend/tests/integration/agenda.test.ts` |
+| Evolução na sessão | `frontend/src/features/agenda/components/SessionPatientEvolutions.jsx` |
+| Service evolução | `backend/src/services/patient-evolution.service.ts` |
+| Rotas evolução | `backend/src/routes/patient-evolutions.routes.ts` |
+| Service API | `frontend/src/services/agenda.js`, `frontend/src/services/patient-evolutions.js` |
+| Testes integração | `backend/tests/integration/agenda.test.ts`, `backend/tests/integration/patient-evolutions.test.ts` |
 | Testes unitários | `backend/tests/unit/session-recurrence.helpers.test.ts` |
 
 ---

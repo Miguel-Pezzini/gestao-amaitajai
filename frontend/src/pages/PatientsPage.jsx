@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { CalendarDays, ClipboardList, Pencil, UserCheck, UserX } from "lucide-react";
+import { CalendarDays, ClipboardList, FileText, Pencil, UserCheck, UserX } from "lucide-react";
 import {
   EntityList,
   EntityListItem,
@@ -35,6 +35,7 @@ import { SELECT_ALL_VALUE } from "@/constants/select";
 import { useSession } from "@/contexts/session-context";
 import { PatientSessionsDialog } from "@/features/agenda/components/PatientSessionsDialog";
 import { DeactivatePatientDialog } from "@/features/patients/components/DeactivatePatientDialog";
+import { PatientEvolutionsDialog } from "@/features/patients/components/PatientEvolutionsDialog";
 import { PatientProtocolsDialog } from "@/features/protocols/components/PatientProtocolsDialog";
 import { PendingProtocolBadge } from "@/features/protocols/components/PendingProtocolBadge";
 import { usePatientDeactivation } from "@/hooks/usePatientDeactivation";
@@ -284,6 +285,8 @@ export function PatientsPage() {
   const [protocolsDialogOpen, setProtocolsDialogOpen] = useState(false);
   const [sessionsPatient, setSessionsPatient] = useState(null);
   const [sessionsDialogOpen, setSessionsDialogOpen] = useState(false);
+  const [evolutionsPatient, setEvolutionsPatient] = useState(null);
+  const [evolutionsDialogOpen, setEvolutionsDialogOpen] = useState(false);
 
   const isEditing = Boolean(editingId);
 
@@ -449,6 +452,16 @@ export function PatientsPage() {
     setSessionsPatient(null);
   }
 
+  function openEvolutionsDialog(patient) {
+    setEvolutionsPatient(patient);
+    setEvolutionsDialogOpen(true);
+  }
+
+  function closeEvolutionsDialog() {
+    setEvolutionsDialogOpen(false);
+    setEvolutionsPatient(null);
+  }
+
   return (
     <div className="relative min-w-0 space-y-4 pb-24 sm:space-y-6">
       <Card className="overflow-hidden border-ama-cyan/30">
@@ -483,6 +496,14 @@ export function PatientsPage() {
         open={sessionsDialogOpen}
         onOpenChange={(open) => {
           if (!open) closeSessionsDialog();
+        }}
+      />
+
+      <PatientEvolutionsDialog
+        patient={evolutionsPatient}
+        open={evolutionsDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) closeEvolutionsDialog();
         }}
       />
 
@@ -634,6 +655,11 @@ export function PatientsPage() {
                           icon={CalendarDays}
                           label="Sessões"
                           onClick={() => openSessionsDialog(patient)}
+                        />
+                        <EntityListIconAction
+                          icon={FileText}
+                          label="Evoluções"
+                          onClick={() => openEvolutionsDialog(patient)}
                         />
                         <EntityListIconAction
                           icon={ClipboardList}

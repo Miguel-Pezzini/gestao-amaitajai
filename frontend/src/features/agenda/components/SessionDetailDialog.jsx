@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { SESSION_FORMAT_LABELS } from "@/features/cadastros/constants";
+import { SessionPatientEvolutions } from "@/features/agenda/components/SessionPatientEvolutions";
 import { SessionParticipantsDetail } from "@/features/agenda/components/SessionParticipants";
 import {
   formatSessionDateTime,
@@ -49,10 +50,9 @@ export function SessionDetailDialog({
       onOpenChange={onOpenChange}
       nested
       title={sessionSummary(session)}
-      description={formatSessionDateTime(session.startAt)}
       className="sm:max-w-2xl"
     >
-      <div className="space-y-4">
+      <div className="min-w-0 space-y-4 overflow-hidden">
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="outline" className={statusBadgeClass(session.status)}>
             {getSessionStatusLabel(session.status)}
@@ -74,6 +74,12 @@ export function SessionDetailDialog({
         </dl>
 
         <SessionParticipantsDetail session={session} />
+
+        <SessionPatientEvolutions
+          sessionId={session._id}
+          sessionStatus={session.status}
+          open={open}
+        />
 
         {notes ? (
           <section className="space-y-2">
