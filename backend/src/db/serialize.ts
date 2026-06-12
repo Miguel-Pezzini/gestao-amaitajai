@@ -118,7 +118,13 @@ export type SessionListInclude = {
   updatedAt: Date;
   sessionType: { id: string; name: string; slug: string };
   room: { id: string; name: string };
-  patients: Array<{ patient: { id: string; fullName: string; fundingSource: PatientFundingSourceRef } }>;
+  patients: Array<{
+    patientId: string;
+    attendanceStatus: string;
+    attendanceJustification: string;
+    attendanceUpdatedAt: Date | null;
+    patient: { id: string; fullName: string; fundingSource: PatientFundingSourceRef };
+  }>;
   professionals: Array<{
     professional: { id: string; name: string; email: string; role: string };
     isApoio?: boolean;
@@ -127,7 +133,37 @@ export type SessionListInclude = {
   }>;
 };
 
-export function serializeSessionForList(session: SessionListInclude) {
+export function serializeSessionPatientAttendance(
+  row: Pick<
+    SessionListInclude["patients"][number],
+    "attendanceStatus" | "attendanceJustification" | "attendanceUpdatedAt"
+  >,
+  sessionStartAt: Date,
+) {
+  const isFuture = sessionStartAt.getTime() > Date.now();
+  const isDefaultPresent = row.attendanceStatus === "PRESENTE" && !row.attendanceUpdatedAt;
+
+  if (isFuture && isDefaultPresent) {
+    return null;
+  }
+
+  return {
+    status: row.attendanceStatus,
+    justification: row.attendanceJustification,
+  };
+}
+
+export function serializeSessionForList(
+  session: SessionListInclude,
+  options: { patientId?: string } = {},
+) {
+  const patientAttendanceRow = options.patientId
+    ? session.patients.find((row) => row.patientId === options.patientId)
+    : undefined;
+  const patientAttendance = patientAttendanceRow
+    ? serializeSessionPatientAttendance(patientAttendanceRow, session.startAt)
+    : null;
+
   return {
     _id: session.id,
     sessionTypeId: serializeSessionTypeRef(session.sessionType),
@@ -147,6 +183,7 @@ export function serializeSessionForList(session: SessionListInclude) {
     updatedAt: session.updatedAt,
     patientIds: session.patients.map((row) => serializePatientRef(row.patient)),
     professionalIds: session.professionals.map((row) => serializeProfessionalAssignment(row)),
+    ...(patientAttendance ? { patientAttendance } : {}),
   };
 }
 

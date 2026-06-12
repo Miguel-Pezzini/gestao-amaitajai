@@ -118,7 +118,7 @@ Visões: dia, semana (grade horária), mês, semana por slot. Suporte a recorrê
 
 Após criar, editar, cancelar ou concluir sessão, re-busca só o período visível. Helpers em `frontend/src/features/agenda/utils.js` (`getAgendaQueryRange`); lógica em `useAgendaPage.js`. Histórico do paciente (`PatientSessionsDialog`) continua com paginação própria.
 
-**Pacientes → Sessões:** `PatientSessionsDialog` lista o histórico de sessões do paciente com filtros de status e período (inclui canceladas).
+**Pacientes → Sessões:** `PatientSessionsDialog` lista o histórico de sessões do paciente com filtros de status e período (inclui canceladas). Cada card usa cor de fundo/borda conforme a presença do paciente na sessão: verde (`PRESENTE`), vermelho (`FALTA`), âmbar (`FALTA_JUSTIFICADA`, com texto da justificativa). Sessões canceladas mantêm card neutro. Sessões **futuras** sem presença registrada não exibem cor nem badge de presença (o padrão `PRESENTE` do banco não é mostrado antes da data da sessão).
 
 **Presença na sessão:** `SessionDetailDialog` exibe, por paciente, o status de presença (`PRESENTE`, `FALTA`, `FALTA_JUSTIFICADA`) com destaque visual (verde / vermelho / âmbar). O padrão ao vincular paciente à sessão é `PRESENTE`. Falta justificada exige texto de justificativa. Edição permitida em sessões `AGENDADA` e `REALIZADA`; bloqueada em `CANCELADA`. O botão **Marcar como realizada** fica desabilitado na UI se houver falta justificada sem texto; o backend também valida antes de concluir.
 

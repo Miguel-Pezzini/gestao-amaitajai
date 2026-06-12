@@ -937,6 +937,68 @@ describe("Agenda integration", () => {
       expect(page2.body.items).toHaveLength(1);
     });
 
+    it("inclui presença do paciente filtrado no histórico por paciente", async () => {
+      const { adminCookie, paciente, profissional, room, sessionType } = await seedAgendaBase();
+
+      const created = await request(app)
+        .post("/api/agenda/sessions")
+        .set("Cookie", adminCookie)
+        .send(
+          buildSessionPayload({
+            sessionTypeId: sessionType._id,
+            roomId: room._id,
+            patientIds: [paciente._id],
+            professionalIds: [profissional._id],
+            startAt: "2026-06-15T10:00:00.000Z",
+          }),
+        );
+      const sessionId = created.body.session._id as string;
+
+      await request(app)
+        .put(`/api/agenda/sessions/${sessionId}/attendance/${paciente._id}`)
+        .set("Cookie", adminCookie)
+        .send({ status: "FALTA_JUSTIFICADA", justification: "Consulta médica" });
+
+      const patientHistory = await request(app)
+        .get("/api/agenda/sessions")
+        .set("Cookie", adminCookie)
+        .query({ patientId: paciente._id, includeCancelled: "true" });
+
+      expect(patientHistory.status).toBe(200);
+      expect(patientHistory.body.items).toHaveLength(1);
+      expect(patientHistory.body.items[0].patientAttendance).toEqual({
+        status: "FALTA_JUSTIFICADA",
+        justification: "Consulta médica",
+      });
+    });
+
+    it("não expõe presença automática em sessão futura no histórico por paciente", async () => {
+      const { adminCookie, paciente, profissional, room, sessionType } = await seedAgendaBase();
+      const futureStart = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+
+      await request(app)
+        .post("/api/agenda/sessions")
+        .set("Cookie", adminCookie)
+        .send(
+          buildSessionPayload({
+            sessionTypeId: sessionType._id,
+            roomId: room._id,
+            patientIds: [paciente._id],
+            professionalIds: [profissional._id],
+            startAt: futureStart,
+          }),
+        );
+
+      const patientHistory = await request(app)
+        .get("/api/agenda/sessions")
+        .set("Cookie", adminCookie)
+        .query({ patientId: paciente._id, includeCancelled: "true" });
+
+      expect(patientHistory.status).toBe(200);
+      expect(patientHistory.body.items).toHaveLength(1);
+      expect(patientHistory.body.items[0].patientAttendance).toBeUndefined();
+    });
+
     it("filtra sessões por paciente e inclui canceladas com includeCancelled", async () => {
       const { adminCookie, paciente, profissional, room, sessionType } = await seedAgendaBase();
 
