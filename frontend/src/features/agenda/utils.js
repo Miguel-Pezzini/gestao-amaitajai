@@ -395,8 +395,30 @@ export const SESSION_STATUS_LABELS = {
   CANCELADA: "Cancelada",
 };
 
+export const SESSION_ATTENDANCE_STATUSES = ["PRESENTE", "FALTA", "FALTA_JUSTIFICADA"];
+
+export const SESSION_ATTENDANCE_LABELS = {
+  PRESENTE: "Presente",
+  FALTA: "Falta",
+  FALTA_JUSTIFICADA: "Falta justificada",
+};
+
 export function getSessionStatusLabel(status) {
   return SESSION_STATUS_LABELS[status] ?? status ?? "";
+}
+
+export function getSessionAttendanceLabel(status) {
+  return SESSION_ATTENDANCE_LABELS[status] ?? status ?? "";
+}
+
+export function isSessionAttendanceDraftValid(draft) {
+  if (!draft) {
+    return false;
+  }
+  if (draft.status === "FALTA_JUSTIFICADA") {
+    return String(draft.justification ?? "").trim().length > 0;
+  }
+  return SESSION_ATTENDANCE_STATUSES.includes(draft.status);
 }
 
 function mapParticipantRefs(items, labelKey, defaultLabel, extraFields) {

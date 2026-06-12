@@ -43,6 +43,12 @@ enum SessionSeriesStatus {
   CANCELADA
 }
 
+enum SessionAttendanceStatus {
+  PRESENTE
+  FALTA
+  FALTA_JUSTIFICADA
+}
+
 model User {
   id            String            @id @default(uuid()) @db.Uuid
   name          String
@@ -64,6 +70,7 @@ model User {
   protocolsUpdated          PatientProtocol[]         @relation("ProtocolUpdatedBy")
   evolutionsCreated         PatientSessionEvolution[]   @relation("EvolutionCreatedBy")
   evolutionsUpdated         PatientSessionEvolution[]   @relation("EvolutionUpdatedBy")
+  sessionAttendancesUpdated SessionPatient[]            @relation("SessionAttendanceUpdatedBy")
 
   @@index([role, accountStatus])
 }
@@ -260,11 +267,16 @@ model Session {
 }
 
 model SessionPatient {
-  sessionId String @db.Uuid
-  patientId String @db.Uuid
+  sessionId               String                  @db.Uuid
+  patientId               String                  @db.Uuid
+  attendanceStatus        SessionAttendanceStatus @default(PRESENTE)
+  attendanceJustification String                  @default("")
+  attendanceUpdatedById   String?                 @db.Uuid
+  attendanceUpdatedAt     DateTime?
 
-  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  patient Patient @relation(fields: [patientId], references: [id])
+  session             Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  patient             Patient @relation(fields: [patientId], references: [id])
+  attendanceUpdatedBy User?   @relation("SessionAttendanceUpdatedBy", fields: [attendanceUpdatedById], references: [id])
 
   @@id([sessionId, patientId])
   @@index([patientId])

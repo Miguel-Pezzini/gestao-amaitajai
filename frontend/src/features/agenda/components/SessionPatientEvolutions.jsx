@@ -81,7 +81,12 @@ function PatientEvolutionCard({
   );
 }
 
-export function SessionPatientEvolutions({ sessionId, sessionStatus, open }) {
+export function SessionPatientEvolutions({
+  sessionId,
+  sessionStatus,
+  open,
+  attendanceByPatientId = {},
+}) {
   const {
     items,
     drafts,
@@ -92,6 +97,9 @@ export function SessionPatientEvolutions({ sessionId, sessionStatus, open }) {
     saveEvolution,
   } = useSessionEvolutions(sessionId, open);
   const readOnly = sessionStatus === "CANCELADA";
+  const presentItems = items.filter(
+    (item) => (attendanceByPatientId[item.patient._id]?.status ?? "PRESENTE") === "PRESENTE",
+  );
 
   if (!open) {
     return null;
@@ -107,9 +115,13 @@ export function SessionPatientEvolutions({ sessionId, sessionStatus, open }) {
         <p className="text-sm text-muted-foreground">Carregando evoluções...</p>
       ) : items.length === 0 ? (
         <p className="text-sm text-muted-foreground">Nenhum paciente vinculado a esta sessão.</p>
+      ) : presentItems.length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          Nenhum paciente presente nesta sessão para registrar evolução.
+        </p>
       ) : (
         <div className="space-y-4">
-          {items.map((item) => (
+          {presentItems.map((item) => (
             <PatientEvolutionCard
               key={item.patient._id}
               item={item}

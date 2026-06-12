@@ -2,9 +2,12 @@ import { Check, Pencil, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
+import { Tooltip } from "@/components/ui/tooltip";
 import { SESSION_FORMAT_LABELS } from "@/features/cadastros/constants";
+import { SessionPatientAttendance } from "@/features/agenda/components/SessionPatientAttendance";
 import { SessionPatientEvolutions } from "@/features/agenda/components/SessionPatientEvolutions";
 import { SessionParticipantsDetail } from "@/features/agenda/components/SessionParticipants";
+import { useSessionAttendances } from "@/features/agenda/hooks/useSessionAttendances";
 import {
   formatSessionDateTime,
   getSessionFormatLabel,
@@ -33,11 +36,13 @@ export function SessionDetailDialog({
   onCancelSession,
   onEditSession,
 }) {
+  const attendance = useSessionAttendances(session?._id, open && !!session);
+
   if (!session) {
     return null;
   }
 
-  const canComplete = session.status === "AGENDADA";
+  const canComplete = session.status === "AGENDADA" && attendance.canCompleteSession;
   const canEdit = isAdmin && session.status === "AGENDADA";
   const canCancel = isAdmin && session.status !== "CANCELADA";
   const hasActions = canComplete || canCancel || canEdit;
@@ -75,10 +80,16 @@ export function SessionDetailDialog({
 
         <SessionParticipantsDetail session={session} />
 
+        <SessionPatientAttendance
+          attendance={attendance}
+          readOnly={session.status === "CANCELADA"}
+        />
+
         <SessionPatientEvolutions
           sessionId={session._id}
           sessionStatus={session.status}
           open={open}
+          attendanceByPatientId={attendance.effectiveAttendanceByPatientId}
         />
 
         {notes ? (
@@ -138,19 +149,22 @@ export function SessionDetailDialog({
                 Cancelar sessão
               </Button>
             ) : null}
-            {canComplete ? (
-              <Button
-                type="button"
-                variant="outline"
-                className="border-ama-cyan/40"
-                onClick={() => {
-                  onCompleteSession(session._id);
-                  onOpenChange(false);
-                }}
-              >
-                <Check className="size-4" aria-hidden="true" />
-                Marcar como realizada
-              </Button>
+            {session.status === "AGENDADA" ? (
+              <Tooltip content={canComplete ? "" : attendance.completeBlockedReason}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="border-ama-cyan/40"
+                  onClick={() => {
+                    onCompleteSession(session._id);
+                    onOpenChange(false);
+                  }}
+                  disabled={!canComplete}
+                >
+                  <Check className="size-4" aria-hidden="true" />
+                  Marcar como realizada
+                </Button>
+              </Tooltip>
             ) : null}
           </div>
         ) : null}

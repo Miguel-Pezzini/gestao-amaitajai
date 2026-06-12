@@ -1262,6 +1262,20 @@ export class AgendaService {
     validateCompleteSession(sessionId, existing.status);
     this.assertTechnicianCanComplete(existing, currentUser);
 
+    const attendanceRows = await prisma.sessionPatient.findMany({
+      where: { sessionId },
+      include: {
+        patient: { select: { fullName: true } },
+      },
+    });
+    for (const row of attendanceRows) {
+      if (row.attendanceStatus === "FALTA_JUSTIFICADA" && !row.attendanceJustification.trim()) {
+        throw new ValidationError(
+          `Registre a justificativa da falta de ${row.patient.fullName} antes de concluir a sessão.`,
+        );
+      }
+    }
+
     const session = await prisma.session.update({
       where: { id: sessionId },
       data: {
