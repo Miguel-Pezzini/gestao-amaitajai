@@ -1,6 +1,6 @@
 # Módulo: Pacientes
 
-**Última atualização:** 2026-06-11  
+**Última atualização:** 2026-06-16  
 **Escopo:** fullstack
 
 ---
@@ -15,7 +15,7 @@ Cadastro e gestão de pacientes da instituição. Inclui desativação com impac
 
 ### Cadastro
 
-Paciente possui: nome completo, data de nascimento, responsável, telefone, fonte de custeio (`fundingSourceId`) e flag `isActive`.
+Paciente possui: nome completo, data de nascimento, responsável, telefone, fonte de custeio (`fundingSourceId`), flag `isActive` e campos clínicos opcionais de texto livre: `diagnosis` (Diagnóstico), `supportLevel` (Nível de suporte), `medication` (Medicação), `allergies` (Alergias), `reinforcers` (Reforçadores). Cada campo clínico aceita até 10.000 caracteres; omitido ou vazio persiste como string vazia.
 
 Fontes de custeio são cadastradas em **Cadastros gerais → Fontes de Custeio** (`PatientFundingSource`). Valores iniciais migrados: Municipal, Estadual, Particular. Apenas fontes ativas podem ser atribuídas a novos pacientes ou em edição.
 
@@ -83,6 +83,11 @@ Hook: `usePatientDeactivation.js`.
 | `guardianName` | obrigatório | `patients.routes.ts` |
 | `phone` | 10–11 dígitos, formatado `(XX) XXXXX-XXXX` | `patients.routes.ts` |
 | `fundingSourceId` | UUID de fonte ativa | `patients.routes.ts` |
+| `diagnosis` | opcional, texto livre, máx. 10.000 caracteres | `patients.routes.ts` |
+| `supportLevel` | opcional, texto livre, máx. 10.000 caracteres | `patients.routes.ts` |
+| `medication` | opcional, texto livre, máx. 10.000 caracteres | `patients.routes.ts` |
+| `allergies` | opcional, texto livre, máx. 10.000 caracteres | `patients.routes.ts` |
+| `reinforcers` | opcional, texto livre, máx. 10.000 caracteres | `patients.routes.ts` |
 | `isActive` | booleano no PATCH status | `patients.routes.ts` |
 | `replacements` | array com `replacementPatientId` + `seriesId` XOR `sessionId` | `patient-deactivation.validator.ts` |
 | Cobertura de substituições | todas as séries/sessões que exigem substituto devem ter entrada | `agenda.service.ts` |

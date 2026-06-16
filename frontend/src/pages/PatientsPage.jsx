@@ -50,6 +50,11 @@ const EMPTY_FORM = {
   guardianName: "",
   phone: "",
   fundingSourceId: "",
+  diagnosis: "",
+  supportLevel: "",
+  medication: "",
+  allergies: "",
+  reinforcers: "",
 };
 
 function formatPhone(value) {
@@ -117,6 +122,11 @@ function normalizeFormData(formData) {
     fullName: formData.fullName.trim(),
     guardianName: formData.guardianName.trim(),
     phone: formatPhone(formData.phone),
+    diagnosis: formData.diagnosis.trim(),
+    supportLevel: formData.supportLevel.trim(),
+    medication: formData.medication.trim(),
+    allergies: formData.allergies.trim(),
+    reinforcers: formData.reinforcers.trim(),
   };
 }
 
@@ -247,6 +257,61 @@ function PatientForm({
         {fieldErrors.fundingSourceId ? (
           <p className="text-sm text-destructive">{fieldErrors.fundingSourceId}</p>
         ) : null}
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="patient-diagnosis">Diagnóstico</Label>
+        <textarea
+          id="patient-diagnosis"
+          className="min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+          value={form.diagnosis}
+          onChange={(event) => onFormChange("diagnosis", event.target.value)}
+          disabled={saving}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="patient-supportLevel">Nível de suporte</Label>
+        <textarea
+          id="patient-supportLevel"
+          className="min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+          value={form.supportLevel}
+          onChange={(event) => onFormChange("supportLevel", event.target.value)}
+          disabled={saving}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="patient-medication">Medicação</Label>
+        <textarea
+          id="patient-medication"
+          className="min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+          value={form.medication}
+          onChange={(event) => onFormChange("medication", event.target.value)}
+          disabled={saving}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="patient-allergies">Alergias</Label>
+        <textarea
+          id="patient-allergies"
+          className="min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+          value={form.allergies}
+          onChange={(event) => onFormChange("allergies", event.target.value)}
+          disabled={saving}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="patient-reinforcers">Reforçadores</Label>
+        <textarea
+          id="patient-reinforcers"
+          className="min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+          value={form.reinforcers}
+          onChange={(event) => onFormChange("reinforcers", event.target.value)}
+          disabled={saving}
+        />
       </div>
 
       <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
@@ -386,6 +451,11 @@ export function PatientsPage() {
       guardianName: patient.guardianName ?? "",
       phone: formatPhone(patient.phone ?? ""),
       fundingSourceId: patient.fundingSourceId ?? activeFundingSources[0]?._id ?? "",
+      diagnosis: patient.diagnosis ?? "",
+      supportLevel: patient.supportLevel ?? "",
+      medication: patient.medication ?? "",
+      allergies: patient.allergies ?? "",
+      reinforcers: patient.reinforcers ?? "",
     });
     setFormDialogOpen(true);
   }
@@ -526,6 +596,7 @@ export function PatientsPage() {
         onOpenChange={(open) => {
           if (!open) closeFormDialog();
         }}
+        className="sm:max-w-2xl"
         title={isEditing ? "Editar paciente" : "Novo paciente"}
         description={
           isEditing

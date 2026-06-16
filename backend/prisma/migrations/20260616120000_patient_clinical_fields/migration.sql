@@ -1,0 +1,6 @@
+-- AlterTable
+ALTER TABLE "Patient" ADD COLUMN "diagnosis" TEXT NOT NULL DEFAULT '';
+ALTER TABLE "Patient" ADD COLUMN "supportLevel" TEXT NOT NULL DEFAULT '';
+ALTER TABLE "Patient" ADD COLUMN "medication" TEXT NOT NULL DEFAULT '';
+ALTER TABLE "Patient" ADD COLUMN "allergies" TEXT NOT NULL DEFAULT '';
+ALTER TABLE "Patient" ADD COLUMN "reinforcers" TEXT NOT NULL DEFAULT '';

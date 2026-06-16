@@ -75,6 +75,76 @@ describe("Pacientes", () => {
     expect(response.body.message).toMatch(/telefone/i);
   });
 
+  it("cria paciente com campos clínicos preenchidos", async () => {
+    const response = await request(app)
+      .post("/api/patients")
+      .set("Cookie", adminCookie)
+      .send({
+        ...validPatientPayload,
+        diagnosis: "TEA nível 2",
+        supportLevel: "Moderado",
+        medication: "Risperidona 0,5mg",
+        allergies: "Penicilina",
+        reinforcers: "Bolha, massinha",
+      });
+
+    expect(response.status).toBe(201);
+    expect(response.body.patient.diagnosis).toBe("TEA nível 2");
+    expect(response.body.patient.supportLevel).toBe("Moderado");
+    expect(response.body.patient.medication).toBe("Risperidona 0,5mg");
+    expect(response.body.patient.allergies).toBe("Penicilina");
+    expect(response.body.patient.reinforcers).toBe("Bolha, massinha");
+  });
+
+  it("cria paciente sem campos clínicos com valores vazios", async () => {
+    const response = await request(app)
+      .post("/api/patients")
+      .set("Cookie", adminCookie)
+      .send(validPatientPayload);
+
+    expect(response.status).toBe(201);
+    expect(response.body.patient.diagnosis).toBe("");
+    expect(response.body.patient.supportLevel).toBe("");
+    expect(response.body.patient.medication).toBe("");
+    expect(response.body.patient.allergies).toBe("");
+    expect(response.body.patient.reinforcers).toBe("");
+  });
+
+  it("atualiza parcialmente campo clínico preservando os demais", async () => {
+    const created = await request(app)
+      .post("/api/patients")
+      .set("Cookie", adminCookie)
+      .send({
+        ...validPatientPayload,
+        diagnosis: "TEA",
+        medication: "Melatonina",
+      });
+    expect(created.status).toBe(201);
+    const patientId = created.body.patient._id as string;
+
+    const updated = await request(app)
+      .patch(`/api/patients/${patientId}`)
+      .set("Cookie", adminCookie)
+      .send({ medication: "Melatonina 3mg" });
+
+    expect(updated.status).toBe(200);
+    expect(updated.body.patient.diagnosis).toBe("TEA");
+    expect(updated.body.patient.medication).toBe("Melatonina 3mg");
+  });
+
+  it("rejeita campo clínico acima do tamanho máximo", async () => {
+    const response = await request(app)
+      .post("/api/patients")
+      .set("Cookie", adminCookie)
+      .send({
+        ...validPatientPayload,
+        diagnosis: "x".repeat(10_001),
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toMatch(/diagnóstico/i);
+  });
+
   it("lista, busca, atualiza e inativa paciente", async () => {
     const created = await request(app)
       .post("/api/patients")

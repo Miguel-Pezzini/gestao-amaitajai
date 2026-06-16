@@ -94,6 +94,11 @@ model Patient {
   guardianName    String
   phone           String
   fundingSourceId String               @db.Uuid
+  diagnosis       String               @default("")
+  supportLevel    String               @default("")
+  medication      String               @default("")
+  allergies       String               @default("")
+  reinforcers     String               @default("")
   isActive        Boolean              @default(true)
   createdAt       DateTime             @default(now())
   updatedAt       DateTime             @updatedAt

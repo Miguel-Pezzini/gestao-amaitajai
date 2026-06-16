@@ -11,6 +11,8 @@ import { validatePatientDeactivationReplacements } from "../validators/patient-d
 
 const router = Router();
 
+const PATIENT_CLINICAL_FIELD_MAX_LENGTH = 10_000;
+
 const patientInclude = {
   fundingSource: { select: { id: true, name: true } },
 } as const;
@@ -21,6 +23,11 @@ interface PatientPayload {
   guardianName?: unknown;
   phone?: unknown;
   fundingSourceId?: unknown;
+  diagnosis?: unknown;
+  supportLevel?: unknown;
+  medication?: unknown;
+  allergies?: unknown;
+  reinforcers?: unknown;
 }
 
 interface PatientUpdateFields {
@@ -29,6 +36,11 @@ interface PatientUpdateFields {
   guardianName?: string;
   phone?: string;
   fundingSourceId?: string;
+  diagnosis?: string;
+  supportLevel?: string;
+  medication?: string;
+  allergies?: string;
+  reinforcers?: string;
 }
 
 interface ValidationResult {
@@ -135,6 +147,61 @@ function validatePatientPayload(
     }
   }
 
+  if (!partial || payload.diagnosis !== undefined) {
+    const diagnosis = normalizeText(payload.diagnosis);
+    if (diagnosis.length > PATIENT_CLINICAL_FIELD_MAX_LENGTH) {
+      errors.push(
+        `Diagnóstico deve ter no máximo ${PATIENT_CLINICAL_FIELD_MAX_LENGTH} caracteres.`,
+      );
+    } else {
+      update.diagnosis = diagnosis;
+    }
+  }
+
+  if (!partial || payload.supportLevel !== undefined) {
+    const supportLevel = normalizeText(payload.supportLevel);
+    if (supportLevel.length > PATIENT_CLINICAL_FIELD_MAX_LENGTH) {
+      errors.push(
+        `Nível de suporte deve ter no máximo ${PATIENT_CLINICAL_FIELD_MAX_LENGTH} caracteres.`,
+      );
+    } else {
+      update.supportLevel = supportLevel;
+    }
+  }
+
+  if (!partial || payload.medication !== undefined) {
+    const medication = normalizeText(payload.medication);
+    if (medication.length > PATIENT_CLINICAL_FIELD_MAX_LENGTH) {
+      errors.push(
+        `Medicação deve ter no máximo ${PATIENT_CLINICAL_FIELD_MAX_LENGTH} caracteres.`,
+      );
+    } else {
+      update.medication = medication;
+    }
+  }
+
+  if (!partial || payload.allergies !== undefined) {
+    const allergies = normalizeText(payload.allergies);
+    if (allergies.length > PATIENT_CLINICAL_FIELD_MAX_LENGTH) {
+      errors.push(
+        `Alergias deve ter no máximo ${PATIENT_CLINICAL_FIELD_MAX_LENGTH} caracteres.`,
+      );
+    } else {
+      update.allergies = allergies;
+    }
+  }
+
+  if (!partial || payload.reinforcers !== undefined) {
+    const reinforcers = normalizeText(payload.reinforcers);
+    if (reinforcers.length > PATIENT_CLINICAL_FIELD_MAX_LENGTH) {
+      errors.push(
+        `Reforçadores deve ter no máximo ${PATIENT_CLINICAL_FIELD_MAX_LENGTH} caracteres.`,
+      );
+    } else {
+      update.reinforcers = reinforcers;
+    }
+  }
+
   return {
     valid: errors.length === 0,
     errors,
@@ -234,6 +301,11 @@ router.post(
         guardianName: update.guardianName!,
         phone: update.phone!,
         fundingSourceId: update.fundingSourceId!,
+        diagnosis: update.diagnosis!,
+        supportLevel: update.supportLevel!,
+        medication: update.medication!,
+        allergies: update.allergies!,
+        reinforcers: update.reinforcers!,
       },
       include: patientInclude,
     });
