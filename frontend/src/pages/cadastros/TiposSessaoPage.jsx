@@ -1,9 +1,13 @@
 import { useEffect, useState } from "react";
+import { SessionModalitySettingsSkeleton } from "@/components/cadastros/SessionModalitySettingsSkeleton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { InlineAlert } from "@/components/ui/inline-alert";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Spinner } from "@/components/ui/spinner";
 import { MODALITY_LABELS } from "@/features/cadastros/constants";
+import { useToast } from "@/contexts/toast-context";
 import { listSessionModalities, updateSessionModality } from "@/services/agenda";
 
 function parsePositiveInt(value) {
@@ -23,6 +27,7 @@ function buildFieldErrors(values) {
 }
 
 export function TiposSessaoPage() {
+  const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [savingModality, setSavingModality] = useState("");
   const [error, setError] = useState("");
@@ -107,12 +112,12 @@ export function TiposSessaoPage() {
     }
 
     setSavingModality(modality);
-    setError("");
     try {
       await updateSessionModality(modality, payload);
+      toast.success("Limites salvos com sucesso.");
       await loadSettings();
     } catch (err) {
-      setError(err.response?.data?.message ?? "Não foi possível salvar os limites.");
+      toast.error(err.response?.data?.message ?? "Não foi possível salvar os limites.");
     } finally {
       setSavingModality("");
     }
@@ -131,14 +136,10 @@ export function TiposSessaoPage() {
         </CardHeader>
       </Card>
 
-      {error ? (
-        <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          {error}
-        </p>
-      ) : null}
+      {error ? <InlineAlert>{error}</InlineAlert> : null}
 
       {loading ? (
-        <p className="text-sm text-muted-foreground">Carregando configurações...</p>
+        <SessionModalitySettingsSkeleton />
       ) : (
         <div className="space-y-3">
           {settings.map((item) => {
@@ -208,7 +209,14 @@ export function TiposSessaoPage() {
                     disabled={isSaving}
                     className="bg-ama-cyan text-ama-blue-dark hover:bg-ama-cyan/90"
                   >
-                    {isSaving ? "Salvando..." : "Salvar limites"}
+                    {isSaving ? (
+                      <>
+                        <Spinner size="sm" />
+                        Salvando...
+                      </>
+                    ) : (
+                      "Salvar limites"
+                    )}
                   </Button>
                 </CardContent>
               </Card>

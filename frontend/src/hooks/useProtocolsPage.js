@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { searchAgendaPatients } from "@/services/agenda";
+import { useToast } from "@/contexts/toast-context";
 import {
   createProtocol,
   listProtocolTypes,
@@ -14,6 +15,7 @@ const EMPTY_FORM = {
 };
 
 export function useProtocolsPage() {
+  const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -46,13 +48,22 @@ export function useProtocolsPage() {
     }
   }
 
-  async function loadProtocols() {
+  function clearFilters() {
+    setSearch("");
+    setStatusFilter("PENDENTE");
+    loadProtocolsWithParams({ search: "", status: "PENDENTE" });
+  }
+
+  async function loadProtocolsWithParams(overrides = {}) {
     setLoading(true);
     setError("");
+    const nextSearch = overrides.search !== undefined ? overrides.search : search;
+    const nextStatus = overrides.status !== undefined ? overrides.status : statusFilter;
+
     try {
       const response = await listProtocols({
-        search: search || undefined,
-        status: statusFilter || undefined,
+        search: nextSearch || undefined,
+        status: nextStatus || undefined,
         limit: 50,
       });
       setProtocols(response.items ?? []);
@@ -64,6 +75,10 @@ export function useProtocolsPage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function loadProtocols() {
+    return loadProtocolsWithParams();
   }
 
   useEffect(() => {
@@ -137,7 +152,6 @@ export function useProtocolsPage() {
   async function handleCreate(event) {
     event.preventDefault();
     setSaving(true);
-    setError("");
 
     const errors = {};
     if (!form.patientId) {
@@ -161,10 +175,11 @@ export function useProtocolsPage() {
         protocolTypeId: form.protocolTypeId,
         notes: form.notes.trim(),
       });
+      toast.success("Protocolo criado com sucesso.");
       closeFormDialog();
       await loadProtocols();
     } catch (err) {
-      setError(
+      toast.error(
         err.response?.data?.message ??
           "Não foi possível criar o protocolo. Verifique os dados e tente novamente.",
       );
@@ -174,13 +189,13 @@ export function useProtocolsPage() {
   }
 
   async function handleCompleteProtocol(protocolId) {
-    setError("");
     setCompletingProtocolId(protocolId);
     try {
       await updateProtocolStatus(protocolId, "CONCLUIDO");
+      toast.success("Protocolo concluído com sucesso.");
       await loadProtocols();
     } catch (err) {
-      setError(
+      toast.error(
         err.response?.data?.message ??
           "Não foi possível concluir o protocolo.",
       );
@@ -218,16 +233,16 @@ export function useProtocolsPage() {
       return;
     }
 
-    setError("");
     setCancellingProtocolId(cancelProtocolId);
     try {
       await updateProtocolStatus(cancelProtocolId, "CANCELADO", {
         cancelReason: trimmedReason,
       });
+      toast.success("Protocolo cancelado com sucesso.");
       closeCancelDialog();
       await loadProtocols();
     } catch (err) {
-      setError(
+      toast.error(
         err.response?.data?.message ??
           "Não foi possível cancelar o protocolo.",
       );
@@ -256,6 +271,7 @@ export function useProtocolsPage() {
     loadingPatients,
     selectedPatient,
     loadProtocols,
+    clearFilters,
     closeFormDialog,
     openCreateDialog,
     handleFormChange,

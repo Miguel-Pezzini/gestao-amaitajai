@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Pencil, RotateCcw, Trash2 } from "lucide-react";
+import { Layers, Pencil, RotateCcw, Search, Trash2 } from "lucide-react";
 import {
   EntityList,
   EntityListItem,
@@ -17,8 +17,12 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Dialog } from "@/components/ui/dialog";
+import { EmptyState } from "@/components/ui/empty-state";
+import { InlineAlert } from "@/components/ui/inline-alert";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ListSkeleton } from "@/components/ui/list-skeleton";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Select,
   SelectContent,
@@ -27,6 +31,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CreateFab } from "@/components/cadastros/CreateFab";
+import { useToast } from "@/contexts/toast-context";
 import { useSession } from "@/contexts/session-context";
 import {
   MODALITY_LABELS,
@@ -132,7 +137,16 @@ function SessionTypeForm({
           className="bg-ama-cyan text-ama-blue-dark hover:bg-ama-cyan/90"
           disabled={saving}
         >
-          {saving ? "Salvando..." : isEditing ? "Salvar" : "Cadastrar"}
+          {saving ? (
+            <>
+              <Spinner size="sm" />
+              Salvando...
+            </>
+          ) : isEditing ? (
+            "Salvar"
+          ) : (
+            "Cadastrar"
+          )}
         </Button>
       </div>
     </form>
@@ -176,6 +190,7 @@ function buildPayload(form) {
 
 export function ModalidadesPage() {
   const { userName } = useSession();
+  const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -237,6 +252,11 @@ export function ModalidadesPage() {
     resetForm();
   }
 
+  function clearFilters() {
+    setSearch("");
+    setStatusFilter("active");
+  }
+
   function openCreateDialog() {
     resetForm();
     setFormDialogOpen(true);
@@ -274,7 +294,6 @@ export function ModalidadesPage() {
   async function handleSubmit(event) {
     event.preventDefault();
     setSaving(true);
-    setError("");
 
     const validationErrors = validateSessionTypeForm(form, isEditing ? editingSlug : null);
     if (Object.keys(validationErrors).length > 0) {
@@ -289,13 +308,15 @@ export function ModalidadesPage() {
     try {
       if (isEditing) {
         await updateSessionType(editingId, payload);
+        toast.success("Modalidade atualizada com sucesso.");
       } else {
         await createSessionType(payload);
+        toast.success("Modalidade cadastrada com sucesso.");
       }
       closeFormDialog();
       await loadSessionTypes();
     } catch (err) {
-      setError(
+      toast.error(
         err.response?.data?.message ??
           "Não foi possível salvar a modalidade. Verifique os dados e tente novamente.",
       );
@@ -305,12 +326,14 @@ export function ModalidadesPage() {
   }
 
   async function handleToggleStatus(item) {
-    setError("");
     try {
       await updateSessionTypeStatus(item._id, !item.isActive);
+      toast.success(
+        item.isActive ? "Modalidade inativada com sucesso." : "Modalidade reativada com sucesso.",
+      );
       await loadSessionTypes();
     } catch (err) {
-      setError(
+      toast.error(
         err.response?.data?.message ??
           "Não foi possível atualizar o status da modalidade.",
       );
@@ -331,11 +354,7 @@ export function ModalidadesPage() {
         </CardHeader>
       </Card>
 
-      {error ? (
-        <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm break-words text-destructive">
-          {error}
-        </p>
-      ) : null}
+      {error ? <InlineAlert>{error}</InlineAlert> : null}
 
       <Dialog
         open={formDialogOpen}
@@ -405,11 +424,23 @@ export function ModalidadesPage() {
         </CardHeader>
         <CardContent className="p-4 pt-0 sm:p-6">
           {loading ? (
-            <p className="text-sm text-muted-foreground">Carregando modalidades...</p>
+            <ListSkeleton />
+          ) : sessionTypes.length === 0 ? (
+            <EmptyState
+              icon={Layers}
+              title="Nenhuma modalidade cadastrada"
+              description="Cadastre modalidades de atendimento para usar na agenda."
+              actionLabel="Cadastrar modalidade"
+              onAction={openCreateDialog}
+            />
           ) : filteredItems.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              Nenhuma modalidade encontrada para os filtros informados.
-            </p>
+            <EmptyState
+              icon={Search}
+              title="Nenhum resultado"
+              description="Nenhuma modalidade encontrada para os filtros informados."
+              actionLabel="Limpar filtros"
+              onAction={clearFilters}
+            />
           ) : (
             <EntityList>
               {filteredItems.map((item) => (

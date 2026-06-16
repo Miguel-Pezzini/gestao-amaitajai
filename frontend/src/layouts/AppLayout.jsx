@@ -4,6 +4,8 @@ import { Outlet } from "react-router-dom";
 import { AppMobileHeader, AppMobileMenuDrawer } from "@/components/layout/AppMobileMenu";
 import { AppSidebarNav } from "@/components/layout/AppSidebarNav";
 import { Button } from "@/components/ui/button";
+import { InlineAlert } from "@/components/ui/inline-alert";
+import { LoadingState } from "@/components/ui/loading-state";
 import {
   Card,
   CardDescription,
@@ -43,7 +45,7 @@ export function AppLayout() {
   if (hydrating) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-ama-light px-6">
-        <p className="text-sm text-muted-foreground">Carregando painel...</p>
+        <LoadingState message="Carregando painel..." />
       </main>
     );
   }
@@ -146,9 +148,7 @@ export function AppLayout() {
         />
 
         {error ? (
-          <p className="mx-4 mt-4 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive sm:mx-6 md:mx-8">
-            {error}
-          </p>
+          <InlineAlert className="mx-4 mt-4 sm:mx-6 md:mx-8">{error}</InlineAlert>
         ) : null}
 
         <div className="flex-1 px-4 py-4 sm:px-6 sm:py-6 md:px-8">

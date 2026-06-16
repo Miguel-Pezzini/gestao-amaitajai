@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Pencil, RotateCcw, Trash2 } from "lucide-react";
+import { Building2, Pencil, RotateCcw, Search, Trash2 } from "lucide-react";
 import {
   EntityList,
   EntityListItem,
@@ -17,8 +17,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Dialog } from "@/components/ui/dialog";
+import { EmptyState } from "@/components/ui/empty-state";
+import { InlineAlert } from "@/components/ui/inline-alert";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ListSkeleton } from "@/components/ui/list-skeleton";
 import {
   Select,
   SelectContent,
@@ -27,6 +30,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CreateFab } from "@/components/cadastros/CreateFab";
+import { useToast } from "@/contexts/toast-context";
 import { useSession } from "@/contexts/session-context";
 import { getApiErrorMessage } from "@/lib/api-error";
 import {
@@ -40,6 +44,7 @@ const EMPTY_FORM = { name: "" };
 
 export function SalasPage() {
   const { userName } = useSession();
+  const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -96,6 +101,11 @@ export function SalasPage() {
     resetForm();
   }
 
+  function clearFilters() {
+    setSearch("");
+    setStatusFilter("active");
+  }
+
   function openCreateDialog() {
     resetForm();
     setFormDialogOpen(true);
@@ -116,7 +126,6 @@ export function SalasPage() {
   async function handleSubmit(event) {
     event.preventDefault();
     setSaving(true);
-    setError("");
 
     const name = form.name.trim();
     if (!name) {
@@ -130,13 +139,15 @@ export function SalasPage() {
     try {
       if (isEditing) {
         await updateRoom(editingId, { name });
+        toast.success("Sala atualizada com sucesso.");
       } else {
         await createRoom({ name });
+        toast.success("Sala cadastrada com sucesso.");
       }
       closeFormDialog();
       await loadRooms();
     } catch (err) {
-      setError(
+      toast.error(
         getApiErrorMessage(err, "Não foi possível salvar a sala. Verifique os dados e tente novamente."),
       );
     } finally {
@@ -145,12 +156,12 @@ export function SalasPage() {
   }
 
   async function handleToggleStatus(room) {
-    setError("");
     try {
       await updateRoomStatus(room._id, !room.isActive);
+      toast.success(room.isActive ? "Sala inativada com sucesso." : "Sala reativada com sucesso.");
       await loadRooms();
     } catch (err) {
-      setError(getApiErrorMessage(err, "Não foi possível atualizar o status da sala."));
+      toast.error(getApiErrorMessage(err, "Não foi possível atualizar o status da sala."));
     }
   }
 
@@ -167,11 +178,7 @@ export function SalasPage() {
         </CardHeader>
       </Card>
 
-      {error ? (
-        <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm break-words text-destructive">
-          {error}
-        </p>
-      ) : null}
+      {error ? <InlineAlert>{error}</InlineAlert> : null}
 
       <Dialog
         open={formDialogOpen}
@@ -240,11 +247,23 @@ export function SalasPage() {
         </CardHeader>
         <CardContent className="p-4 pt-0 sm:p-6">
           {loading ? (
-            <p className="text-sm text-muted-foreground">Carregando salas...</p>
+            <ListSkeleton />
+          ) : rooms.length === 0 ? (
+            <EmptyState
+              icon={Building2}
+              title="Nenhuma sala cadastrada"
+              description="Cadastre salas para utilizá-las na agenda e na ocupação."
+              actionLabel="Cadastrar sala"
+              onAction={openCreateDialog}
+            />
           ) : filteredRooms.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              Nenhuma sala encontrada para os filtros informados.
-            </p>
+            <EmptyState
+              icon={Search}
+              title="Nenhum resultado"
+              description="Nenhuma sala encontrada para os filtros informados."
+              actionLabel="Limpar filtros"
+              onAction={clearFilters}
+            />
           ) : (
             <EntityList>
               {filteredRooms.map((room) => (

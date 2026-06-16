@@ -1,4 +1,4 @@
-import { Check, Loader2, X } from "lucide-react";
+import { Check, ClipboardList, Loader2, Search, X } from "lucide-react";
 import {
   EntityList,
   EntityListItem,
@@ -16,8 +16,12 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Dialog } from "@/components/ui/dialog";
+import { EmptyState } from "@/components/ui/empty-state";
+import { InlineAlert } from "@/components/ui/inline-alert";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ListSkeleton } from "@/components/ui/list-skeleton";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Select,
   SelectContent,
@@ -118,7 +122,14 @@ function ProtocolForm({
           className="bg-ama-cyan text-ama-blue-dark hover:bg-ama-cyan/90"
           disabled={saving}
         >
-          {saving ? "Salvando..." : "Abrir protocolo"}
+          {saving ? (
+            <>
+              <Spinner size="sm" />
+              Salvando...
+            </>
+          ) : (
+            "Abrir protocolo"
+          )}
         </Button>
       </div>
     </form>
@@ -147,6 +158,7 @@ export function ProtocolsPage() {
     loadingPatients,
     selectedPatient,
     loadProtocols,
+    clearFilters,
     closeFormDialog,
     openCreateDialog,
     handleFormChange,
@@ -166,6 +178,7 @@ export function ProtocolsPage() {
   } = useProtocolsPage();
 
   const pendingCount = protocols.filter((protocol) => protocol.status === "PENDENTE").length;
+  const hasActiveFilters = Boolean(search.trim() || statusFilter !== "PENDENTE");
 
   return (
     <div className="relative min-w-0 space-y-4 pb-24 sm:space-y-6">
@@ -181,11 +194,7 @@ export function ProtocolsPage() {
         </CardHeader>
       </Card>
 
-      {error ? (
-        <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm break-words text-destructive">
-          {error}
-        </p>
-      ) : null}
+      {error ? <InlineAlert>{error}</InlineAlert> : null}
 
       <Dialog
         open={formDialogOpen}
@@ -287,11 +296,25 @@ export function ProtocolsPage() {
         </CardHeader>
         <CardContent className="p-4 pt-0 sm:p-6">
           {loading ? (
-            <p className="text-sm text-muted-foreground">Carregando protocolos...</p>
+            <ListSkeleton />
           ) : protocols.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              Nenhum protocolo encontrado para os filtros informados.
-            </p>
+            hasActiveFilters ? (
+              <EmptyState
+                icon={Search}
+                title="Nenhum resultado"
+                description="Nenhum protocolo encontrado para os filtros informados."
+                actionLabel="Limpar filtros"
+                onAction={clearFilters}
+              />
+            ) : (
+              <EmptyState
+                icon={ClipboardList}
+                title="Nenhum protocolo pendente"
+                description="Não há solicitações aguardando conclusão no momento."
+                actionLabel="Novo protocolo"
+                onAction={openCreateDialog}
+              />
+            )
           ) : (
             <EntityList>
               {protocols.map((protocol) => (

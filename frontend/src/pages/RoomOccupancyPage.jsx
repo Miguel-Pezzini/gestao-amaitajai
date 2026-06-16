@@ -1,13 +1,19 @@
 import { useState } from "react";
+import { Building2 } from "lucide-react";
 import {
   Card,
   CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { SessionDetailDialog } from "@/features/agenda/components/SessionDetailDialog";
 import { RoomOccupancyGrid } from "@/features/room-occupancy/components/RoomOccupancyGrid";
 import { RoomOccupancyNav } from "@/features/room-occupancy/components/RoomOccupancyNav";
+import {
+  RoomOccupancyGridSkeleton,
+  RoomOccupancyNavSkeleton,
+} from "@/features/room-occupancy/components/RoomOccupancySkeleton";
 import { useRoomOccupancy } from "@/hooks/useRoomOccupancy";
 
 export function RoomOccupancyPage() {
@@ -26,8 +32,10 @@ export function RoomOccupancyPage() {
   }
 
   const selectedRoom = occupancy.rooms.find((room) => room._id === occupancy.selectedRoomId);
-  const showEmptyRooms = !occupancy.loading && occupancy.rooms.length === 0;
-  const showGrid = !occupancy.loading && occupancy.rooms.length > 0;
+  const hasRooms = occupancy.rooms.length > 0;
+  const showEmptyRooms = !occupancy.loading && !occupancy.loadingSessions && !hasRooms;
+  const showSkeleton = occupancy.loading || (occupancy.loadingSessions && hasRooms);
+  const showGrid = !showSkeleton && hasRooms;
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -43,10 +51,14 @@ export function RoomOccupancyPage() {
 
       <Card className="border-ama-cyan/30">
         <CardHeader className="space-y-3 p-4 sm:space-y-4 sm:p-6">
-          {showEmptyRooms ? (
-            <p className="text-sm text-muted-foreground">
-              Nenhuma sala ativa cadastrada. Cadastre salas em Cadastros Gerais.
-            </p>
+          {occupancy.loading ? (
+            <RoomOccupancyNavSkeleton />
+          ) : showEmptyRooms ? (
+            <EmptyState
+              icon={Building2}
+              title="Nenhuma sala ativa"
+              description="Cadastre salas em Cadastros Gerais para visualizar a ocupação."
+            />
           ) : (
             <RoomOccupancyNav
               referenceDate={occupancy.referenceDate}
@@ -58,13 +70,9 @@ export function RoomOccupancyPage() {
           )}
         </CardHeader>
 
-        {occupancy.loading || occupancy.loadingSessions ? (
-          <p className="px-4 pb-6 text-sm text-muted-foreground sm:px-6">
-            Carregando ocupação...
-          </p>
-        ) : null}
+        {showSkeleton ? <RoomOccupancyGridSkeleton /> : null}
 
-        {showGrid && !occupancy.loadingSessions ? (
+        {showGrid ? (
           <RoomOccupancyGrid
             workWeekDays={occupancy.workWeekDays}
             getDaySessions={occupancy.getDaySessions}

@@ -1,5 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
-import { CalendarDays, ClipboardList, FileText, Pencil, UserCheck, UserX } from "lucide-react";
+import {
+  CalendarDays,
+  ClipboardList,
+  FileText,
+  Pencil,
+  Search,
+  UserCheck,
+  Users,
+  UserX,
+} from "lucide-react";
 import {
   EntityList,
   EntityListItem,
@@ -22,8 +31,12 @@ import {
   formatPaginationSummary,
 } from "@/components/cadastros/EntityListPagination";
 import { Dialog } from "@/components/ui/dialog";
+import { EmptyState } from "@/components/ui/empty-state";
+import { InlineAlert } from "@/components/ui/inline-alert";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ListSkeleton } from "@/components/ui/list-skeleton";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Select,
   SelectContent,
@@ -32,6 +45,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { SELECT_ALL_VALUE } from "@/constants/select";
+import { useToast } from "@/contexts/toast-context";
 import { useSession } from "@/contexts/session-context";
 import { PatientSessionsDialog } from "@/features/agenda/components/PatientSessionsDialog";
 import { DeactivatePatientDialog } from "@/features/patients/components/DeactivatePatientDialog";
@@ -323,7 +337,16 @@ function PatientForm({
           className="bg-ama-cyan text-ama-blue-dark hover:bg-ama-cyan/90"
           disabled={saving}
         >
-          {saving ? "Salvando..." : isEditing ? "Salvar" : "Cadastrar"}
+          {saving ? (
+            <>
+              <Spinner size="sm" />
+              Salvando...
+            </>
+          ) : isEditing ? (
+            "Salvar"
+          ) : (
+            "Cadastrar"
+          )}
         </Button>
       </div>
     </form>
@@ -332,6 +355,7 @@ function PatientForm({
 
 export function PatientsPage() {
   const { userName } = useSession();
+  const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -354,6 +378,10 @@ export function PatientsPage() {
   const [evolutionsDialogOpen, setEvolutionsDialogOpen] = useState(false);
 
   const isEditing = Boolean(editingId);
+
+  const hasActiveFilters = Boolean(
+    search.trim() || fundingFilter || statusFilter !== "active",
+  );
 
   const activeFundingSources = useMemo(
     () => fundingSources.filter((item) => item.isActive),
@@ -382,14 +410,19 @@ export function PatientsPage() {
     }
   }
 
-  async function loadPatients(targetPage = page) {
+  async function loadPatients(targetPage = page, overrides = {}) {
     setLoading(true);
     setError("");
+    const nextSearch = overrides.search !== undefined ? overrides.search : search;
+    const nextFundingFilter =
+      overrides.fundingSourceId !== undefined ? overrides.fundingSourceId : fundingFilter;
+    const nextStatusFilter = overrides.status !== undefined ? overrides.status : statusFilter;
+
     try {
       const response = await listPatients({
-        search: search || undefined,
-        fundingSourceId: fundingFilter || undefined,
-        status: statusFilter,
+        search: nextSearch || undefined,
+        fundingSourceId: nextFundingFilter || undefined,
+        status: nextStatusFilter,
         page: targetPage,
         limit: PAGE_SIZE,
       });
@@ -416,6 +449,13 @@ export function PatientsPage() {
 
   function handleSearch() {
     loadPatients(1);
+  }
+
+  function clearFilters() {
+    setSearch("");
+    setFundingFilter("");
+    setStatusFilter("active");
+    loadPatients(1, { search: "", fundingSourceId: "", status: "active" });
   }
 
   function handlePageChange(nextPage) {
@@ -472,7 +512,6 @@ export function PatientsPage() {
   async function handleSubmit(event) {
     event.preventDefault();
     setSaving(true);
-    setError("");
 
     const payload = normalizeFormData(form);
     const validationErrors = validatePatientForm(payload);
@@ -487,13 +526,15 @@ export function PatientsPage() {
     try {
       if (isEditing) {
         await updatePatient(editingId, payload);
+        toast.success("Paciente atualizado com sucesso.");
       } else {
         await createPatient(payload);
+        toast.success("Paciente cadastrado com sucesso.");
       }
       closeFormDialog();
       await loadPatients();
     } catch (err) {
-      setError(
+      toast.error(
         err.response?.data?.message ??
           "Não foi possível salvar o paciente. Verifique os dados e tente novamente.",
       );
@@ -546,11 +587,7 @@ export function PatientsPage() {
         </CardHeader>
       </Card>
 
-      {error ? (
-        <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm break-words text-destructive">
-          {error}
-        </p>
-      ) : null}
+      {error ? <InlineAlert>{error}</InlineAlert> : null}
 
       <PatientProtocolsDialog
         patient={protocolsPatient}
@@ -688,11 +725,25 @@ export function PatientsPage() {
         </CardHeader>
         <CardContent className="p-4 pt-0 sm:p-6">
           {loading ? (
-            <p className="text-sm text-muted-foreground">Carregando pacientes...</p>
+            <ListSkeleton />
           ) : patients.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              Nenhum paciente encontrado para os filtros informados.
-            </p>
+            hasActiveFilters ? (
+              <EmptyState
+                icon={Search}
+                title="Nenhum resultado"
+                description="Nenhum paciente encontrado para os filtros informados."
+                actionLabel="Limpar filtros"
+                onAction={clearFilters}
+              />
+            ) : (
+              <EmptyState
+                icon={Users}
+                title="Nenhum paciente cadastrado"
+                description="Comece cadastrando o primeiro paciente do sistema."
+                actionLabel="Cadastrar paciente"
+                onAction={openCreateDialog}
+              />
+            )
           ) : (
             <EntityList>
               {patients.map((patient) => (

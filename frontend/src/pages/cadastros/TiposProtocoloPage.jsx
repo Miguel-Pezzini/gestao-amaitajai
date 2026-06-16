@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Pencil, RotateCcw, Trash2 } from "lucide-react";
+import { ClipboardList, Pencil, RotateCcw, Search, Trash2 } from "lucide-react";
 import {
   EntityList,
   EntityListItem,
@@ -17,8 +17,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Dialog } from "@/components/ui/dialog";
+import { EmptyState } from "@/components/ui/empty-state";
+import { InlineAlert } from "@/components/ui/inline-alert";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ListSkeleton } from "@/components/ui/list-skeleton";
 import {
   Select,
   SelectContent,
@@ -27,6 +30,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CreateFab } from "@/components/cadastros/CreateFab";
+import { useToast } from "@/contexts/toast-context";
 import { useSession } from "@/contexts/session-context";
 import {
   createProtocolType,
@@ -40,6 +44,7 @@ const EMPTY_FORM = { name: "" };
 
 export function TiposProtocoloPage() {
   const { userName } = useSession();
+  const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -98,6 +103,11 @@ export function TiposProtocoloPage() {
     resetForm();
   }
 
+  function clearFilters() {
+    setSearch("");
+    setStatusFilter("active");
+  }
+
   function openCreateDialog() {
     resetForm();
     setFormDialogOpen(true);
@@ -118,7 +128,6 @@ export function TiposProtocoloPage() {
   async function handleSubmit(event) {
     event.preventDefault();
     setSaving(true);
-    setError("");
 
     const name = form.name.trim();
     if (!name) {
@@ -132,13 +141,15 @@ export function TiposProtocoloPage() {
     try {
       if (isEditing) {
         await updateProtocolType(editingId, { name });
+        toast.success("Tipo de protocolo atualizado com sucesso.");
       } else {
         await createProtocolType({ name });
+        toast.success("Tipo de protocolo cadastrado com sucesso.");
       }
       closeFormDialog();
       await loadProtocolTypes();
     } catch (err) {
-      setError(
+      toast.error(
         getApiErrorMessage(
           err,
           "Não foi possível salvar o tipo de protocolo. Verifique os dados e tente novamente.",
@@ -150,12 +161,16 @@ export function TiposProtocoloPage() {
   }
 
   async function handleToggleStatus(protocolType) {
-    setError("");
     try {
       await updateProtocolTypeStatus(protocolType._id, !protocolType.isActive);
+      toast.success(
+        protocolType.isActive
+          ? "Tipo de protocolo inativado com sucesso."
+          : "Tipo de protocolo reativado com sucesso.",
+      );
       await loadProtocolTypes();
     } catch (err) {
-      setError(
+      toast.error(
         getApiErrorMessage(err, "Não foi possível atualizar o status do tipo de protocolo."),
       );
     }
@@ -174,11 +189,7 @@ export function TiposProtocoloPage() {
         </CardHeader>
       </Card>
 
-      {error ? (
-        <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm break-words text-destructive">
-          {error}
-        </p>
-      ) : null}
+      {error ? <InlineAlert>{error}</InlineAlert> : null}
 
       <Dialog
         open={formDialogOpen}
@@ -251,11 +262,23 @@ export function TiposProtocoloPage() {
         </CardHeader>
         <CardContent className="p-4 pt-0 sm:p-6">
           {loading ? (
-            <p className="text-sm text-muted-foreground">Carregando tipos...</p>
+            <ListSkeleton />
+          ) : protocolTypes.length === 0 ? (
+            <EmptyState
+              icon={ClipboardList}
+              title="Nenhum tipo cadastrado"
+              description="Cadastre tipos de solicitação para usar nos protocolos dos atendidos."
+              actionLabel="Cadastrar tipo"
+              onAction={openCreateDialog}
+            />
           ) : filteredTypes.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              Nenhum tipo encontrado para os filtros informados.
-            </p>
+            <EmptyState
+              icon={Search}
+              title="Nenhum resultado"
+              description="Nenhum tipo encontrado para os filtros informados."
+              actionLabel="Limpar filtros"
+              onAction={clearFilters}
+            />
           ) : (
             <EntityList>
               {filteredTypes.map((protocolType) => (

@@ -2,6 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Spinner } from "@/components/ui/spinner";
 import { Tooltip } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
@@ -191,7 +192,16 @@ export function EntityNameForm({
           className="bg-ama-cyan text-ama-blue-dark hover:bg-ama-cyan/90"
           disabled={saving}
         >
-          {saving ? "Salvando..." : isEditing ? "Salvar" : createLabel}
+          {saving ? (
+            <>
+              <Spinner size="sm" />
+              Salvando...
+            </>
+          ) : isEditing ? (
+            "Salvar"
+          ) : (
+            createLabel
+          )}
         </Button>
       </div>
     </form>

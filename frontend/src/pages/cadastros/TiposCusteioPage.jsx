@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Pencil, RotateCcw, Trash2 } from "lucide-react";
+import { Coins, Pencil, RotateCcw, Search, Trash2 } from "lucide-react";
 import {
   EntityList,
   EntityListItem,
@@ -17,8 +17,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Dialog } from "@/components/ui/dialog";
+import { EmptyState } from "@/components/ui/empty-state";
+import { InlineAlert } from "@/components/ui/inline-alert";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ListSkeleton } from "@/components/ui/list-skeleton";
 import {
   Select,
   SelectContent,
@@ -27,6 +30,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CreateFab } from "@/components/cadastros/CreateFab";
+import { useToast } from "@/contexts/toast-context";
 import { useSession } from "@/contexts/session-context";
 import {
   createFundingSource,
@@ -40,6 +44,7 @@ const EMPTY_FORM = { name: "" };
 
 export function TiposCusteioPage() {
   const { userName } = useSession();
+  const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -98,6 +103,11 @@ export function TiposCusteioPage() {
     resetForm();
   }
 
+  function clearFilters() {
+    setSearch("");
+    setStatusFilter("active");
+  }
+
   function openCreateDialog() {
     resetForm();
     setFormDialogOpen(true);
@@ -118,7 +128,6 @@ export function TiposCusteioPage() {
   async function handleSubmit(event) {
     event.preventDefault();
     setSaving(true);
-    setError("");
 
     const name = form.name.trim();
     if (!name) {
@@ -132,13 +141,15 @@ export function TiposCusteioPage() {
     try {
       if (isEditing) {
         await updateFundingSource(editingId, { name });
+        toast.success("Fonte de custeio atualizada com sucesso.");
       } else {
         await createFundingSource({ name });
+        toast.success("Fonte de custeio cadastrada com sucesso.");
       }
       closeFormDialog();
       await loadFundingSources();
     } catch (err) {
-      setError(
+      toast.error(
         getApiErrorMessage(
           err,
           "Não foi possível salvar a fonte de custeio. Verifique os dados e tente novamente.",
@@ -150,12 +161,16 @@ export function TiposCusteioPage() {
   }
 
   async function handleToggleStatus(fundingSource) {
-    setError("");
     try {
       await updateFundingSourceStatus(fundingSource._id, !fundingSource.isActive);
+      toast.success(
+        fundingSource.isActive
+          ? "Fonte de custeio inativada com sucesso."
+          : "Fonte de custeio reativada com sucesso.",
+      );
       await loadFundingSources();
     } catch (err) {
-      setError(
+      toast.error(
         getApiErrorMessage(err, "Não foi possível atualizar o status da fonte de custeio."),
       );
     }
@@ -174,11 +189,7 @@ export function TiposCusteioPage() {
         </CardHeader>
       </Card>
 
-      {error ? (
-        <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm break-words text-destructive">
-          {error}
-        </p>
-      ) : null}
+      {error ? <InlineAlert>{error}</InlineAlert> : null}
 
       <Dialog
         open={formDialogOpen}
@@ -251,11 +262,23 @@ export function TiposCusteioPage() {
         </CardHeader>
         <CardContent className="p-4 pt-0 sm:p-6">
           {loading ? (
-            <p className="text-sm text-muted-foreground">Carregando fontes...</p>
+            <ListSkeleton />
+          ) : fundingSources.length === 0 ? (
+            <EmptyState
+              icon={Coins}
+              title="Nenhuma fonte cadastrada"
+              description="Cadastre fontes de custeio para vincular aos pacientes."
+              actionLabel="Cadastrar fonte"
+              onAction={openCreateDialog}
+            />
           ) : filteredSources.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              Nenhuma fonte encontrada para os filtros informados.
-            </p>
+            <EmptyState
+              icon={Search}
+              title="Nenhum resultado"
+              description="Nenhuma fonte encontrada para os filtros informados."
+              actionLabel="Limpar filtros"
+              onAction={clearFilters}
+            />
           ) : (
             <EntityList>
               {filteredSources.map((fundingSource) => (

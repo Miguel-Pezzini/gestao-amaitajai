@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Pencil, UserCheck, UserX } from "lucide-react";
+import { Pencil, Search, UserCheck, UserCog, UserX } from "lucide-react";
 import {
   EntityList,
   EntityListItem,
@@ -17,8 +17,12 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Dialog } from "@/components/ui/dialog";
+import { EmptyState } from "@/components/ui/empty-state";
+import { InlineAlert } from "@/components/ui/inline-alert";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ListSkeleton } from "@/components/ui/list-skeleton";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Select,
   SelectContent,
@@ -32,6 +36,7 @@ import {
   formatPaginationSummary,
 } from "@/components/cadastros/EntityListPagination";
 import { SELECT_ALL_VALUE } from "@/constants/select";
+import { useToast } from "@/contexts/toast-context";
 import { useSession } from "@/contexts/session-context";
 import {
   USER_ROLE_LABELS,
@@ -138,7 +143,16 @@ function UserForm({ form, fieldErrors, saving, isEditing, onSubmit, onCancel, on
           className="bg-ama-cyan text-ama-blue-dark hover:bg-ama-cyan/90"
           disabled={saving}
         >
-          {saving ? "Salvando..." : isEditing ? "Salvar" : "Cadastrar"}
+          {saving ? (
+            <>
+              <Spinner size="sm" />
+              Salvando...
+            </>
+          ) : isEditing ? (
+            "Salvar"
+          ) : (
+            "Cadastrar"
+          )}
         </Button>
       </div>
     </form>
@@ -188,6 +202,7 @@ function buildPayload(form, { isEditing }) {
 
 export function UsuariosPage() {
   const { user, userName } = useSession();
+  const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -204,14 +219,22 @@ export function UsuariosPage() {
 
   const isEditing = Boolean(editingId);
 
-  async function loadUsers(targetPage = page) {
+  const hasActiveFilters = Boolean(
+    search.trim() || roleFilter || statusFilter !== "active",
+  );
+
+  async function loadUsers(targetPage = page, overrides = {}) {
     setLoading(true);
     setError("");
+    const nextSearch = overrides.search !== undefined ? overrides.search : search;
+    const nextRoleFilter = overrides.role !== undefined ? overrides.role : roleFilter;
+    const nextStatusFilter = overrides.status !== undefined ? overrides.status : statusFilter;
+
     try {
       const response = await listUsers({
-        search: search || undefined,
-        role: roleFilter || undefined,
-        status: statusFilter,
+        search: nextSearch || undefined,
+        role: nextRoleFilter || undefined,
+        status: nextStatusFilter,
         page: targetPage,
         limit: PAGE_SIZE,
       });
@@ -235,6 +258,13 @@ export function UsuariosPage() {
 
   function handleSearch() {
     loadUsers(1);
+  }
+
+  function clearFilters() {
+    setSearch("");
+    setRoleFilter("");
+    setStatusFilter("active");
+    loadUsers(1, { search: "", role: "", status: "active" });
   }
 
   function handlePageChange(nextPage) {
@@ -277,7 +307,6 @@ export function UsuariosPage() {
   async function handleSubmit(event) {
     event.preventDefault();
     setSaving(true);
-    setError("");
 
     const validationErrors = validateUserForm(form, { isEditing });
     if (Object.keys(validationErrors).length > 0) {
@@ -292,13 +321,15 @@ export function UsuariosPage() {
     try {
       if (isEditing) {
         await updateUser(editingId, payload);
+        toast.success("Funcionário atualizado com sucesso.");
       } else {
         await createUser(payload);
+        toast.success("Funcionário cadastrado com sucesso.");
       }
       closeFormDialog();
       await loadUsers();
     } catch (err) {
-      setError(
+      toast.error(
         err.response?.data?.message ??
           "Não foi possível salvar o funcionário. Verifique os dados e tente novamente.",
       );
@@ -308,12 +339,16 @@ export function UsuariosPage() {
   }
 
   async function handleStatusChange(item, nextStatus) {
-    setError("");
     try {
       await updateUserStatus(item._id, nextStatus);
+      toast.success(
+        nextStatus === "ATIVO"
+          ? "Funcionário reativado com sucesso."
+          : "Funcionário inativado com sucesso.",
+      );
       await loadUsers();
     } catch (err) {
-      setError(
+      toast.error(
         err.response?.data?.message ??
           "Não foi possível atualizar o status do funcionário.",
       );
@@ -335,11 +370,7 @@ export function UsuariosPage() {
         </CardHeader>
       </Card>
 
-      {error ? (
-        <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm break-words text-destructive">
-          {error}
-        </p>
-      ) : null}
+      {error ? <InlineAlert>{error}</InlineAlert> : null}
 
       <Dialog
         open={formDialogOpen}
@@ -429,11 +460,25 @@ export function UsuariosPage() {
         </CardHeader>
         <CardContent className="p-4 pt-0 sm:p-6">
           {loading ? (
-            <p className="text-sm text-muted-foreground">Carregando funcionários...</p>
+            <ListSkeleton />
           ) : users.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              Nenhum funcionário encontrado para os filtros informados.
-            </p>
+            hasActiveFilters ? (
+              <EmptyState
+                icon={Search}
+                title="Nenhum resultado"
+                description="Nenhum funcionário encontrado para os filtros informados."
+                actionLabel="Limpar filtros"
+                onAction={clearFilters}
+              />
+            ) : (
+              <EmptyState
+                icon={UserCog}
+                title="Nenhum funcionário cadastrado"
+                description="Cadastre funcionários e defina perfis de acesso ao sistema."
+                actionLabel="Cadastrar funcionário"
+                onAction={openCreateDialog}
+              />
+            )
           ) : (
             <EntityList>
               {users.map((item) => {

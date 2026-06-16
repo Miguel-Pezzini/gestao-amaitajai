@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
 import { AgendaCalendarNav } from "@/features/agenda/components/AgendaCalendarNav";
+import { AgendaCalendarSkeleton } from "@/features/agenda/components/AgendaCalendarSkeleton";
 import { AgendaDayView } from "@/features/agenda/components/AgendaDayView";
 import { AgendaMonthView } from "@/features/agenda/components/AgendaMonthView";
 import { AgendaSessionsListDialog } from "@/features/agenda/components/AgendaSessionsListDialog";
@@ -160,9 +161,7 @@ export function AgendaCalendarView({
       </CardHeader>
 
       {loadingSessions ? (
-        <p className="px-4 pb-6 text-sm text-muted-foreground sm:px-6">
-          Carregando sessões...
-        </p>
+        <AgendaCalendarSkeleton viewMode={viewMode} />
       ) : null}
 
       {!loadingSessions && viewMode === AGENDA_VIEW_MODES.MONTH ? (
