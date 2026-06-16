@@ -1,6 +1,6 @@
 # Módulo: Agenda
 
-**Última atualização:** 2026-06-12  
+**Última atualização:** 2026-06-16  
 **Escopo:** fullstack
 
 ---
@@ -18,7 +18,22 @@ Agenda institucional de sessões terapêuticas. Administradores gerenciam sessõ
 | Perfil | Pode fazer |
 |---|---|
 | `ADMINISTRADOR` | CRUD de sessões, salas, tipos, modalidades; ver agenda de qualquer profissional |
-| `TECNICO` | Listar apenas sessões em que é profissional; marcar `REALIZADA` na própria sessão |
+| `TECNICO` | Listar apenas sessões em que é profissional; marcar `REALIZADA` na própria sessão; **solicitar** edição ou cancelamento (aprovação do admin) |
+
+### Pedidos de alteração de sessão
+
+Técnicos não editam sessões diretamente. Podem abrir pedidos (`SessionChangeRequest`) de **edição** ou **cancelamento** em sessões `AGENDADA` em que são profissionais vinculados.
+
+| Status do pedido | Descrição |
+|---|---|
+| `PENDENTE` | Aguardando decisão do administrador |
+| `APROVADO` | Admin aprovou; alteração aplicada via `updateSession` / `cancelSession` |
+| `REJEITADO` | Admin rejeitou com `rejectionReason` obrigatório |
+
+- Máximo **1 pedido `PENDENTE` por sessão** (índice único parcial no banco).
+- Pedido de edição valida os mesmos conflitos e regras de modalidade da edição direta; escopos `SINGLE` / `FUTURE` / `ALL` em séries recorrentes.
+- Enquanto houver pedido `PENDENTE`, admin **não pode** editar nem cancelar a sessão diretamente (deve aprovar ou rejeitar o pedido).
+- Na aprovação, conflitos são revalidados (agenda pode ter mudado desde o pedido).
 
 ### Sessão
 
@@ -97,6 +112,11 @@ Uma sessão tem: data/hora, duração, sala, tipo de atendimento, modalidade (`I
 | PUT | `/agenda/sessions/:id/attendance/:patientId` | auth | Registrar/atualizar presença do paciente na sessão |
 | GET | `/agenda/sessions/:id/evolutions` | auth | Evolução atual dos pacientes da sessão (histórico via `/patients/:id/evolutions`) |
 | PUT | `/agenda/sessions/:id/evolutions/:patientId` | auth | Criar/atualizar evolução do paciente na sessão |
+| GET | `/agenda/session-change-requests` | auth | Lista pedidos (admin: todos; técnico: só os seus). Filtros: `status`, `sessionId` |
+| POST | `/agenda/sessions/:id/change-requests/edit` | auth (técnico) | Solicitar edição (payload igual ao PATCH de sessão + `updateScope`) |
+| POST | `/agenda/sessions/:id/change-requests/cancel` | auth (técnico) | Solicitar cancelamento (`cancelReason`, `scope`) |
+| PATCH | `/agenda/session-change-requests/:id/approve` | admin | Aprovar pedido pendente |
+| PATCH | `/agenda/session-change-requests/:id/reject` | admin | Rejeitar pedido (`rejectionReason` obrigatório) |
 
 Filtros de listagem: `status`, `startAt`, `endAt`, `professionalId` (só admin), `patientId`, `includeCancelled` (inclui canceladas quando `status` não é informado). Com `page`/`limit`, retorna `pagination` (20 itens por página no histórico do paciente; agenda sem paginação).
 
@@ -123,6 +143,10 @@ Após criar, editar, cancelar ou concluir sessão, re-busca só o período visí
 **Presença na sessão:** `SessionDetailDialog` exibe, por paciente, o status de presença (`PRESENTE`, `FALTA`, `FALTA_JUSTIFICADA`) com destaque visual (verde / vermelho / âmbar). O padrão ao vincular paciente à sessão é `PRESENTE`. Falta justificada exige texto de justificativa. Edição permitida em sessões `AGENDADA` e `REALIZADA`; bloqueada em `CANCELADA`. O botão **Marcar como realizada** fica desabilitado na UI se houver falta justificada sem texto; o backend também valida antes de concluir.
 
 **Evolução clínica:** `SessionDetailDialog` exibe evolução apenas para pacientes com presença `PRESENTE` (falta e falta justificada não exibem formulário). Por paciente presente: histórico de evoluções anteriores e campo de texto livre para a sessão atual. O histórico agrega **todas** as sessões do paciente (qualquer modalidade), ordenado por data. Salvamento independente de marcar `REALIZADA`.
+
+**Pedidos de alteração (técnico):** em sessão `AGENDADA` sem pedido pendente, `SessionDetailDialog` exibe **Solicitar edição** e **Solicitar cancelamento** (reutiliza `CreateSessionDialog` e `CancelSessionDialog` com envio para API de pedidos). Badge **Pedido pendente** quando já existe solicitação aberta.
+
+**Fila de aprovação (admin):** botão **Pedidos pendentes (N)** no topo da `AgendaPage`; dialog com resumo da alteração e ações Aprovar/Rejeitar.
 
 ---
 
@@ -152,6 +176,10 @@ Após criar, editar, cancelar ou concluir sessão, re-busca só o período visí
 | Falta justificada: justificativa obrigatória (máx. 2.000 caracteres) | ValidationError | `patient-attendance.validator.ts` |
 | Justificativa só em FALTA_JUSTIFICADA | ValidationError | `patient-attendance.validator.ts` |
 | Concluir sessão: falta justificada sem texto bloqueia | ValidationError | `agenda.service.ts` |
+| Técnico só solicita alteração da própria sessão `AGENDADA` | ForbiddenError | `agenda.service.ts` |
+| Pedido pendente bloqueia edição/cancelamento direto | ValidationError | `agenda.service.ts` |
+| Segundo pedido pendente na mesma sessão | ConflictError | `agenda.service.ts` / índice DB |
+| Rejeição sem motivo | ValidationError | `agenda.service.ts` |
 
 ---
 
@@ -159,7 +187,9 @@ Após criar, editar, cancelar ou concluir sessão, re-busca só o período visí
 
 | Ação | administrador | tecnico |
 |---|---|---|
-| Criar/editar/cancelar sessão | sim | não |
+| Criar/editar/cancelar sessão diretamente | sim | não |
+| Solicitar edição/cancelamento de sessão | não | sim (só própria, `AGENDADA`) |
+| Aprovar/rejeitar pedidos de alteração | sim | não |
 | Marcar realizada | sim (qualquer) | sim (só própria) |
 | Registrar/editar evolução na sessão | sim (qualquer) | sim (só própria) |
 | Registrar/editar presença na sessão | sim (qualquer) | sim (só própria) |
@@ -181,7 +211,7 @@ Auditoria: `createdById`, `updatedById` em sessões e séries.
 | Validators | `backend/src/validators/agenda/*.ts` |
 | Validator apoio | `backend/src/validators/agenda/session-professional.validator.ts` |
 | Domínio | `backend/src/domain/agenda.ts` |
-| Schema | `backend/prisma/schema.prisma` (Session, SessionSeries, Room, SessionType) |
+| Schema | `backend/prisma/schema.prisma` (Session, SessionSeries, Room, SessionType, SessionChangeRequest) |
 | Página | `frontend/src/pages/AgendaPage.jsx` |
 | Hook | `frontend/src/hooks/useAgendaPage.js` |
 | Feature | `frontend/src/features/agenda/` |

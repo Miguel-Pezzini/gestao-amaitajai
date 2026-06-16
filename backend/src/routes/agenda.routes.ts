@@ -185,4 +185,64 @@ router.patch(
   }),
 );
 
+router.get(
+  "/agenda/session-change-requests",
+  asyncHandler(async (req: Request, res: Response) => {
+    const result = await agendaService.listSessionChangeRequests(
+      req.query as Record<string, unknown>,
+      req.user!,
+    );
+    res.status(200).json(result);
+  }),
+);
+
+router.post(
+  "/agenda/sessions/:id/change-requests/edit",
+  asyncHandler(async (req: Request, res: Response) => {
+    const result = await agendaService.createSessionEditRequest(
+      getRouteId(req.params.id),
+      (req.body ?? {}) as Record<string, unknown>,
+      req.user!,
+    );
+    res.status(201).json(result);
+  }),
+);
+
+router.post(
+  "/agenda/sessions/:id/change-requests/cancel",
+  asyncHandler(async (req: Request, res: Response) => {
+    const result = await agendaService.createSessionCancelRequest(
+      getRouteId(req.params.id),
+      (req.body ?? {}) as { cancelReason?: unknown; scope?: unknown },
+      req.user!,
+    );
+    res.status(201).json(result);
+  }),
+);
+
+router.patch(
+  "/agenda/session-change-requests/:id/approve",
+  requireAdmin,
+  asyncHandler(async (req: Request, res: Response) => {
+    const result = await agendaService.approveSessionChangeRequest(
+      getRouteId(req.params.id),
+      req.user!,
+    );
+    res.status(200).json(result);
+  }),
+);
+
+router.patch(
+  "/agenda/session-change-requests/:id/reject",
+  requireAdmin,
+  asyncHandler(async (req: Request, res: Response) => {
+    const result = await agendaService.rejectSessionChangeRequest(
+      getRouteId(req.params.id),
+      (req.body ?? {}) as { rejectionReason?: unknown },
+      req.user!,
+    );
+    res.status(200).json(result);
+  }),
+);
+
 export default router;

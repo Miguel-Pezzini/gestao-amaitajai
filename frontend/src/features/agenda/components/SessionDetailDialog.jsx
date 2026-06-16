@@ -1,4 +1,5 @@
 import { Check, Pencil, X } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
@@ -8,6 +9,7 @@ import { SessionPatientAttendance } from "@/features/agenda/components/SessionPa
 import { SessionPatientEvolutions } from "@/features/agenda/components/SessionPatientEvolutions";
 import { SessionParticipantsDetail } from "@/features/agenda/components/SessionParticipants";
 import { useSessionAttendances } from "@/features/agenda/hooks/useSessionAttendances";
+import { listSessionChangeRequests } from "@/services/agenda";
 import {
   formatSessionDateTime,
   getSessionFormatLabel,
@@ -35,8 +37,42 @@ export function SessionDetailDialog({
   onCompleteSession,
   onCancelSession,
   onEditSession,
+  onRequestEditSession,
+  onRequestCancelSession,
 }) {
   const attendance = useSessionAttendances(session?._id, open && !!session);
+  const [hasPendingRequest, setHasPendingRequest] = useState(false);
+
+  useEffect(() => {
+    if (!open || !session?._id || isAdmin) {
+      setHasPendingRequest(false);
+      return;
+    }
+
+    let mounted = true;
+
+    async function loadPending() {
+      try {
+        const response = await listSessionChangeRequests({
+          sessionId: session._id,
+          status: "PENDENTE",
+        });
+        if (mounted) {
+          setHasPendingRequest((response.items ?? []).length > 0);
+        }
+      } catch {
+        if (mounted) {
+          setHasPendingRequest(false);
+        }
+      }
+    }
+
+    loadPending();
+
+    return () => {
+      mounted = false;
+    };
+  }, [open, session?._id, isAdmin]);
 
   if (!session) {
     return null;
@@ -45,7 +81,10 @@ export function SessionDetailDialog({
   const canComplete = session.status === "AGENDADA" && attendance.canCompleteSession;
   const canEdit = isAdmin && session.status === "AGENDADA";
   const canCancel = isAdmin && session.status !== "CANCELADA";
-  const hasActions = canComplete || canCancel || canEdit;
+  const canRequestEdit = !isAdmin && session.status === "AGENDADA" && !hasPendingRequest;
+  const canRequestCancel = !isAdmin && session.status === "AGENDADA" && !hasPendingRequest;
+  const hasActions =
+    canComplete || canCancel || canEdit || canRequestEdit || canRequestCancel || hasPendingRequest;
   const notes = String(session.notes ?? "").trim();
   const cancelReason = String(session.cancelReason ?? "").trim();
 
@@ -65,6 +104,11 @@ export function SessionDetailDialog({
           <Badge variant="outline" className="border-ama-cyan/40 text-ama-blue-dark">
             {getSessionFormatLabel(session.modality)}
           </Badge>
+          {hasPendingRequest ? (
+            <Badge variant="outline" className="border-amber-400/60 bg-amber-50 text-amber-800">
+              Pedido pendente
+            </Badge>
+          ) : null}
         </div>
 
         <dl className="rounded-lg border border-ama-cyan/20 bg-white px-4">
@@ -121,6 +165,34 @@ export function SessionDetailDialog({
 
         {hasActions ? (
           <div className="flex flex-col gap-2 border-t border-ama-cyan/15 pt-4 sm:flex-row sm:flex-wrap sm:justify-end">
+            {canRequestEdit ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="border-ama-cyan/40"
+                onClick={() => {
+                  onOpenChange(false);
+                  onRequestEditSession(session._id);
+                }}
+              >
+                <Pencil className="size-4" aria-hidden="true" />
+                Solicitar edição
+              </Button>
+            ) : null}
+            {canRequestCancel ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="border-destructive/30 text-destructive hover:bg-destructive/10"
+                onClick={() => {
+                  onOpenChange(false);
+                  onRequestCancelSession(session._id);
+                }}
+              >
+                <X className="size-4" aria-hidden="true" />
+                Solicitar cancelamento
+              </Button>
+            ) : null}
             {canEdit ? (
               <Button
                 type="button"

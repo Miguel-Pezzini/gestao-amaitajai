@@ -53,6 +53,8 @@ export function CreateSessionDialog({
   hasSeries = false,
   updateScope = "SINGLE",
   onUpdateScopeChange,
+  dialogTitle,
+  submitLabel,
 }) {
   const isEdit = mode === "edit";
   const participantCounts = getParticipantCountLabels(
@@ -82,10 +84,12 @@ export function CreateSessionDialog({
         }
         setOpen(true);
       }}
-      title={isEdit ? "Editar sessão" : "Nova sessão"}
+      title={dialogTitle ?? (isEdit ? "Editar sessão" : "Nova sessão")}
       description={
         isEdit
-          ? "Altere os dados da sessão. Sessões recorrentes permitem escolher o escopo da edição."
+          ? dialogTitle
+            ? "Preencha as alterações desejadas. Um administrador precisará aprovar o pedido."
+            : "Altere os dados da sessão. Sessões recorrentes permitem escolher o escopo da edição."
           : undefined
       }
     >
@@ -334,11 +338,12 @@ export function CreateSessionDialog({
             >
               {saving
                 ? "Salvando..."
-                : isEdit
-                  ? "Salvar alterações"
-                  : form.recurrenceEnabled
-                    ? "Criar série recorrente"
-                    : "Criar sessão"}
+                : submitLabel ??
+                  (isEdit
+                    ? "Salvar alterações"
+                    : form.recurrenceEnabled
+                      ? "Criar série recorrente"
+                      : "Criar sessão")}
             </Button>
             <Button
               type="button"

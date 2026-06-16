@@ -1755,4 +1755,212 @@ describe("Agenda integration", () => {
       expect(response.status).toBe(201);
     });
   });
+
+  describe("pedidos de alteração de sessão", () => {
+    it("permite técnico solicitar edição da própria sessão e admin aprovar", async () => {
+      const { adminCookie, paciente, profissional, room, sessionType } = await seedAgendaBase();
+      const tecnicoCookie = await loginAndGetCookie(profissional.email, "prof123456");
+
+      const created = await request(app)
+        .post("/api/agenda/sessions")
+        .set("Cookie", adminCookie)
+        .send(
+          buildSessionPayload({
+            sessionTypeId: sessionType._id,
+            roomId: room._id,
+            patientIds: [paciente._id],
+            professionalIds: [profissional._id],
+            startAt: "2026-06-10T13:00:00.000Z",
+          }),
+        );
+      expect(created.status).toBe(201);
+      const sessionId = created.body.session._id as string;
+
+      const editPayload = buildSessionPayload({
+        sessionTypeId: sessionType._id,
+        roomId: room._id,
+        patientIds: [paciente._id],
+        professionalIds: [profissional._id],
+        startAt: "2026-06-10T15:00:00.000Z",
+        notes: "Pedido de remarcação",
+      });
+
+      const requested = await request(app)
+        .post(`/api/agenda/sessions/${sessionId}/change-requests/edit`)
+        .set("Cookie", tecnicoCookie)
+        .send({ ...editPayload, updateScope: "SINGLE" });
+      expect(requested.status).toBe(201);
+      expect(requested.body.request.status).toBe("PENDENTE");
+      expect(requested.body.request.type).toBe("EDIT");
+
+      const requestId = requested.body.request._id as string;
+
+      const blocked = await request(app)
+        .patch(`/api/agenda/sessions/${sessionId}`)
+        .set("Cookie", adminCookie)
+        .send({ ...editPayload, updateScope: "SINGLE" });
+      expect(blocked.status).toBe(400);
+      expect(blocked.body.message).toContain("pedido de alteração pendente");
+
+      const forbidden = await request(app)
+        .patch(`/api/agenda/session-change-requests/${requestId}/approve`)
+        .set("Cookie", tecnicoCookie)
+        .send();
+      expect(forbidden.status).toBe(403);
+
+      const approved = await request(app)
+        .patch(`/api/agenda/session-change-requests/${requestId}/approve`)
+        .set("Cookie", adminCookie)
+        .send();
+      expect(approved.status).toBe(200);
+      expect(approved.body.request.status).toBe("APROVADO");
+      expect(approved.body.session.startAt).toBe("2026-06-10T15:00:00.000Z");
+      expect(approved.body.session.notes).toBe("Pedido de remarcação");
+    });
+
+    it("bloqueia técnico de solicitar alteração em sessão alheia", async () => {
+      const adminPassword = "admin123456";
+      const techPassword = "tech123456";
+      const otherPassword = "other123456";
+
+      const admin = await createUser({
+        name: "Admin Pedido",
+        email: `admin-pedido-${Date.now()}@agenda.test`,
+        password: adminPassword,
+        role: "ADMINISTRADOR",
+      });
+      const tecnico = await createUser({
+        name: "Tecnico Pedido",
+        email: `tecnico-pedido-${Date.now()}@agenda.test`,
+        password: techPassword,
+        role: "TECNICO",
+      });
+      const outro = await createUser({
+        name: "Outro Tecnico",
+        email: `outro-pedido-${Date.now()}@agenda.test`,
+        password: otherPassword,
+        role: "TECNICO",
+      });
+
+      const fundingSources = await prisma.patientFundingSource.findMany();
+      const paciente = await createPatient({
+        fullName: "Paciente Pedido",
+        birthDate: new Date("2018-01-01"),
+        guardianName: "Responsavel",
+        phone: "(47) 99999-0099",
+        fundingSource: fundingSources[0]?.name ?? "PARTICULAR",
+        isActive: true,
+      });
+      const room = await createRoom({ name: `Sala Pedido ${Date.now()}`, isActive: true });
+      const sessionType = await createSessionType({
+        name: "PEDIDO",
+        slug: `pedido-${Date.now()}`,
+        defaultDurationMinutes: 30,
+        isDurationFlexible: false,
+        allowedModalities: ["INDIVIDUAL"],
+        isActive: true,
+      });
+
+      const adminCookie = await loginAndGetCookie(admin.email, adminPassword);
+      const outroCookie = await loginAndGetCookie(outro.email, otherPassword);
+
+      const created = await request(app)
+        .post("/api/agenda/sessions")
+        .set("Cookie", adminCookie)
+        .send(
+          buildSessionPayload({
+            sessionTypeId: sessionType._id,
+            roomId: room._id,
+            patientIds: [paciente._id],
+            professionalIds: [tecnico._id],
+          }),
+        );
+      const sessionId = created.body.session._id as string;
+
+      const response = await request(app)
+        .post(`/api/agenda/sessions/${sessionId}/change-requests/edit`)
+        .set("Cookie", outroCookie)
+        .send(
+          buildSessionPayload({
+            sessionTypeId: sessionType._id,
+            roomId: room._id,
+            patientIds: [paciente._id],
+            professionalIds: [tecnico._id],
+            startAt: "2026-06-10T16:00:00.000Z",
+            updateScope: "SINGLE",
+          }),
+        );
+      expect(response.status).toBe(403);
+    });
+
+    it("permite admin aprovar pedido de cancelamento e rejeitar com motivo", async () => {
+      const { adminCookie, paciente, profissional, room, sessionType } = await seedAgendaBase();
+      const tecnicoCookie = await loginAndGetCookie(profissional.email, "prof123456");
+
+      const created = await request(app)
+        .post("/api/agenda/sessions")
+        .set("Cookie", adminCookie)
+        .send(
+          buildSessionPayload({
+            sessionTypeId: sessionType._id,
+            roomId: room._id,
+            patientIds: [paciente._id],
+            professionalIds: [profissional._id],
+          }),
+        );
+      const sessionId = created.body.session._id as string;
+
+      const cancelRequested = await request(app)
+        .post(`/api/agenda/sessions/${sessionId}/change-requests/cancel`)
+        .set("Cookie", tecnicoCookie)
+        .send({ cancelReason: "Paciente viajou", scope: "SINGLE" });
+      expect(cancelRequested.status).toBe(201);
+      const cancelRequestId = cancelRequested.body.request._id as string;
+
+      const approved = await request(app)
+        .patch(`/api/agenda/session-change-requests/${cancelRequestId}/approve`)
+        .set("Cookie", adminCookie)
+        .send();
+      expect(approved.status).toBe(200);
+      expect(approved.body.request.status).toBe("APROVADO");
+      expect(approved.body.session.status).toBe("CANCELADA");
+
+      const created2 = await request(app)
+        .post("/api/agenda/sessions")
+        .set("Cookie", adminCookie)
+        .send(
+          buildSessionPayload({
+            sessionTypeId: sessionType._id,
+            roomId: room._id,
+            patientIds: [paciente._id],
+            professionalIds: [profissional._id],
+            startAt: "2026-06-11T13:00:00.000Z",
+          }),
+        );
+      const sessionId2 = created2.body.session._id as string;
+
+      const rejectRequested = await request(app)
+        .post(`/api/agenda/sessions/${sessionId2}/change-requests/cancel`)
+        .set("Cookie", tecnicoCookie)
+        .send({ cancelReason: "Conflito de horário", scope: "SINGLE" });
+      const rejectRequestId = rejectRequested.body.request._id as string;
+
+      const rejected = await request(app)
+        .patch(`/api/agenda/session-change-requests/${rejectRequestId}/reject`)
+        .set("Cookie", adminCookie)
+        .send({ rejectionReason: "Manter sessão agendada" });
+      expect(rejected.status).toBe(200);
+      expect(rejected.body.request.status).toBe("REJEITADO");
+      expect(rejected.body.request.rejectionReason).toBe("Manter sessão agendada");
+
+      const sessionAfterReject = await request(app)
+        .get("/api/agenda/sessions")
+        .set("Cookie", adminCookie)
+        .query({ startAt: "2026-06-11T00:00:00.000Z", endAt: "2026-06-12T00:00:00.000Z" });
+      const stillScheduled = sessionAfterReject.body.items.find(
+        (item: { _id: string }) => item._id === sessionId2,
+      );
+      expect(stillScheduled?.status).toBe("AGENDADA");
+    });
+  });
 });

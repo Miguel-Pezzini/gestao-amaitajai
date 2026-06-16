@@ -103,3 +103,28 @@ export async function completeSession(sessionId) {
   const { data } = await api.patch(`/agenda/sessions/${sessionId}/complete`);
   return data;
 }
+
+export async function listSessionChangeRequests(params = {}) {
+  const { data } = await getOnce("/agenda/session-change-requests", { params });
+  return data;
+}
+
+export async function createSessionEditRequest(sessionId, payload) {
+  const { data } = await api.post(`/agenda/sessions/${sessionId}/change-requests/edit`, payload);
+  return data;
+}
+
+export async function createSessionCancelRequest(sessionId, payload) {
+  const { data } = await api.post(`/agenda/sessions/${sessionId}/change-requests/cancel`, payload);
+  return data;
+}
+
+export async function approveSessionChangeRequest(requestId) {
+  const { data } = await api.patch(`/agenda/session-change-requests/${requestId}/approve`);
+  return data;
+}
+
+export async function rejectSessionChangeRequest(requestId, payload) {
+  const { data } = await api.patch(`/agenda/session-change-requests/${requestId}/reject`, payload);
+  return data;
+}

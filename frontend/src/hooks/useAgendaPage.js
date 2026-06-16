@@ -1,12 +1,17 @@
 import { useCallback, useEffect, useState } from "react";
 import {
+  approveSessionChangeRequest,
   cancelSession,
   completeSession,
   createSession,
+  createSessionCancelRequest,
+  createSessionEditRequest,
   listRooms,
+  listSessionChangeRequests,
   listSessions,
   listSessionModalities,
   listSessionTypes,
+  rejectSessionChangeRequest,
   searchAgendaPatients,
   searchAgendaProfessionals,
   updateSession,
@@ -119,6 +124,15 @@ export function useAgendaPage(user) {
   const [cancelReasonError, setCancelReasonError] = useState("");
   const [cancelScope, setCancelScope] = useState("SINGLE");
   const [cancelScopeError, setCancelScopeError] = useState("");
+  const [editIntent, setEditIntent] = useState("update");
+  const [cancelIntent, setCancelIntent] = useState("cancel");
+
+  const [pendingRequests, setPendingRequests] = useState([]);
+  const [pendingRequestsOpen, setPendingRequestsOpen] = useState(false);
+  const [loadingPendingRequests, setLoadingPendingRequests] = useState(false);
+  const [rejectRequestId, setRejectRequestId] = useState("");
+  const [rejectReason, setRejectReason] = useState("");
+  const [rejectReasonError, setRejectReasonError] = useState("");
 
   const [patientTerm, setPatientTerm] = useState("");
   const [patientOptions, setPatientOptions] = useState([]);
@@ -180,6 +194,51 @@ export function useAgendaPage(user) {
   useEffect(() => {
     loadSessions();
   }, [referenceDate, viewMode, loadSessions]);
+
+  const loadPendingRequests = useCallback(async () => {
+    if (!isAdmin) {
+      return;
+    }
+
+    setLoadingPendingRequests(true);
+    try {
+      const response = await listSessionChangeRequests({ status: "PENDENTE" });
+      setPendingRequests(response.items ?? []);
+    } catch {
+      setPendingRequests([]);
+    } finally {
+      setLoadingPendingRequests(false);
+    }
+  }, [isAdmin]);
+
+  useEffect(() => {
+    loadPendingRequests();
+  }, [loadPendingRequests, sessions]);
+
+  useEffect(() => {
+    if (!pendingRequestsOpen || !isAdmin || catalogsLoaded) {
+      return;
+    }
+
+    let mounted = true;
+
+    async function loadCatalogsForRequests() {
+      try {
+        await loadDependencies();
+        if (mounted) {
+          setCatalogsLoaded(true);
+        }
+      } catch {
+        // diff ainda funciona com nomes da sessão atual
+      }
+    }
+
+    loadCatalogsForRequests();
+
+    return () => {
+      mounted = false;
+    };
+  }, [pendingRequestsOpen, isAdmin, catalogsLoaded]);
 
   const sessionFormOpen = createDialogOpen || editDialogOpen;
 
@@ -481,6 +540,7 @@ export function useAgendaPage(user) {
     setEditSessionId("");
     setEditSessionHasSeries(false);
     setUpdateScope("SINGLE");
+    setEditIntent("update");
     resetCreateForm();
   }
 
@@ -490,6 +550,7 @@ export function useAgendaPage(user) {
       return;
     }
 
+    setEditIntent("update");
     setEditSessionId(sessionId);
     setEditSessionHasSeries(Boolean(session.seriesId));
     setUpdateScope("SINGLE");
@@ -500,6 +561,11 @@ export function useAgendaPage(user) {
     setProfessionalRoster([]);
     setProfessionalAvailabilityMeta(null);
     setEditDialogOpen(true);
+  }
+
+  function openRequestEditDialog(sessionId) {
+    openEditDialog(sessionId);
+    setEditIntent("request");
   }
 
   function openCreateDialog(day, startTime = DEFAULT_SESSION_START_TIME) {
@@ -558,6 +624,7 @@ export function useAgendaPage(user) {
 
   function openCancelDialog(sessionId) {
     const session = sessions.find((item) => item._id === sessionId);
+    setCancelIntent("cancel");
     setCancelSessionId(sessionId);
     setCancelSessionHasSeries(Boolean(session?.seriesId));
     setCancelReason("");
@@ -565,6 +632,11 @@ export function useAgendaPage(user) {
     setCancelScope("SINGLE");
     setCancelScopeError("");
     setCancelDialogOpen(true);
+  }
+
+  function openRequestCancelDialog(sessionId) {
+    openCancelDialog(sessionId);
+    setCancelIntent("request");
   }
 
   function closeCancelDialog() {
@@ -575,6 +647,7 @@ export function useAgendaPage(user) {
     setCancelReasonError("");
     setCancelScope("SINGLE");
     setCancelScopeError("");
+    setCancelIntent("cancel");
   }
 
   function handleCancelReasonChange(value) {
@@ -725,12 +798,19 @@ export function useAgendaPage(user) {
     const payload = { ...buildSessionPayload(form), updateScope };
 
     try {
-      const result = await updateSession(editSessionId, payload);
-      closeEditDialog();
-      const count = result.sessionsUpdated ?? 1;
-      toast.success(
-        count > 1 ? `${count} sessões atualizadas com sucesso.` : "Sessão atualizada com sucesso.",
-      );
+      if (editIntent === "request") {
+        await createSessionEditRequest(editSessionId, payload);
+        closeEditDialog();
+        toast.success("Pedido de edição enviado para aprovação.");
+        await loadPendingRequests();
+      } else {
+        const result = await updateSession(editSessionId, payload);
+        closeEditDialog();
+        const count = result.sessionsUpdated ?? 1;
+        toast.success(
+          count > 1 ? `${count} sessões atualizadas com sucesso.` : "Sessão atualizada com sucesso.",
+        );
+      }
       await loadSessions({ showLoading: false });
     } catch (err) {
       toast.error(
@@ -809,20 +889,78 @@ export function useAgendaPage(user) {
     setCancelReasonError("");
     setSaving(true);
     try {
-      const result = await cancelSession(cancelSessionId, {
-        cancelReason: cancelReason.trim(),
-        scope: cancelScope,
-      });
-      closeCancelDialog();
-      const count = result.sessionsCancelled ?? 1;
-      toast.success(
-        count > 1 ? `${count} sessões canceladas com sucesso.` : "Sessão cancelada com sucesso.",
-      );
+      if (cancelIntent === "request") {
+        await createSessionCancelRequest(cancelSessionId, {
+          cancelReason: cancelReason.trim(),
+          scope: cancelScope,
+        });
+        closeCancelDialog();
+        toast.success("Pedido de cancelamento enviado para aprovação.");
+        await loadPendingRequests();
+      } else {
+        const result = await cancelSession(cancelSessionId, {
+          cancelReason: cancelReason.trim(),
+          scope: cancelScope,
+        });
+        closeCancelDialog();
+        const count = result.sessionsCancelled ?? 1;
+        toast.success(
+          count > 1 ? `${count} sessões canceladas com sucesso.` : "Sessão cancelada com sucesso.",
+        );
+      }
       await loadSessions({ showLoading: false });
     } catch (err) {
       toast.error(
         getApiErrorMessage(err, "Não foi possível cancelar a sessão selecionada."),
       );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleApproveChangeRequest(requestId) {
+    setSaving(true);
+    try {
+      await approveSessionChangeRequest(requestId);
+      toast.success("Pedido aprovado com sucesso.");
+      await loadPendingRequests();
+      await loadSessions({ showLoading: false });
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, "Não foi possível aprovar o pedido."));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function openRejectDialog(requestId) {
+    setRejectRequestId(requestId);
+    setRejectReason("");
+    setRejectReasonError("");
+  }
+
+  function closeRejectDialog() {
+    setRejectRequestId("");
+    setRejectReason("");
+    setRejectReasonError("");
+  }
+
+  async function handleRejectChangeRequest(event) {
+    event.preventDefault();
+    if (!rejectRequestId || !rejectReason.trim()) {
+      setRejectReasonError("Informe o motivo da rejeição.");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await rejectSessionChangeRequest(rejectRequestId, {
+        rejectionReason: rejectReason.trim(),
+      });
+      closeRejectDialog();
+      toast.success("Pedido rejeitado.");
+      await loadPendingRequests();
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, "Não foi possível rejeitar o pedido."));
     } finally {
       setSaving(false);
     }
@@ -849,6 +987,7 @@ export function useAgendaPage(user) {
     editDialogOpen,
     setEditDialogOpen,
     editSessionHasSeries,
+    editIntent,
     updateScope,
     handleUpdateScopeChange: setUpdateScope,
     cancelDialogOpen,
@@ -858,6 +997,7 @@ export function useAgendaPage(user) {
     cancelScope,
     cancelScopeError,
     cancelSessionHasSeries,
+    cancelIntent,
     handleCancelReasonChange,
     handleCancelScopeChange: setCancelScope,
     patientTerm,
@@ -873,8 +1013,10 @@ export function useAgendaPage(user) {
     openCreateDialog,
     closeCreateDialog,
     openEditDialog,
+    openRequestEditDialog,
     closeEditDialog,
     openCancelDialog,
+    openRequestCancelDialog,
     closeCancelDialog,
     addPatient,
     removePatient,
@@ -888,5 +1030,18 @@ export function useAgendaPage(user) {
     handleCancelSession,
     handleToggleRecurrence,
     handleToggleRecurrenceWeekday,
+    pendingRequests,
+    pendingRequestsOpen,
+    setPendingRequestsOpen,
+    loadingPendingRequests,
+    loadPendingRequests,
+    handleApproveChangeRequest,
+    rejectRequestId,
+    rejectReason,
+    rejectReasonError,
+    setRejectReason,
+    openRejectDialog,
+    closeRejectDialog,
+    handleRejectChangeRequest,
   };
 }

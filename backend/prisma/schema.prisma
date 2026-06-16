@@ -49,6 +49,17 @@ enum SessionAttendanceStatus {
   FALTA_JUSTIFICADA
 }
 
+enum SessionChangeRequestType {
+  EDIT
+  CANCEL
+}
+
+enum SessionChangeRequestStatus {
+  PENDENTE
+  APROVADO
+  REJEITADO
+}
+
 model User {
   id            String            @id @default(uuid()) @db.Uuid
   name          String
@@ -71,6 +82,8 @@ model User {
   evolutionsCreated         PatientSessionEvolution[]   @relation("EvolutionCreatedBy")
   evolutionsUpdated         PatientSessionEvolution[]   @relation("EvolutionUpdatedBy")
   sessionAttendancesUpdated SessionPatient[]            @relation("SessionAttendanceUpdatedBy")
+  sessionChangeRequestsCreated SessionChangeRequest[]   @relation("SessionChangeRequestedBy")
+  sessionChangeRequestsReviewed SessionChangeRequest[]  @relation("SessionChangeReviewedBy")
 
   @@index([role, accountStatus])
 }
@@ -264,6 +277,7 @@ model Session {
   patients      SessionPatient[]
   professionals SessionProfessional[]
   evolutions    PatientSessionEvolution[]
+  changeRequests SessionChangeRequest[]
 
   @@index([startAt, endAt])
   @@index([roomId, startAt, endAt])
@@ -333,4 +347,27 @@ model SessionModalitySetting {
   updatedAt        DateTime        @updatedAt
 
   @@index([isActive])
+}
+
+model SessionChangeRequest {
+  id              String                     @id @default(uuid()) @db.Uuid
+  sessionId       String                     @db.Uuid
+  type            SessionChangeRequestType
+  status          SessionChangeRequestStatus @default(PENDENTE)
+  updateScope     String?
+  proposedPayload Json
+  requestedById   String                     @db.Uuid
+  reviewedById    String?                    @db.Uuid
+  reviewedAt      DateTime?
+  rejectionReason String                     @default("")
+  createdAt       DateTime                   @default(now())
+  updatedAt       DateTime                   @updatedAt
+
+  session     Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  requestedBy User    @relation("SessionChangeRequestedBy", fields: [requestedById], references: [id])
+  reviewedBy  User?   @relation("SessionChangeReviewedBy", fields: [reviewedById], references: [id])
+
+  @@index([status, createdAt])
+  @@index([sessionId, status])
+  @@index([requestedById, status])
 }

@@ -18,6 +18,9 @@ export function CancelSessionDialog({
   onCancelScopeChange,
   onSubmit,
   onClose,
+  title = "Cancelar sessão",
+  description = "Informe o motivo do cancelamento.",
+  submitLabel = "Confirmar cancelamento",
 }) {
   return (
     <Dialog
@@ -29,8 +32,8 @@ export function CancelSessionDialog({
         }
         setOpen(true);
       }}
-      title="Cancelar sessão"
-      description="Informe o motivo do cancelamento."
+      title={title}
+      description={description}
     >
       <form onSubmit={onSubmit} className="space-y-3">
         {hasSeries ? (
@@ -76,7 +79,7 @@ export function CancelSessionDialog({
             className="bg-destructive text-white hover:bg-destructive/90"
             disabled={saving}
           >
-            Confirmar cancelamento
+            {submitLabel}
           </Button>
           <Button type="button" variant="outline" onClick={onClose} disabled={saving}>
             Voltar

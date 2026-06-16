@@ -106,6 +106,10 @@ type CancelPayload = {
   cancelReason?: unknown;
   scope?: unknown;
 };
+
+type SessionMutationOptions = {
+  bypassPendingChangeRequest?: boolean;
+};
 type SessionValidationLimits = {
   minPatients: number;
   maxPatients: number;
@@ -153,6 +157,109 @@ const OVERLAP_SESSION_SELECT = {
   },
   patients: { select: { patientId: true } },
 } satisfies Prisma.SessionSelect;
+
+const SESSION_CHANGE_REQUEST_INCLUDE = {
+  session: { include: SESSION_LIST_INCLUDE },
+  requestedBy: { select: { id: true, name: true, email: true } },
+  reviewedBy: { select: { id: true, name: true, email: true } },
+} satisfies Prisma.SessionChangeRequestInclude;
+
+function serializeSessionChangeRequest(
+  record: Prisma.SessionChangeRequestGetPayload<{ include: typeof SESSION_CHANGE_REQUEST_INCLUDE }>,
+  participantLabels?: {
+    patients: Record<string, string>;
+    professionals: Record<string, string>;
+  },
+) {
+  const { id, session, requestedBy, reviewedBy, proposedPayload, ...rest } = record;
+  return {
+    ...rest,
+    _id: id,
+    proposedPayload,
+    participantLabels: participantLabels ?? { patients: {}, professionals: {} },
+    session: session ? serializeSessionForList(session) : null,
+    requestedBy: requestedBy ? withMongoId(requestedBy) : null,
+    reviewedBy: reviewedBy ? withMongoId(reviewedBy) : null,
+  };
+}
+
+function parseProposedParticipantIds(payload: unknown): {
+  patientIds: string[];
+  professionalIds: string[];
+} {
+  if (!payload || typeof payload !== "object") {
+    return { patientIds: [], professionalIds: [] };
+  }
+
+  const proposed = payload as SessionPayload & {
+    professionals?: Array<{ professionalId?: string; id?: string }>;
+  };
+  const patientIds = Array.isArray(proposed.patientIds)
+    ? proposed.patientIds.filter((id): id is string => typeof id === "string" && isUuid(id))
+    : [];
+
+  const professionalIds = new Set<string>();
+  if (Array.isArray(proposed.professionalIds)) {
+    for (const id of proposed.professionalIds) {
+      if (typeof id === "string" && isUuid(id)) {
+        professionalIds.add(id);
+      }
+    }
+  }
+  if (Array.isArray(proposed.professionals)) {
+    for (const row of proposed.professionals) {
+      const id = row.professionalId ?? row.id;
+      if (typeof id === "string" && isUuid(id)) {
+        professionalIds.add(id);
+      }
+    }
+  }
+
+  return {
+    patientIds: [...new Set(patientIds)],
+    professionalIds: [...professionalIds],
+  };
+}
+
+async function resolveParticipantLabelMaps(
+  items: Array<{ type: string; proposedPayload: unknown }>,
+): Promise<{ patients: Record<string, string>; professionals: Record<string, string> }> {
+  const patientIds = new Set<string>();
+  const professionalIds = new Set<string>();
+
+  for (const item of items) {
+    if (item.type !== "EDIT") {
+      continue;
+    }
+    const parsed = parseProposedParticipantIds(item.proposedPayload);
+    for (const id of parsed.patientIds) {
+      patientIds.add(id);
+    }
+    for (const id of parsed.professionalIds) {
+      professionalIds.add(id);
+    }
+  }
+
+  const [patients, professionals] = await Promise.all([
+    patientIds.size === 0
+      ? Promise.resolve([])
+      : prisma.patient.findMany({
+          where: { id: { in: [...patientIds] } },
+          select: { id: true, fullName: true },
+        }),
+    professionalIds.size === 0
+      ? Promise.resolve([])
+      : prisma.user.findMany({
+          where: { id: { in: [...professionalIds] } },
+          select: { id: true, name: true },
+        }),
+  ]);
+
+  return {
+    patients: Object.fromEntries(patients.map((row) => [row.id, row.fullName])),
+    professionals: Object.fromEntries(professionals.map((row) => [row.id, row.name])),
+  };
+}
 
 function mapStoredProfessionals(
   rows: Array<{
@@ -668,52 +775,19 @@ export class AgendaService {
     sessionId: string,
     payload: SessionPayloadWithRecurrence,
     currentUser: AuthenticatedUser,
+    options?: SessionMutationOptions,
   ) {
     const existing = await this.findSessionOrThrow(sessionId);
-    validateUpdateSession(sessionId, existing.status);
-    const updateScope = validateUpdateScope(payload.updateScope);
-
-    const normalized = normalizeSessionInput(payload, {
-      sessionTypeId: existing.sessionTypeId,
-      modality: existing.modality as SessionModality,
-      roomId: existing.roomId,
-      startAt: existing.startAt,
-      durationMinutes: existing.durationMinutes,
-      patientIds: existing.patients.map((row) => row.patientId),
-      professionals: mapStoredProfessionals(existing.professionals),
-      notes: existing.notes,
-    });
-    const payloadStartAt = normalized.startAt as Date;
-
-    const targetSessions = await this.getSessionsForUpdateScope(existing, updateScope);
-    const excludeSessionIds = targetSessions.map((item) => item.id);
-
-    for (const target of targetSessions) {
-      const { startAt, endAt } = this.computeUpdatedSessionTimes(
-        updateScope,
-        target.startAt,
-        payloadStartAt,
-        normalized.durationMinutes,
-      );
-      validateSessionWithProfessionals(normalized, endAt);
-      await this.assertNoSchedulingConflicts({
-        startAt,
-        endAt,
-        roomId: normalized.roomId,
-        patientIds: normalized.patientIds,
-        professionals: toProfessionalAssignments(normalized.professionals),
-        excludeSessionIds,
-      });
+    if (!options?.bypassPendingChangeRequest) {
+      await this.assertNoPendingChangeRequest(sessionId);
     }
-
-    await this.validateSessionParticipantsByModality(
-      normalized.modality,
-      normalized.patientIds.length,
-      normalized.professionals.length,
+    const { updateScope, normalized, payloadStartAt } = await this.validateSessionUpdateInputs(
+      sessionId,
+      payload,
+      existing,
     );
 
-    const references = await this.loadSessionReferences(normalized);
-    validateSessionModality(references.sessionType.allowedModalities, normalized.modality);
+    const targetSessions = await this.getSessionsForUpdateScope(existing, updateScope);
 
     const session = await prisma.$transaction(async (tx) => {
       for (const target of targetSessions) {
@@ -785,9 +859,13 @@ export class AgendaService {
     sessionId: string,
     payload: CancelPayload,
     currentUser: AuthenticatedUser,
+    options?: SessionMutationOptions,
   ) {
     const { cancelReason, scope } = validateCancelSession(sessionId, payload);
     const existing = await this.findSessionOrThrow(sessionId);
+    if (!options?.bypassPendingChangeRequest) {
+      await this.assertNoPendingChangeRequest(sessionId);
+    }
 
     if (existing.status === "CANCELADA") {
       throw new ValidationError("Sessão já está cancelada.");
@@ -1294,6 +1372,182 @@ export class AgendaService {
     return { session: serializeSessionPlain(session) };
   }
 
+  async createSessionEditRequest(
+    sessionId: string,
+    payload: SessionPayloadWithRecurrence,
+    currentUser: AuthenticatedUser,
+  ) {
+    const existing = await this.findSessionOrThrow(sessionId);
+    this.assertTechnicianCanRequestChange(existing, currentUser);
+    await this.validateSessionUpdateInputs(sessionId, payload, existing);
+
+    const updateScope = validateUpdateScope(payload.updateScope);
+    const proposedPayload = {
+      sessionTypeId: payload.sessionTypeId,
+      modality: payload.modality,
+      roomId: payload.roomId,
+      startAt: payload.startAt,
+      durationMinutes: payload.durationMinutes,
+      patientIds: payload.patientIds,
+      professionalIds: payload.professionalIds,
+      professionals: payload.professionals,
+      notes: payload.notes,
+    };
+
+    try {
+      const request = await prisma.sessionChangeRequest.create({
+        data: {
+          sessionId,
+          type: "EDIT",
+          updateScope,
+          proposedPayload: proposedPayload as Prisma.InputJsonValue,
+          requestedById: currentUser._id,
+        },
+        include: SESSION_CHANGE_REQUEST_INCLUDE,
+      });
+      return { request: serializeSessionChangeRequest(request) };
+    } catch (error) {
+      if (isPrismaUniqueViolation(error)) {
+        throw new ConflictError("Já existe um pedido pendente para esta sessão.");
+      }
+      throw error;
+    }
+  }
+
+  async createSessionCancelRequest(
+    sessionId: string,
+    payload: CancelPayload,
+    currentUser: AuthenticatedUser,
+  ) {
+    const { cancelReason, scope } = validateCancelSession(sessionId, payload);
+    const existing = await this.findSessionOrThrow(sessionId);
+    this.assertTechnicianCanRequestChange(existing, currentUser);
+
+    if (existing.status !== "AGENDADA") {
+      throw new ValidationError("Só é possível solicitar cancelamento de sessões agendadas.");
+    }
+
+    try {
+      const request = await prisma.sessionChangeRequest.create({
+        data: {
+          sessionId,
+          type: "CANCEL",
+          updateScope: scope,
+          proposedPayload: { cancelReason } as Prisma.InputJsonValue,
+          requestedById: currentUser._id,
+        },
+        include: SESSION_CHANGE_REQUEST_INCLUDE,
+      });
+      return { request: serializeSessionChangeRequest(request) };
+    } catch (error) {
+      if (isPrismaUniqueViolation(error)) {
+        throw new ConflictError("Já existe um pedido pendente para esta sessão.");
+      }
+      throw error;
+    }
+  }
+
+  async listSessionChangeRequests(
+    query: Record<string, unknown>,
+    currentUser: AuthenticatedUser,
+  ) {
+    const where: Prisma.SessionChangeRequestWhereInput = {};
+    const status = normalizeText(query.status).toUpperCase();
+    if (status && ["PENDENTE", "APROVADO", "REJEITADO"].includes(status)) {
+      where.status = status as Prisma.SessionChangeRequestWhereInput["status"];
+    }
+
+    const sessionId = normalizeText(query.sessionId);
+    if (sessionId && isUuid(sessionId)) {
+      where.sessionId = sessionId;
+    }
+
+    if (currentUser.role === "TECNICO") {
+      where.requestedById = currentUser._id;
+    }
+
+    const items = await prisma.sessionChangeRequest.findMany({
+      where,
+      include: SESSION_CHANGE_REQUEST_INCLUDE,
+      orderBy: [{ status: "asc" }, { createdAt: "desc" }],
+    });
+
+    const participantLabels = await resolveParticipantLabelMaps(items);
+
+    return {
+      items: items.map((item) => serializeSessionChangeRequest(item, participantLabels)),
+    };
+  }
+
+  async approveSessionChangeRequest(requestId: string, currentUser: AuthenticatedUser) {
+    const request = await this.findSessionChangeRequestOrThrow(requestId);
+    if (request.status !== "PENDENTE") {
+      throw new ValidationError("Só é possível aprovar pedidos pendentes.");
+    }
+
+    const mutationOptions: SessionMutationOptions = { bypassPendingChangeRequest: true };
+    let result: Record<string, unknown>;
+
+    if (request.type === "EDIT") {
+      const payload = request.proposedPayload as SessionPayload;
+      result = await this.updateSession(
+        request.sessionId,
+        { ...payload, updateScope: request.updateScope },
+        currentUser,
+        mutationOptions,
+      );
+    } else {
+      const { cancelReason } = request.proposedPayload as { cancelReason: string };
+      result = await this.cancelSession(
+        request.sessionId,
+        { cancelReason, scope: request.updateScope },
+        currentUser,
+        mutationOptions,
+      );
+    }
+
+    const updated = await prisma.sessionChangeRequest.update({
+      where: { id: requestId },
+      data: {
+        status: "APROVADO",
+        reviewedById: currentUser._id,
+        reviewedAt: new Date(),
+      },
+      include: SESSION_CHANGE_REQUEST_INCLUDE,
+    });
+
+    return { request: serializeSessionChangeRequest(updated), ...result };
+  }
+
+  async rejectSessionChangeRequest(
+    requestId: string,
+    payload: { rejectionReason?: unknown },
+    currentUser: AuthenticatedUser,
+  ) {
+    const request = await this.findSessionChangeRequestOrThrow(requestId);
+    if (request.status !== "PENDENTE") {
+      throw new ValidationError("Só é possível rejeitar pedidos pendentes.");
+    }
+
+    const rejectionReason = normalizeText(payload.rejectionReason);
+    if (!rejectionReason) {
+      throw new ValidationError("Informe o motivo da rejeição.");
+    }
+
+    const updated = await prisma.sessionChangeRequest.update({
+      where: { id: requestId },
+      data: {
+        status: "REJEITADO",
+        rejectionReason,
+        reviewedById: currentUser._id,
+        reviewedAt: new Date(),
+      },
+      include: SESSION_CHANGE_REQUEST_INCLUDE,
+    });
+
+    return { request: serializeSessionChangeRequest(updated) };
+  }
+
   async listSessionModalitySettings() {
     await this.ensureSessionModalitySettings();
     const items = await prisma.sessionModalitySetting.findMany({ orderBy: { modality: "asc" } });
@@ -1771,6 +2025,103 @@ export class AgendaService {
     if (currentUser.role === "TECNICO" && !isOwnerProfessional) {
       throw new ForbiddenError("Técnico só pode concluir a própria sessão.");
     }
+  }
+
+  private assertTechnicianCanRequestChange(
+    session: { status: string; professionals: Array<{ professionalId: string }> },
+    currentUser: AuthenticatedUser,
+  ): void {
+    if (currentUser.role !== "TECNICO") {
+      throw new ForbiddenError("Apenas técnicos podem solicitar alterações de sessão.");
+    }
+    const isOwnerProfessional = session.professionals.some(
+      (row) => row.professionalId === currentUser._id,
+    );
+    if (!isOwnerProfessional) {
+      throw new ForbiddenError("Técnico só pode solicitar alteração da própria sessão.");
+    }
+    if (session.status !== "AGENDADA") {
+      throw new ValidationError("Só é possível solicitar alteração de sessões agendadas.");
+    }
+  }
+
+  private async assertNoPendingChangeRequest(sessionId: string): Promise<void> {
+    const pending = await prisma.sessionChangeRequest.findFirst({
+      where: { sessionId, status: "PENDENTE" },
+      select: { id: true },
+    });
+    if (pending) {
+      throw new ValidationError(
+        "Existe um pedido de alteração pendente para esta sessão. Aprove ou rejeite antes de editar.",
+      );
+    }
+  }
+
+  private async validateSessionUpdateInputs(
+    sessionId: string,
+    payload: SessionPayloadWithRecurrence,
+    existing: Awaited<ReturnType<AgendaService["findSessionOrThrow"]>>,
+  ) {
+    validateUpdateSession(sessionId, existing.status);
+    const updateScope = validateUpdateScope(payload.updateScope);
+
+    const normalized = normalizeSessionInput(payload, {
+      sessionTypeId: existing.sessionTypeId,
+      modality: existing.modality as SessionModality,
+      roomId: existing.roomId,
+      startAt: existing.startAt,
+      durationMinutes: existing.durationMinutes,
+      patientIds: existing.patients.map((row) => row.patientId),
+      professionals: mapStoredProfessionals(existing.professionals),
+      notes: existing.notes,
+    });
+    const payloadStartAt = normalized.startAt as Date;
+
+    const targetSessions = await this.getSessionsForUpdateScope(existing, updateScope);
+    const excludeSessionIds = targetSessions.map((item) => item.id);
+
+    for (const target of targetSessions) {
+      const { startAt, endAt } = this.computeUpdatedSessionTimes(
+        updateScope,
+        target.startAt,
+        payloadStartAt,
+        normalized.durationMinutes,
+      );
+      validateSessionWithProfessionals(normalized, endAt);
+      await this.assertNoSchedulingConflicts({
+        startAt,
+        endAt,
+        roomId: normalized.roomId,
+        patientIds: normalized.patientIds,
+        professionals: toProfessionalAssignments(normalized.professionals),
+        excludeSessionIds,
+      });
+    }
+
+    await this.validateSessionParticipantsByModality(
+      normalized.modality,
+      normalized.patientIds.length,
+      normalized.professionals.length,
+    );
+
+    const references = await this.loadSessionReferences(normalized);
+    validateSessionModality(references.sessionType.allowedModalities, normalized.modality);
+
+    return { updateScope, normalized, payloadStartAt };
+  }
+
+  private async findSessionChangeRequestOrThrow(requestId: string) {
+    if (!isUuid(requestId)) {
+      throw new ValidationError("Identificador de pedido inválido.");
+    }
+    const request = await prisma.sessionChangeRequest.findUnique({
+      where: { id: requestId },
+      include: SESSION_CHANGE_REQUEST_INCLUDE,
+    });
+    if (!request) {
+      throw new NotFoundError("Pedido de alteração não encontrado.");
+    }
+    return request;
   }
 
   private async assertNoSchedulingConflicts(params: {
