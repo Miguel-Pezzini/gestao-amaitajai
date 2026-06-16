@@ -20,7 +20,11 @@ import { STATUS_OPTIONS } from "@/features/agenda/constants";
 import { SessionParticipantsPreview } from "@/features/agenda/components/SessionParticipants";
 import {
   formatSessionDateTime,
+  getPatientSessionAttendanceBadgeClass,
+  getPatientSessionAttendanceCardClass,
+  getSessionAttendanceLabel,
   getSessionStatusLabel,
+  resolvePatientSessionAttendance,
   sessionSummary,
   statusBadgeClass,
 } from "@/features/agenda/utils";
@@ -204,10 +208,15 @@ export function PatientSessionsDialog({ patient, open, onOpenChange }) {
           <div className="max-h-[28rem] space-y-2.5 overflow-y-auto pr-1">
             {sessions.map((session) => {
               const cancelReason = String(session.cancelReason ?? "").trim();
+              const attendance = resolvePatientSessionAttendance(session, session.patientAttendance);
+              const attendanceJustification = String(attendance?.justification ?? "").trim();
+              const showJustification =
+                attendance?.status === "FALTA_JUSTIFICADA" && attendanceJustification.length > 0;
+
               return (
                 <article
                   key={session._id}
-                  className="rounded-xl border border-ama-cyan/20 bg-card p-4 shadow-sm"
+                  className={`rounded-xl border border-l-4 p-4 ${getPatientSessionAttendanceCardClass(session, session.patientAttendance)}`}
                 >
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                     <div className="space-y-1">
@@ -218,14 +227,31 @@ export function PatientSessionsDialog({ patient, open, onOpenChange }) {
                         {formatSessionDateTime(session.endAt)}
                       </p>
                     </div>
-                    <Badge variant="outline" className={statusBadgeClass(session.status)}>
-                      {getSessionStatusLabel(session.status)}
-                    </Badge>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {attendance ? (
+                        <Badge
+                          variant="outline"
+                          className={getPatientSessionAttendanceBadgeClass(session, session.patientAttendance)}
+                        >
+                          {getSessionAttendanceLabel(attendance.status)}
+                        </Badge>
+                      ) : null}
+                      <Badge variant="outline" className={statusBadgeClass(session.status)}>
+                        {getSessionStatusLabel(session.status)}
+                      </Badge>
+                    </div>
                   </div>
 
                   <div className="mt-2">
                     <SessionParticipantsPreview session={session} />
                   </div>
+
+                  {showJustification ? (
+                    <p className="mt-2 text-sm text-amber-950">
+                      <span className="font-medium text-amber-900/80">Justificativa:</span>{" "}
+                      {attendanceJustification}
+                    </p>
+                  ) : null}
 
                   {session.notes ? (
                     <p className="mt-2 text-sm text-ama-blue-dark">

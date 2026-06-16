@@ -562,6 +562,9 @@ export class AgendaService {
 
   async listSessions(query: Record<string, unknown>, currentUser: AuthenticatedUser) {
     const where = this.buildSessionListWhere(query, currentUser);
+    const patientId = normalizeText(query.patientId);
+    const serializeOptions =
+      patientId && isUuid(patientId) ? { patientId } : {};
 
     if (!shouldPaginateList(query)) {
       const sessions = await prisma.session.findMany({
@@ -570,7 +573,7 @@ export class AgendaService {
         include: SESSION_LIST_INCLUDE,
       });
 
-      return { items: sessions.map(serializeSessionForList) };
+      return { items: sessions.map((session) => serializeSessionForList(session, serializeOptions)) };
     }
 
     const page = parsePage(query.page, 1);
@@ -589,7 +592,7 @@ export class AgendaService {
     ]);
 
     return {
-      items: sessions.map(serializeSessionForList),
+      items: sessions.map((session) => serializeSessionForList(session, serializeOptions)),
       pagination: {
         page,
         limit,
@@ -1261,6 +1264,20 @@ export class AgendaService {
     const existing = await this.findSessionOrThrow(sessionId);
     validateCompleteSession(sessionId, existing.status);
     this.assertTechnicianCanComplete(existing, currentUser);
+
+    const attendanceRows = await prisma.sessionPatient.findMany({
+      where: { sessionId },
+      include: {
+        patient: { select: { fullName: true } },
+      },
+    });
+    for (const row of attendanceRows) {
+      if (row.attendanceStatus === "FALTA_JUSTIFICADA" && !row.attendanceJustification.trim()) {
+        throw new ValidationError(
+          `Registre a justificativa da falta de ${row.patient.fullName} antes de concluir a sessão.`,
+        );
+      }
+    }
 
     const session = await prisma.session.update({
       where: { id: sessionId },

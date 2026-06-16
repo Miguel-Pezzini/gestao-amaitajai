@@ -1,6 +1,6 @@
 # Módulo: Agenda
 
-**Última atualização:** 2026-06-11  
+**Última atualização:** 2026-06-12  
 **Escopo:** fullstack
 
 ---
@@ -92,7 +92,11 @@ Uma sessão tem: data/hora, duração, sala, tipo de atendimento, modalidade (`I
 | POST | `/agenda/sessions` | admin | Criar sessão (com ou sem recorrência) |
 | PATCH | `/agenda/sessions/:id` | admin | Editar sessão (escopo SINGLE/FUTURE/ALL) |
 | PATCH | `/agenda/sessions/:id/cancel` | admin | Cancelar (escopo SINGLE/FUTURE/ALL) |
-| PATCH | `/agenda/sessions/:id/complete` | auth | Marcar como realizada |
+| PATCH | `/agenda/sessions/:id/complete` | auth | Marcar como realizada (valida presença dos pacientes) |
+| GET | `/agenda/sessions/:id/attendance` | auth | Presença atual dos pacientes da sessão |
+| PUT | `/agenda/sessions/:id/attendance/:patientId` | auth | Registrar/atualizar presença do paciente na sessão |
+| GET | `/agenda/sessions/:id/evolutions` | auth | Evolução atual dos pacientes da sessão (histórico via `/patients/:id/evolutions`) |
+| PUT | `/agenda/sessions/:id/evolutions/:patientId` | auth | Criar/atualizar evolução do paciente na sessão |
 
 Filtros de listagem: `status`, `startAt`, `endAt`, `professionalId` (só admin), `patientId`, `includeCancelled` (inclui canceladas quando `status` não é informado). Com `page`/`limit`, retorna `pagination` (20 itens por página no histórico do paciente; agenda sem paginação).
 
@@ -114,7 +118,11 @@ Visões: dia, semana (grade horária), mês, semana por slot. Suporte a recorrê
 
 Após criar, editar, cancelar ou concluir sessão, re-busca só o período visível. Helpers em `frontend/src/features/agenda/utils.js` (`getAgendaQueryRange`); lógica em `useAgendaPage.js`. Histórico do paciente (`PatientSessionsDialog`) continua com paginação própria.
 
-**Pacientes → Sessões:** `PatientSessionsDialog` lista o histórico de sessões do paciente com filtros de status e período (inclui canceladas).
+**Pacientes → Sessões:** `PatientSessionsDialog` lista o histórico de sessões do paciente com filtros de status e período (inclui canceladas). Cada card usa cor de fundo/borda conforme a presença do paciente na sessão: verde (`PRESENTE`), vermelho (`FALTA`), âmbar (`FALTA_JUSTIFICADA`, com texto da justificativa). Sessões canceladas mantêm card neutro. Sessões **futuras** sem presença registrada não exibem cor nem badge de presença (o padrão `PRESENTE` do banco não é mostrado antes da data da sessão).
+
+**Presença na sessão:** `SessionDetailDialog` exibe, por paciente, o status de presença (`PRESENTE`, `FALTA`, `FALTA_JUSTIFICADA`) com destaque visual (verde / vermelho / âmbar). O padrão ao vincular paciente à sessão é `PRESENTE`. Falta justificada exige texto de justificativa. Edição permitida em sessões `AGENDADA` e `REALIZADA`; bloqueada em `CANCELADA`. O botão **Marcar como realizada** fica desabilitado na UI se houver falta justificada sem texto; o backend também valida antes de concluir.
+
+**Evolução clínica:** `SessionDetailDialog` exibe evolução apenas para pacientes com presença `PRESENTE` (falta e falta justificada não exibem formulário). Por paciente presente: histórico de evoluções anteriores e campo de texto livre para a sessão atual. O histórico agrega **todas** as sessões do paciente (qualquer modalidade), ordenado por data. Salvamento independente de marcar `REALIZADA`.
 
 ---
 
@@ -133,6 +141,17 @@ Após criar, editar, cancelar ou concluir sessão, re-busca só o período visí
 | Recorrência: ≥1 weekday, endsAt ≥ startsAt | ValidationError | `recurrence.validator.ts` |
 | Técnico só conclui sessão própria | ForbiddenError | `agenda.service.ts` |
 | Tipo tea-14-plus só grupo | ValidationError | `session-type.validator.ts` |
+| Evolução: paciente deve participar da sessão | ValidationError | `patient-evolution.service.ts` |
+| Evolução em sessão cancelada | ValidationError | `patient-evolution.service.ts` |
+| Técnico só acessa evolução da própria sessão | ForbiddenError | `patient-evolution.service.ts` |
+| Conteúdo da evolução: texto, máx. 10.000 caracteres | ValidationError | `patient-evolution.validator.ts` |
+| Presença: paciente deve participar da sessão | ValidationError | `patient-attendance.service.ts` |
+| Presença em sessão cancelada | ValidationError | `patient-attendance.service.ts` |
+| Técnico só acessa presença da própria sessão | ForbiddenError | `patient-attendance.service.ts` |
+| Status de presença: PRESENTE, FALTA ou FALTA_JUSTIFICADA | ValidationError | `patient-attendance.validator.ts` |
+| Falta justificada: justificativa obrigatória (máx. 2.000 caracteres) | ValidationError | `patient-attendance.validator.ts` |
+| Justificativa só em FALTA_JUSTIFICADA | ValidationError | `patient-attendance.validator.ts` |
+| Concluir sessão: falta justificada sem texto bloqueia | ValidationError | `agenda.service.ts` |
 
 ---
 
@@ -142,6 +161,8 @@ Após criar, editar, cancelar ou concluir sessão, re-busca só o período visí
 |---|---|---|
 | Criar/editar/cancelar sessão | sim | não |
 | Marcar realizada | sim (qualquer) | sim (só própria) |
+| Registrar/editar evolução na sessão | sim (qualquer) | sim (só própria) |
+| Registrar/editar presença na sessão | sim (qualquer) | sim (só própria) |
 | Ver agenda de outros | sim | não |
 | Cadastros (salas, tipos, modalidades) | sim | não |
 
@@ -165,8 +186,14 @@ Auditoria: `createdById`, `updatedById` em sessões e séries.
 | Hook | `frontend/src/hooks/useAgendaPage.js` |
 | Feature | `frontend/src/features/agenda/` |
 | Editor apoio (GRUPO) | `frontend/src/features/agenda/components/SelectedProfessionalsEditor.jsx` |
-| Service API | `frontend/src/services/agenda.js` |
-| Testes integração | `backend/tests/integration/agenda.test.ts` |
+| Presença na sessão | `frontend/src/features/agenda/components/SessionPatientAttendance.jsx` |
+| Evolução na sessão | `frontend/src/features/agenda/components/SessionPatientEvolutions.jsx` |
+| Service presença | `backend/src/services/patient-attendance.service.ts` |
+| Service evolução | `backend/src/services/patient-evolution.service.ts` |
+| Rotas presença | `backend/src/routes/patient-attendances.routes.ts` |
+| Rotas evolução | `backend/src/routes/patient-evolutions.routes.ts` |
+| Service API | `frontend/src/services/agenda.js`, `frontend/src/services/patient-attendances.js`, `frontend/src/services/patient-evolutions.js` |
+| Testes integração | `backend/tests/integration/agenda.test.ts`, `backend/tests/integration/patient-attendances.test.ts`, `backend/tests/integration/patient-evolutions.test.ts` |
 | Testes unitários | `backend/tests/unit/session-recurrence.helpers.test.ts` |
 
 ---

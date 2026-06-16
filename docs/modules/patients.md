@@ -53,6 +53,7 @@ Filtros: `search` (nome ou responsável), `fundingSourceId`, `status` (`active`/
 | PATCH | `/patients/:id` | auth | Atualizar campos |
 | GET | `/patients/:id/deactivation-impact` | auth | Prévia de cancelamentos/substituições |
 | PATCH | `/patients/:id/status` | auth | Ativar/desativar (com `replacements` se necessário) |
+| GET | `/patients/:id/evolutions` | auth | Histórico de evoluções do paciente (`page`, `limit`, `excludeSessionId` opcional) |
 
 ### Frontend
 
@@ -63,9 +64,11 @@ Filtros: `search` (nome ou responsável), `fundingSourceId`, `status` (`active`/
 Componentes de desativação: `DeactivatePatientDialog`, `PatientReplacementPicker`.  
 Hook: `usePatientDeactivation.js`.
 
-**Lista de pacientes:** ações por item (`Sessões`, `Protocolos`, `Editar`, `Inativar`/`Reativar`) exibidas como ícones compactos com tooltip no hover, via `EntityListIconAction` + `Tooltip` em `EntityListItem.jsx`.
+**Lista de pacientes:** ações por item (`Sessões`, `Evoluções`, `Protocolos`, `Editar`, `Inativar`/`Reativar`) exibidas como ícones compactos com tooltip no hover, via `EntityListIconAction` + `Tooltip` em `EntityListItem.jsx`.
 
 **Histórico de sessões:** ícone `Sessões` abre `PatientSessionsDialog` com listagem paginada via `GET /agenda/sessions?patientId=…&includeCancelled=true&page&limit`, filtros de status (`AGENDADA`, `REALIZADA`, `CANCELADA`) e intervalo de datas. Resumo `Mostrando X–Y de Z` e controles Anterior/Próxima (20 itens por página).
+
+**Evolução clínica:** texto livre por paciente e por sessão (`PatientSessionEvolution`). Preenchimento na agenda (`SessionDetailDialog`); histórico na lista de pacientes via ícone `Evoluções` → `PatientEvolutionsDialog` (`GET /patients/:id/evolutions`, paginado). O histórico é **por paciente**, independente da modalidade (individual, dupla ou grupo) — como prontuário contínuo (relato de atendimento). PDI permanece fora do sistema nesta fase.
 
 **Paginação:** a listagem consome `page`/`limit` da API (20 itens por página). Resumo `Mostrando X–Y de Z` no cabeçalho; controles Anterior/Próxima via `EntityListPagination` quando há mais de uma página. Nova busca com filtros reinicia na página 1.
 
@@ -92,6 +95,8 @@ Hook: `usePatientDeactivation.js`.
 |---|---|---|
 | CRUD pacientes | sim | sim |
 | Desativar com impacto na agenda | sim | sim |
+| Consultar histórico de evoluções | sim | sim |
+| Registrar/editar evolução na sessão | sim | sim (só própria sessão) |
 
 Todas as rotas exigem autenticação (`requireAuth`). Não há restrição por role hoje.
 
@@ -105,11 +110,12 @@ Todas as rotas exigem autenticação (`requireAuth`). Não há restrição por r
 | Service (impacto agenda) | `backend/src/services/agenda.service.ts` |
 | Helpers desativação | `backend/src/services/patient-deactivation.helpers.ts` |
 | Validator | `backend/src/validators/patient-deactivation.validator.ts` |
-| Schema | `backend/prisma/schema.prisma` (Patient) |
+| Schema | `backend/prisma/schema.prisma` (Patient, PatientSessionEvolution) |
+| Service evolução | `backend/src/services/patient-evolution.service.ts` |
 | Página | `frontend/src/pages/PatientsPage.jsx` |
 | Feature | `frontend/src/features/patients/` |
 | Service API | `frontend/src/services/patients.js` |
-| Testes integração | `backend/tests/integration/patients.test.ts` |
+| Testes integração | `backend/tests/integration/patients.test.ts`, `backend/tests/integration/patient-evolutions.test.ts` |
 | Testes unitários | `backend/tests/unit/patient-deactivation.helpers.test.ts` |
 
 ---
@@ -118,6 +124,7 @@ Todas as rotas exigem autenticação (`requireAuth`). Não há restrição por r
 
 - Restringir cadastro/edição de pacientes só para admin?
 - Histórico de desativações e auditoria de quem desativou.
+- PDI no sistema e migração dos Google Forms antigos.
 
 ---
 

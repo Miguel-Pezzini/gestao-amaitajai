@@ -59,7 +59,7 @@ function Dialog({
           className,
         )}
       >
-        <div className="overflow-y-auto p-4 sm:p-6">
+        <div className="min-w-0 overflow-x-hidden overflow-y-auto p-4 sm:p-6">
           {title || description || headerAction ? (
             <div className="mb-4 space-y-2">
               <div className="flex items-start justify-between gap-3">

@@ -395,8 +395,90 @@ export const SESSION_STATUS_LABELS = {
   CANCELADA: "Cancelada",
 };
 
+export const SESSION_ATTENDANCE_STATUSES = ["PRESENTE", "FALTA", "FALTA_JUSTIFICADA"];
+
+export const SESSION_ATTENDANCE_LABELS = {
+  PRESENTE: "Presente",
+  FALTA: "Falta",
+  FALTA_JUSTIFICADA: "Falta justificada",
+};
+
 export function getSessionStatusLabel(status) {
   return SESSION_STATUS_LABELS[status] ?? status ?? "";
+}
+
+export function getSessionAttendanceLabel(status) {
+  return SESSION_ATTENDANCE_LABELS[status] ?? status ?? "";
+}
+
+export const SESSION_ATTENDANCE_CARD_CLASSES = {
+  PRESENTE:
+    "border-emerald-300 border-l-emerald-600 bg-emerald-50/95 shadow-sm ring-1 ring-emerald-200/70",
+  FALTA: "border-red-300 border-l-red-600 bg-red-50/95 shadow-sm ring-1 ring-red-200/70",
+  FALTA_JUSTIFICADA:
+    "border-amber-300 border-l-amber-600 bg-amber-50/95 shadow-sm ring-1 ring-amber-200/70",
+};
+
+export const SESSION_ATTENDANCE_BADGE_CLASSES = {
+  PRESENTE: "border-emerald-300 bg-emerald-100 text-emerald-900",
+  FALTA: "border-red-300 bg-red-100 text-red-900",
+  FALTA_JUSTIFICADA: "border-amber-300 bg-amber-100 text-amber-950",
+};
+
+export function isSessionStartInFuture(session) {
+  const start = new Date(session?.startAt);
+  return !Number.isNaN(start.getTime()) && start.getTime() > Date.now();
+}
+
+export function resolvePatientSessionAttendance(session, attendance) {
+  if (session?.status === "CANCELADA" || !attendance?.status) {
+    return null;
+  }
+
+  if (isSessionStartInFuture(session) && attendance.status === "PRESENTE") {
+    return null;
+  }
+
+  return attendance;
+}
+
+export function getPatientSessionAttendanceCardClass(session, attendance) {
+  if (session?.status === "CANCELADA") {
+    return "border-ama-cyan/20 bg-card";
+  }
+
+  const resolved = resolvePatientSessionAttendance(session, attendance);
+  if (!resolved) {
+    return "border-ama-cyan/20 bg-card";
+  }
+
+  return SESSION_ATTENDANCE_CARD_CLASSES[resolved.status] ?? "border-ama-cyan/20 bg-card";
+}
+
+export function getPatientSessionAttendanceBadgeClass(session, attendance) {
+  if (session?.status === "CANCELADA") {
+    return "border-muted-foreground/20 bg-muted text-muted-foreground";
+  }
+
+  const resolved = resolvePatientSessionAttendance(session, attendance);
+  if (!resolved) {
+    return "border-muted-foreground/20 bg-muted text-muted-foreground";
+  }
+
+  return (
+    SESSION_ATTENDANCE_BADGE_CLASSES[resolved.status] ??
+    "border-muted-foreground/20 bg-muted text-muted-foreground"
+  );
+}
+
+export function isSessionAttendanceDraftValid(draft) {
+  if (!draft) {
+    return false;
+  }
+  if (draft.status === "FALTA_JUSTIFICADA") {
+    return String(draft.justification ?? "").trim().length > 0;
+  }
+  return SESSION_ATTENDANCE_STATUSES.includes(draft.status);
 }
 
 function mapParticipantRefs(items, labelKey, defaultLabel, extraFields) {
