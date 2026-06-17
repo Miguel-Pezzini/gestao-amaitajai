@@ -1,7 +1,7 @@
 import { Router, type Request, type Response } from "express";
 import { asyncHandler, getRouteId } from "../middlewares/async-handler.js";
 import { requireAuth } from "../middlewares/auth.middleware.js";
-import { requireAdmin } from "../middlewares/authz.middleware.js";
+import { requireAdmin, requireClinicalOperator } from "../middlewares/authz.middleware.js";
 import { agendaService } from "../services/agenda.service.js";
 import { validateIsActive } from "../validators/agenda/room.validator.js";
 
@@ -179,6 +179,7 @@ router.patch(
 
 router.patch(
   "/agenda/sessions/:id/complete",
+  requireClinicalOperator,
   asyncHandler(async (req: Request, res: Response) => {
     const result = await agendaService.completeSession(getRouteId(req.params.id), req.user!);
     res.status(200).json(result);
@@ -187,6 +188,7 @@ router.patch(
 
 router.get(
   "/agenda/session-change-requests",
+  requireClinicalOperator,
   asyncHandler(async (req: Request, res: Response) => {
     const result = await agendaService.listSessionChangeRequests(
       req.query as Record<string, unknown>,
@@ -198,6 +200,7 @@ router.get(
 
 router.post(
   "/agenda/sessions/:id/change-requests/edit",
+  requireClinicalOperator,
   asyncHandler(async (req: Request, res: Response) => {
     const result = await agendaService.createSessionEditRequest(
       getRouteId(req.params.id),
@@ -210,6 +213,7 @@ router.post(
 
 router.post(
   "/agenda/sessions/:id/change-requests/cancel",
+  requireClinicalOperator,
   asyncHandler(async (req: Request, res: Response) => {
     const result = await agendaService.createSessionCancelRequest(
       getRouteId(req.params.id),

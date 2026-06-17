@@ -185,16 +185,16 @@ Após criar, editar, cancelar ou concluir sessão, re-busca só o período visí
 
 ## Permissões
 
-| Ação | administrador | tecnico |
-|---|---|---|
-| Criar/editar/cancelar sessão diretamente | sim | não |
-| Solicitar edição/cancelamento de sessão | não | sim (só própria, `AGENDADA`) |
-| Aprovar/rejeitar pedidos de alteração | sim | não |
-| Marcar realizada | sim (qualquer) | sim (só própria) |
-| Registrar/editar evolução na sessão | sim (qualquer) | sim (só própria) |
-| Registrar/editar presença na sessão | sim (qualquer) | sim (só própria) |
-| Ver agenda de outros | sim | não |
-| Cadastros (salas, tipos, modalidades) | sim | não |
+| Ação | administrador | tecnico | recepcao |
+|---|---|---|---|
+| Criar/editar/cancelar sessão diretamente | sim | não | não |
+| Solicitar edição/cancelamento de sessão | não | sim (só própria, `AGENDADA`) | não |
+| Aprovar/rejeitar pedidos de alteração | sim | não | não |
+| Marcar realizada | sim (qualquer) | sim (só própria) | não |
+| Registrar/editar evolução na sessão | sim (qualquer) | sim (só própria) | não |
+| Registrar/editar presença na sessão | sim (qualquer) | sim (só própria) | não |
+| Ver agenda de outros | sim | não | sim (somente leitura) |
+| Cadastros (salas, tipos, modalidades) | sim | não | não |
 
 Auditoria: `createdById`, `updatedById` em sessões e séries.
 

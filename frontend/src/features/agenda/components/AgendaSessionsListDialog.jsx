@@ -13,6 +13,7 @@ export function AgendaSessionsListDialog({
   onCompleteSession,
   onCancelSession,
   isAdmin,
+  canOperateSession = false,
   referenceDate,
   onOpenCreate,
 }) {
@@ -73,6 +74,7 @@ export function AgendaSessionsListDialog({
               onCompleteSession={onCompleteSession}
               onCancelSession={onCancelSession}
               isAdmin={isAdmin}
+              canOperateSession={canOperateSession}
             />
           ))}
         </ul>

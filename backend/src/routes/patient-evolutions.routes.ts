@@ -1,11 +1,12 @@
 import { Router, type Request, type Response } from "express";
 import { asyncHandler, getRouteId } from "../middlewares/async-handler.js";
 import { requireAuth } from "../middlewares/auth.middleware.js";
+import { requireClinicalOperator } from "../middlewares/authz.middleware.js";
 import { patientEvolutionService } from "../services/patient-evolution.service.js";
 
 const router = Router();
 
-router.use(requireAuth);
+router.use(requireAuth, requireClinicalOperator);
 
 router.get(
   "/agenda/sessions/:sessionId/evolutions",
@@ -37,6 +38,7 @@ router.get(
     const result = await patientEvolutionService.listPatientEvolutions(
       getRouteId(req.params.patientId),
       req.query as Record<string, unknown>,
+      req.user!,
     );
     res.status(200).json(result);
   }),

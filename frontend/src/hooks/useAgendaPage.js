@@ -98,6 +98,10 @@ export function useAgendaPage(user) {
   const toast = useToast();
   const role = normalizeRole(user?.role);
   const isAdmin = role === "ADMINISTRADOR";
+  const isRecepcao = role === "RECEPCAO";
+  const canManageAgenda = isAdmin;
+  const canOperateSession = role === "TECNICO";
+  const canViewClinicalData = !isRecepcao;
 
   const [loadingSessions, setLoadingSessions] = useState(true);
   const [loadingCatalogs, setLoadingCatalogs] = useState(false);
@@ -969,6 +973,10 @@ export function useAgendaPage(user) {
   return {
     role,
     isAdmin,
+    isRecepcao,
+    canManageAgenda,
+    canOperateSession,
+    canViewClinicalData,
     loadingSessions,
     loadingCatalogs,
     saving,

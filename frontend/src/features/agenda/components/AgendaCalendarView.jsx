@@ -40,6 +40,8 @@ export function AgendaCalendarView({
   onRequestCancelSession,
   onOpenCreate,
   isAdmin,
+  canOperateSession = false,
+  canViewClinicalData = true,
 }) {
   const grouped = groupSessionsByDay(sessions);
   const [listDialog, setListDialog] = useState(EMPTY_LIST_DIALOG);
@@ -186,8 +188,9 @@ export function AgendaCalendarView({
         <AgendaDayView
           referenceDate={referenceDate}
           sessions={dayViewSessions}
-          isAdmin={isAdmin}
-          onOpenSession={openSessionDetail}
+        isAdmin={isAdmin}
+        canOperateSession={canOperateSession}
+        onOpenSession={openSessionDetail}
           onOpenSessionGroup={openSessionGroupDialog}
           onCompleteSession={onCompleteSession}
           onCancelSession={onCancelSession}
@@ -212,6 +215,7 @@ export function AgendaCalendarView({
         onCompleteSession={onCompleteSession}
         onCancelSession={onCancelSession}
         isAdmin={isAdmin}
+        canOperateSession={canOperateSession}
         onOpenCreate={onOpenCreate}
       />
 
@@ -226,6 +230,8 @@ export function AgendaCalendarView({
         }}
         session={selectedSession}
         isAdmin={isAdmin}
+        canOperateSession={canOperateSession}
+        canViewClinicalData={canViewClinicalData}
         onCompleteSession={onCompleteSession}
         onCancelSession={onCancelSession}
         onEditSession={onEditSession}

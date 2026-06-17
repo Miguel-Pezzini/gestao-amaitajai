@@ -1,13 +1,13 @@
 # Módulo: Usuários / Funcionários
 
-**Última atualização:** 2026-06-10  
+**Última atualização:** 2026-06-17  
 **Escopo:** fullstack
 
 ---
 
 ## Visão geral
 
-Gestão de funcionários (usuários do sistema) com perfis `ADMINISTRADOR` ou `TECNICO` e status de conta. Acesso restrito a administradores.
+Gestão de funcionários (usuários do sistema) com perfis `ADMINISTRADOR`, `TECNICO` ou `RECEPCAO` e status de conta. Acesso restrito a administradores.
 
 ---
 
@@ -17,6 +17,7 @@ Gestão de funcionários (usuários do sistema) com perfis `ADMINISTRADOR` ou `T
 
 - `ADMINISTRADOR`: acesso total, incluindo este módulo.
 - `TECNICO`: usuário operacional da agenda.
+- `RECEPCAO`: usuário de recepção com acesso à agenda (leitura de todas as sessões), abertura e consulta de protocolos (sem concluir/cancelar) e sem dados clínicos de pacientes.
 
 ### Status de conta
 
@@ -63,17 +64,17 @@ Redirect: `/cadastros/usuarios` → `/cadastros/funcionarios`.
 | `name` | obrigatório | `users.routes.ts` |
 | `email` | válido, domínio institucional, único | `users.routes.ts` |
 | `password` | ≥6 caracteres (criação ou quando enviado) | `users.routes.ts` |
-| `role` | `ADMINISTRADOR` ou `TECNICO` | `users.routes.ts` |
+| `role` | `ADMINISTRADOR`, `TECNICO` ou `RECEPCAO` | `users.routes.ts` |
 | `accountStatus` | `PENDENTE`, `ATIVO` ou `INATIVO` | `users.routes.ts` |
 
 ---
 
 ## Permissões
 
-| Ação | administrador | tecnico |
-|---|---|---|
-| Listar/criar/editar funcionários | sim | não |
-| Alterar status de conta | sim | não |
+| Ação | administrador | tecnico | recepcao |
+|---|---|---|---|
+| Listar/criar/editar funcionários | sim | não | não |
+| Alterar status de conta | sim | não | não |
 
 ---
 
@@ -88,6 +89,7 @@ Redirect: `/cadastros/usuarios` → `/cadastros/funcionarios`.
 | Página | `frontend/src/pages/cadastros/UsuariosPage.jsx` |
 | Service API | `frontend/src/services/users.js` |
 | Guard rota admin | `frontend/src/components/auth/RequireAdminRoute.jsx` |
+| Guard rota por perfis | `frontend/src/components/auth/RequireRolesRoute.jsx` |
 
 ---
 

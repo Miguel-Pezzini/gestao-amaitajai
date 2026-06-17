@@ -40,6 +40,7 @@ import {
   getProtocolStatusLabel,
 } from "@/features/protocols/utils";
 import { SELECT_ALL_VALUE } from "@/constants/select";
+import { normalizeRole } from "@/features/agenda/utils";
 import { useProtocolsPage } from "@/hooks/useProtocolsPage";
 import { useSession } from "@/contexts/session-context";
 
@@ -137,7 +138,8 @@ function ProtocolForm({
 }
 
 export function ProtocolsPage() {
-  const { userName } = useSession();
+  const { userName, user } = useSession();
+  const canManageProtocols = normalizeRole(user?.role) === "ADMINISTRADOR";
   const {
     loading,
     saving,
@@ -188,8 +190,10 @@ export function ProtocolsPage() {
             Protocolos
           </CardTitle>
           <CardDescription className="mt-1 break-words sm:mt-2">
-            Olá, {userName}. Registre solicitações administrativas dos responsáveis e
-            acompanhe pendências por atendido.
+            Olá, {userName}.{" "}
+            {canManageProtocols
+              ? "Registre solicitações administrativas dos responsáveis e acompanhe pendências por atendido."
+              : "Abra novas solicitações administrativas dos responsáveis e acompanhe o status dos pedidos."}
           </CardDescription>
         </CardHeader>
       </Card>
@@ -222,15 +226,17 @@ export function ProtocolsPage() {
         />
       </Dialog>
 
-      <CancelProtocolDialog
-        open={cancelDialogOpen}
-        saving={Boolean(cancellingProtocolId)}
-        cancelReason={cancelReason}
-        cancelReasonError={cancelReasonError}
-        onCancelReasonChange={handleCancelReasonChange}
-        onSubmit={handleCancelProtocol}
-        onClose={closeCancelDialog}
-      />
+      {canManageProtocols ? (
+        <CancelProtocolDialog
+          open={cancelDialogOpen}
+          saving={Boolean(cancellingProtocolId)}
+          cancelReason={cancelReason}
+          cancelReasonError={cancelReasonError}
+          onCancelReasonChange={handleCancelReasonChange}
+          onSubmit={handleCancelProtocol}
+          onClose={closeCancelDialog}
+        />
+      ) : null}
 
       {!formDialogOpen ? (
         <CreateFab onClick={openCreateDialog} label="Novo protocolo" />
@@ -343,7 +349,7 @@ export function ProtocolsPage() {
                   ) : null}
                   <EntityListItemFooterRow
                     actions={
-                      protocol.status === "PENDENTE" ? (
+                      protocol.status === "PENDENTE" && canManageProtocols ? (
                         <>
                           <EntityListIconAction
                             icon={

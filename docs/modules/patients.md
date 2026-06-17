@@ -47,13 +47,13 @@ Filtros: `search` (nome ou responsável), `fundingSourceId`, `status` (`active`/
 
 | Método | Rota | Permissão | Descrição |
 |---|---|---|---|
-| GET | `/patients` | auth | Lista com filtros e paginação |
-| POST | `/patients` | auth | Criar paciente |
-| GET | `/patients/:id` | auth | Detalhe |
-| PATCH | `/patients/:id` | auth | Atualizar campos |
-| GET | `/patients/:id/deactivation-impact` | auth | Prévia de cancelamentos/substituições |
-| PATCH | `/patients/:id/status` | auth | Ativar/desativar (com `replacements` se necessário) |
-| GET | `/patients/:id/evolutions` | auth | Histórico de evoluções do paciente (`page`, `limit`, `excludeSessionId` opcional) |
+| GET | `/patients` | admin, tecnico | Lista com filtros e paginação |
+| POST | `/patients` | admin, tecnico | Criar paciente |
+| GET | `/patients/:id` | admin, tecnico | Detalhe |
+| PATCH | `/patients/:id` | admin, tecnico | Atualizar campos |
+| GET | `/patients/:id/deactivation-impact` | admin, tecnico | Prévia de cancelamentos/substituições |
+| PATCH | `/patients/:id/status` | admin, tecnico | Ativar/desativar (com `replacements` se necessário) |
+| GET | `/patients/:id/evolutions` | admin, tecnico | Histórico de evoluções do paciente (`page`, `limit`, `excludeSessionId` opcional) |
 
 ### Frontend
 
@@ -96,14 +96,14 @@ Hook: `usePatientDeactivation.js`.
 
 ## Permissões
 
-| Ação | administrador | tecnico |
-|---|---|---|
-| CRUD pacientes | sim | sim |
-| Desativar com impacto na agenda | sim | sim |
-| Consultar histórico de evoluções | sim | sim |
-| Registrar/editar evolução na sessão | sim | sim (só própria sessão) |
+| Ação | administrador | tecnico | recepcao |
+|---|---|---|---|
+| CRUD pacientes | sim | sim | não |
+| Desativar com impacto na agenda | sim | sim | não |
+| Consultar histórico de evoluções | sim | sim | não |
+| Registrar/editar evolução na sessão | sim | sim (só própria sessão) | não |
 
-Todas as rotas exigem autenticação (`requireAuth`). Não há restrição por role hoje.
+Rotas de pacientes, evoluções e presença exigem `requireClinicalOperator` (`ADMINISTRADOR` ou `TECNICO`). Perfil `RECEPCAO` é bloqueado na API e no frontend (`RequireAdminRoute` em `/patients`).
 
 ---
 

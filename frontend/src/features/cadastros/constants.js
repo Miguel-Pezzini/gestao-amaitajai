@@ -11,11 +11,12 @@ export const MODALITY_LABELS = {
 export const SESSION_FORMAT_LABELS = MODALITY_LABELS;
 export const SESSION_FORMAT_OPTIONS = MODALITY_OPTIONS;
 
-export const USER_ROLE_OPTIONS = ["ADMINISTRADOR", "TECNICO"];
+export const USER_ROLE_OPTIONS = ["ADMINISTRADOR", "TECNICO", "RECEPCAO"];
 
 export const USER_ROLE_LABELS = {
   ADMINISTRADOR: "Administrador",
   TECNICO: "Técnico",
+  RECEPCAO: "Recepção",
 };
 
 export function slugify(value) {

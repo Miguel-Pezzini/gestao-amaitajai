@@ -19,7 +19,7 @@ export const APP_MODULES = [
     showInSidebar: true,
     showInQuickAccess: false,
     enabled: true,
-    requiredRoles: ["ADMINISTRADOR", "TECNICO"],
+    requiredRoles: ["ADMINISTRADOR", "TECNICO", "RECEPCAO"],
     order: 0,
   },
   {
@@ -38,12 +38,12 @@ export const APP_MODULES = [
     id: "protocols",
     label: "Protocolos",
     icon: ClipboardList,
-    description: "Registre solicitações administrativas e acompanhe pendências.",
+    description: "Abra solicitações administrativas e acompanhe o status dos pedidos.",
     route: "/protocols",
     showInSidebar: true,
     showInQuickAccess: true,
     enabled: true,
-    requiredRoles: ["ADMINISTRADOR"],
+    requiredRoles: ["ADMINISTRADOR", "RECEPCAO"],
     order: 1.5,
   },
   {
@@ -55,7 +55,7 @@ export const APP_MODULES = [
     showInSidebar: true,
     showInQuickAccess: true,
     enabled: true,
-    requiredRoles: ["ADMINISTRADOR", "TECNICO"],
+    requiredRoles: ["ADMINISTRADOR", "TECNICO", "RECEPCAO"],
     order: 2,
   },
   {

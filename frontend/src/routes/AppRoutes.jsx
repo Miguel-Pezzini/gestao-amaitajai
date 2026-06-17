@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { RequireAdminRoute } from "@/components/auth/RequireAdminRoute";
+import { RequireRolesRoute } from "@/components/auth/RequireRolesRoute";
 import { SessionProvider } from "@/contexts/session-context";
 import { AppLayout } from "@/layouts/AppLayout";
 import { AgendaPage } from "@/pages/AgendaPage";
@@ -41,9 +42,9 @@ export function AppRoutes() {
           <Route
             path="/protocols"
             element={
-              <RequireAdminRoute>
+              <RequireRolesRoute roles={["ADMINISTRADOR", "RECEPCAO"]}>
                 <ProtocolsPage />
-              </RequireAdminRoute>
+              </RequireRolesRoute>
             }
           />
           <Route path="/agenda" element={<AgendaPage />} />

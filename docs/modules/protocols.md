@@ -1,6 +1,6 @@
 # Módulo: Protocolos
 
-**Última atualização:** 2026-06-09  
+**Última atualização:** 2026-06-17  
 **Escopo:** fullstack
 
 ---
@@ -38,12 +38,13 @@ Número sequencial por ano: `AAAANNNNN` (ex.: 202600001).
 
 | Método | Rota | Permissão | Descrição |
 |---|---|---|---|
-| GET | `/protocols` | admin | Lista com filtros (search, status, patientId) |
-| GET | `/protocols/:id` | admin | Detalhe |
-| POST | `/protocols` | admin | Abrir protocolo |
+| GET | `/protocols` | admin, recepcao | Lista com filtros (search, status, patientId) |
+| GET | `/protocols/:id` | admin, recepcao | Detalhe |
+| POST | `/protocols` | admin, recepcao | Abrir (solicitar) protocolo |
 | PATCH | `/protocols/:id/status` | admin | Concluir ou cancelar |
-| GET | `/patients/:patientId/protocols` | admin | Protocolos do paciente |
-| GET/POST/PATCH | `/protocol-types` | admin | CRUD tipos de solicitação |
+| GET | `/patients/:patientId/protocols` | admin, recepcao | Protocolos do paciente |
+| GET | `/protocol-types` | admin, recepcao | Lista tipos (para abertura de protocolo) |
+| POST/PATCH | `/protocol-types` | admin | CRUD tipos de solicitação |
 
 ### Frontend
 
@@ -70,7 +71,16 @@ Lista exibe data de abertura; para concluídos, data de conclusão; para cancela
 
 ## Permissões
 
-Todas as rotas de protocolos exigem autenticação e perfil `ADMINISTRADOR`.
+| Ação | administrador | recepcao |
+|---|---|---|
+| Listar e consultar protocolos | sim | sim |
+| Abrir (solicitar) protocolo | sim | sim |
+| Concluir ou cancelar protocolo | sim | não |
+| Cadastrar tipos de solicitação | sim | não |
+
+Rotas de consulta e abertura exigem `requireProtocolRequester` (`ADMINISTRADOR` ou `RECEPCAO`). Alteração de status exige `requireAdmin`.
+
+Frontend: rota `/protocols` protegida por `RequireRolesRoute` (`ADMINISTRADOR`, `RECEPCAO`); ações de concluir/cancelar ficam ocultas para recepção.
 
 ---
 

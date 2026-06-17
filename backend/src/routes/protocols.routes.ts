@@ -1,16 +1,20 @@
 import { Router, type Request, type Response } from "express";
 import { asyncHandler, getRouteId } from "../middlewares/async-handler.js";
 import { requireAuth } from "../middlewares/auth.middleware.js";
-import { requireAdmin } from "../middlewares/authz.middleware.js";
+import {
+  requireAdmin,
+  requireProtocolRequester,
+} from "../middlewares/authz.middleware.js";
 import { protocolService } from "../services/protocol.service.js";
 import { validateIsActive } from "../validators/protocol/protocol-type.validator.js";
 
 const router = Router();
 
-router.use(requireAuth, requireAdmin);
+router.use(requireAuth);
 
 router.get(
   "/protocol-types",
+  requireProtocolRequester,
   asyncHandler(async (_req: Request, res: Response) => {
     const result = await protocolService.listProtocolTypes();
     res.status(200).json(result);
@@ -19,6 +23,7 @@ router.get(
 
 router.post(
   "/protocol-types",
+  requireAdmin,
   asyncHandler(async (req: Request, res: Response) => {
     const result = await protocolService.createProtocolType(req.body ?? {});
     res.status(201).json(result);
@@ -27,6 +32,7 @@ router.post(
 
 router.patch(
   "/protocol-types/:id",
+  requireAdmin,
   asyncHandler(async (req: Request, res: Response) => {
     const result = await protocolService.updateProtocolType(
       getRouteId(req.params.id),
@@ -38,6 +44,7 @@ router.patch(
 
 router.patch(
   "/protocol-types/:id/status",
+  requireAdmin,
   asyncHandler(async (req: Request, res: Response) => {
     const isActive = validateIsActive((req.body as { isActive?: unknown })?.isActive);
     const result = await protocolService.updateProtocolTypeStatus(
@@ -50,6 +57,7 @@ router.patch(
 
 router.get(
   "/protocols",
+  requireProtocolRequester,
   asyncHandler(async (req: Request, res: Response) => {
     const result = await protocolService.listProtocols(req.query as Record<string, unknown>);
     res.status(200).json(result);
@@ -58,6 +66,7 @@ router.get(
 
 router.get(
   "/protocols/:id",
+  requireProtocolRequester,
   asyncHandler(async (req: Request, res: Response) => {
     const result = await protocolService.getProtocol(getRouteId(req.params.id));
     res.status(200).json(result);
@@ -66,6 +75,7 @@ router.get(
 
 router.get(
   "/patients/:patientId/protocols",
+  requireProtocolRequester,
   asyncHandler(async (req: Request, res: Response) => {
     const result = await protocolService.listProtocolsByPatient(getRouteId(req.params.patientId));
     res.status(200).json(result);
@@ -74,6 +84,7 @@ router.get(
 
 router.post(
   "/protocols",
+  requireProtocolRequester,
   asyncHandler(async (req: Request, res: Response) => {
     const result = await protocolService.createProtocol(req.body ?? {}, req.user!);
     res.status(201).json(result);
@@ -82,6 +93,7 @@ router.post(
 
 router.patch(
   "/protocols/:id/status",
+  requireAdmin,
   asyncHandler(async (req: Request, res: Response) => {
     const result = await protocolService.updateProtocolStatus(
       getRouteId(req.params.id),

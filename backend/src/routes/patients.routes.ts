@@ -5,6 +5,7 @@ import { serializePatient, serializePatientList } from "../db/serialize.js";
 import { containsInsensitive, isUuid } from "../validators/agenda/agenda.utils.js";
 import { asyncHandler, getRouteId } from "../middlewares/async-handler.js";
 import { requireAuth } from "../middlewares/auth.middleware.js";
+import { requireClinicalOperator } from "../middlewares/authz.middleware.js";
 import { agendaService } from "../services/agenda.service.js";
 import { patientFundingSourceService } from "../services/patient-funding-source.service.js";
 import { validatePatientDeactivationReplacements } from "../validators/patient-deactivation.validator.js";
@@ -235,7 +236,7 @@ function buildWhere(queryParams: Request["query"]): Prisma.PatientWhereInput {
   return where;
 }
 
-router.use("/patients", requireAuth);
+router.use("/patients", requireAuth, requireClinicalOperator);
 
 router.get("/patients", async (req: Request, res: Response) => {
   const page = parsePositiveInt(req.query.page, 1);

@@ -12,3 +12,6 @@ export function requireRole(...roles: UserRole[]) {
 }
 
 export const requireAdmin = requireRole("ADMINISTRADOR");
+export const requireClinicalOperator = requireRole("ADMINISTRADOR", "TECNICO");
+/** Admin e recepção: listar tipos, consultar e abrir (solicitar) protocolos. */
+export const requireProtocolRequester = requireRole("ADMINISTRADOR", "RECEPCAO");

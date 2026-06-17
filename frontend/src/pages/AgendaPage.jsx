@@ -59,7 +59,9 @@ export function AgendaPage() {
         onRequestEditSession={agenda.openRequestEditDialog}
         onRequestCancelSession={agenda.openRequestCancelDialog}
         onOpenCreate={agenda.openCreateDialog}
-        isAdmin={agenda.isAdmin}
+        isAdmin={agenda.canManageAgenda}
+        canOperateSession={agenda.canOperateSession}
+        canViewClinicalData={agenda.canViewClinicalData}
       />
 
       <CreateSessionDialog

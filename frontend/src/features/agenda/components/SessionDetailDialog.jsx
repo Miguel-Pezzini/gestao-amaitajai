@@ -34,17 +34,22 @@ export function SessionDetailDialog({
   onOpenChange,
   session,
   isAdmin,
+  canOperateSession = false,
+  canViewClinicalData = true,
   onCompleteSession,
   onCancelSession,
   onEditSession,
   onRequestEditSession,
   onRequestCancelSession,
 }) {
-  const attendance = useSessionAttendances(session?._id, open && !!session);
+  const attendance = useSessionAttendances(
+    session?._id,
+    open && !!session && canViewClinicalData,
+  );
   const [hasPendingRequest, setHasPendingRequest] = useState(false);
 
   useEffect(() => {
-    if (!open || !session?._id || isAdmin) {
+    if (!open || !session?._id || isAdmin || !canOperateSession) {
       setHasPendingRequest(false);
       return;
     }
@@ -72,17 +77,20 @@ export function SessionDetailDialog({
     return () => {
       mounted = false;
     };
-  }, [open, session?._id, isAdmin]);
+  }, [open, session?._id, isAdmin, canOperateSession]);
 
   if (!session) {
     return null;
   }
 
-  const canComplete = session.status === "AGENDADA" && attendance.canCompleteSession;
+  const canComplete =
+    canOperateSession && session.status === "AGENDADA" && attendance.canCompleteSession;
   const canEdit = isAdmin && session.status === "AGENDADA";
   const canCancel = isAdmin && session.status !== "CANCELADA";
-  const canRequestEdit = !isAdmin && session.status === "AGENDADA" && !hasPendingRequest;
-  const canRequestCancel = !isAdmin && session.status === "AGENDADA" && !hasPendingRequest;
+  const canRequestEdit =
+    canOperateSession && session.status === "AGENDADA" && !hasPendingRequest;
+  const canRequestCancel =
+    canOperateSession && session.status === "AGENDADA" && !hasPendingRequest;
   const hasActions =
     canComplete || canCancel || canEdit || canRequestEdit || canRequestCancel || hasPendingRequest;
   const notes = String(session.notes ?? "").trim();
@@ -124,17 +132,21 @@ export function SessionDetailDialog({
 
         <SessionParticipantsDetail session={session} />
 
-        <SessionPatientAttendance
-          attendance={attendance}
-          readOnly={session.status === "CANCELADA"}
-        />
+        {canViewClinicalData ? (
+          <>
+            <SessionPatientAttendance
+              attendance={attendance}
+              readOnly={session.status === "CANCELADA"}
+            />
 
-        <SessionPatientEvolutions
-          sessionId={session._id}
-          sessionStatus={session.status}
-          open={open}
-          attendanceByPatientId={attendance.effectiveAttendanceByPatientId}
-        />
+            <SessionPatientEvolutions
+              sessionId={session._id}
+              sessionStatus={session.status}
+              open={open}
+              attendanceByPatientId={attendance.effectiveAttendanceByPatientId}
+            />
+          </>
+        ) : null}
 
         {notes ? (
           <section className="space-y-2">
@@ -221,7 +233,7 @@ export function SessionDetailDialog({
                 Cancelar sessão
               </Button>
             ) : null}
-            {session.status === "AGENDADA" ? (
+            {canOperateSession && session.status === "AGENDADA" ? (
               <Tooltip content={canComplete ? "" : attendance.completeBlockedReason}>
                 <Button
                   type="button"

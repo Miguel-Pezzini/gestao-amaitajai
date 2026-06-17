@@ -92,6 +92,10 @@ class PatientEvolutionService {
       throw new ValidationError("Não é possível registrar evolução em sessão cancelada.");
     }
 
+    if (currentUser.role === "RECEPCAO") {
+      throw new ForbiddenError("Perfil sem permissão para acessar evoluções.");
+    }
+
     if (currentUser.role === "TECNICO") {
       const isProfessional = session.professionals.some(
         (row) => row.professionalId === currentUser._id,
@@ -212,7 +216,15 @@ class PatientEvolutionService {
     return { evolution: serializeEvolution(evolution) };
   }
 
-  async listPatientEvolutions(patientId: string, query: Record<string, unknown>) {
+  async listPatientEvolutions(
+    patientId: string,
+    query: Record<string, unknown>,
+    currentUser: AuthUser,
+  ) {
+    if (currentUser.role === "RECEPCAO") {
+      throw new ForbiddenError("Perfil sem permissão para acessar evoluções.");
+    }
+
     if (!isUuid(patientId)) {
       throw new ValidationError("Identificador de paciente inválido.");
     }

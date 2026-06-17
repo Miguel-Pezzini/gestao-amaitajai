@@ -42,6 +42,10 @@ class PatientAttendanceService {
       throw new ValidationError("Não é possível registrar presença em sessão cancelada.");
     }
 
+    if (currentUser.role === "RECEPCAO") {
+      throw new ForbiddenError("Perfil sem permissão para acessar presença.");
+    }
+
     if (currentUser.role === "TECNICO") {
       const isProfessional = session.professionals.some(
         (row) => row.professionalId === currentUser._id,
