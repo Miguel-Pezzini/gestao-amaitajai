@@ -7,7 +7,7 @@
 
 ## Visão geral
 
-Gestão de funcionários (usuários do sistema) com perfis `ADMINISTRADOR`, `TECNICO` ou `RECEPCAO` e status de conta. Acesso restrito a administradores.
+Gestão de funcionários (usuários do sistema) com perfis `ADMINISTRADOR`, `TECNICO`, `RECEPCAO` ou `OPERADOR` e status de conta. Acesso restrito a administradores.
 
 ---
 
@@ -18,6 +18,7 @@ Gestão de funcionários (usuários do sistema) com perfis `ADMINISTRADOR`, `TEC
 - `ADMINISTRADOR`: acesso total, incluindo este módulo.
 - `TECNICO`: usuário operacional da agenda.
 - `RECEPCAO`: usuário de recepção com acesso à agenda (leitura de todas as sessões), abertura e consulta de protocolos (sem concluir/cancelar) e sem dados clínicos de pacientes.
+- `OPERADOR`: usuário de vendas (cantina/eventos) com acesso exclusivo ao módulo Vendas; sem acesso a agenda, pacientes ou protocolos clínicos.
 
 ### Status de conta
 
@@ -64,17 +65,17 @@ Redirect: `/cadastros/usuarios` → `/cadastros/funcionarios`.
 | `name` | obrigatório | `users.routes.ts` |
 | `email` | válido, domínio institucional, único | `users.routes.ts` |
 | `password` | ≥6 caracteres (criação ou quando enviado) | `users.routes.ts` |
-| `role` | `ADMINISTRADOR`, `TECNICO` ou `RECEPCAO` | `users.routes.ts` |
+| `role` | `ADMINISTRADOR`, `TECNICO`, `RECEPCAO` ou `OPERADOR` | `users.routes.ts` |
 | `accountStatus` | `PENDENTE`, `ATIVO` ou `INATIVO` | `users.routes.ts` |
 
 ---
 
 ## Permissões
 
-| Ação | administrador | tecnico | recepcao |
-|---|---|---|---|
-| Listar/criar/editar funcionários | sim | não | não |
-| Alterar status de conta | sim | não | não |
+| Ação | administrador | tecnico | recepcao | operador |
+|---|---|---|---|---|
+| Listar/criar/editar funcionários | sim | não | não | não |
+| Alterar status de conta | sim | não | não | não |
 
 ---
 

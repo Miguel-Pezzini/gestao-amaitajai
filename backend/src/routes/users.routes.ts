@@ -93,7 +93,7 @@ function validateUserPayload(
   if (!partial || payload.role !== undefined) {
     const role = normalizeRole(payload.role);
     if (!role) {
-      errors.push("Perfil inválido. Valores permitidos: ADMINISTRADOR, TECNICO.");
+      errors.push("Perfil inválido. Valores permitidos: ADMINISTRADOR, TECNICO, RECEPCAO, OPERADOR.");
     } else {
       update.role = role;
     }

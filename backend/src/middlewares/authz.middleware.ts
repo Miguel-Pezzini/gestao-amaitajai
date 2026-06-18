@@ -15,3 +15,5 @@ export const requireAdmin = requireRole("ADMINISTRADOR");
 export const requireClinicalOperator = requireRole("ADMINISTRADOR", "TECNICO");
 /** Admin e recepção: listar tipos, consultar e abrir (solicitar) protocolos. */
 export const requireProtocolRequester = requireRole("ADMINISTRADOR", "RECEPCAO");
+/** Admin e operador: módulo de vendas (PDV, produtos leitura, fiados). */
+export const requireSalesOperator = requireRole("ADMINISTRADOR", "OPERADOR");

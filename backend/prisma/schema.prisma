@@ -12,6 +12,7 @@ enum UserRole {
   ADMINISTRADOR
   TECNICO
   RECEPCAO
+  OPERADOR
 }
 
 enum UserAccountStatus {
@@ -61,6 +62,21 @@ enum SessionChangeRequestStatus {
   REJEITADO
 }
 
+enum PaymentMethod {
+  PIX
+  DINHEIRO
+  DEBITO
+  CREDITO
+  FIADO
+}
+
+enum SaleStatus {
+  REGISTRADA
+  FIADO_PENDENTE
+  QUITADA
+  CANCELADA
+}
+
 model User {
   id            String            @id @default(uuid()) @db.Uuid
   name          String
@@ -85,6 +101,7 @@ model User {
   sessionAttendancesUpdated SessionPatient[]            @relation("SessionAttendanceUpdatedBy")
   sessionChangeRequestsCreated SessionChangeRequest[]   @relation("SessionChangeRequestedBy")
   sessionChangeRequestsReviewed SessionChangeRequest[]  @relation("SessionChangeReviewedBy")
+  salesCreated               Sale[]                     @relation("SaleCreatedBy")
 
   @@index([role, accountStatus])
 }
@@ -371,4 +388,77 @@ model SessionChangeRequest {
   @@index([status, createdAt])
   @@index([sessionId, status])
   @@index([requestedById, status])
+}
+
+model ProductCategory {
+  id        String    @id @default(uuid()) @db.Uuid
+  name      String    @unique
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  products Product[]
+
+  @@index([isActive])
+}
+
+model Product {
+  id             String   @id @default(uuid()) @db.Uuid
+  name           String
+  categoryId     String   @db.Uuid
+  salePriceCents Int
+  costCents      Int?
+  stockQty       Int      @default(0)
+  minStockQty    Int      @default(0)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  category  ProductCategory @relation(fields: [categoryId], references: [id])
+  saleItems SaleItem[]
+
+  @@index([isActive, name])
+  @@index([categoryId])
+}
+
+model Sale {
+  id              String        @id @default(uuid()) @db.Uuid
+  saleNumber      Int           @unique
+  soldAt          DateTime      @default(now())
+  paymentMethod   PaymentMethod
+  status          SaleStatus    @default(REGISTRADA)
+  totalCents      Int
+  notes           String        @default("")
+  buyerName       String?
+  promisedPayAt   DateTime?     @db.Date
+  amountPaidCents Int           @default(0)
+  createdById     String        @db.Uuid
+  cancelledAt     DateTime?
+  cancelReason    String        @default("")
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  createdBy User       @relation("SaleCreatedBy", fields: [createdById], references: [id])
+  items     SaleItem[]
+
+  @@index([soldAt])
+  @@index([status, soldAt])
+  @@index([saleNumber])
+  @@index([createdById])
+}
+
+model SaleItem {
+  id             String @id @default(uuid()) @db.Uuid
+  saleId         String @db.Uuid
+  productId      String @db.Uuid
+  quantity       Int
+  unitPriceCents Int
+  lineTotalCents Int
+  sortOrder      Int    @default(0)
+
+  sale    Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@index([saleId])
+  @@index([productId])
 }
