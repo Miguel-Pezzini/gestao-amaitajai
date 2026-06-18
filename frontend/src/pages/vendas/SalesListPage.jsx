@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { Plus } from "lucide-react";
+import { Eye, Plus, Trash2 } from "lucide-react";
 import { CreateFab } from "@/components/cadastros/CreateFab";
+import { EntityListIconAction } from "@/components/cadastros/EntityListItem";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -16,10 +17,17 @@ import {
   formatCurrencyFromCents,
   PAYMENT_METHOD_OPTIONS,
 } from "@/config/vendas-modules";
+import { useSession } from "@/contexts/session-context";
+import { useToast } from "@/contexts/toast-context";
+import { normalizeRole } from "@/features/agenda/utils";
+import { CancelSaleDialog } from "@/features/vendas/components/CancelSaleDialog";
+import { CancelledSaleDialog } from "@/features/vendas/components/CancelledSaleDialog";
 import { NewSaleDialog } from "@/features/vendas/components/NewSaleDialog";
 import { SaleStatusBadge } from "@/features/vendas/components/SaleStatusBadge";
 import { getApiErrorMessage } from "@/lib/api-error";
-import { listSales } from "@/services/sales-api";
+import { cancelSale, listSales } from "@/services/sales-api";
+
+const CANCELLABLE_STATUSES = new Set(["REGISTRADA", "QUITADA", "FIADO_PENDENTE"]);
 
 function todayIsoDate() {
   const now = new Date();
@@ -34,12 +42,22 @@ function paymentLabel(value) {
 }
 
 export function SalesListPage() {
+  const { user } = useSession();
+  const toast = useToast();
+  const isAdmin = normalizeRole(user?.role) === "ADMINISTRADOR";
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [dateFrom, setDateFrom] = useState(todayIsoDate());
   const [dateTo, setDateTo] = useState(todayIsoDate());
   const [sales, setSales] = useState([]);
   const [newSaleDialogOpen, setNewSaleDialogOpen] = useState(false);
+  const [cancelSaleId, setCancelSaleId] = useState("");
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
+  const [cancelReasonError, setCancelReasonError] = useState("");
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelledSaleView, setCancelledSaleView] = useState(null);
+  const [cancelledSaleDialogOpen, setCancelledSaleDialogOpen] = useState(false);
 
   async function loadSales() {
     setLoading(true);
@@ -74,6 +92,46 @@ export function SalesListPage() {
 
   function openNewSaleDialog() {
     setNewSaleDialogOpen(true);
+  }
+
+  function closeCancelDialog() {
+    setCancelDialogOpen(false);
+    setCancelSaleId("");
+    setCancelReason("");
+    setCancelReasonError("");
+  }
+
+  function openCancelDialog(saleId) {
+    setCancelSaleId(saleId);
+    setCancelReason("");
+    setCancelReasonError("");
+    setCancelDialogOpen(true);
+  }
+
+  function openCancelledSaleDialog(sale) {
+    setCancelledSaleView(sale);
+    setCancelledSaleDialogOpen(true);
+  }
+
+  async function handleCancelSubmit(event) {
+    event.preventDefault();
+    const trimmedReason = cancelReason.trim();
+    if (!trimmedReason) {
+      setCancelReasonError("Informe a justificativa do cancelamento.");
+      return;
+    }
+
+    setCancelling(true);
+    try {
+      await cancelSale(cancelSaleId, trimmedReason);
+      toast.success("Venda cancelada.");
+      closeCancelDialog();
+      loadSales();
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, "Não foi possível cancelar a venda."));
+    } finally {
+      setCancelling(false);
+    }
   }
 
   return (
@@ -150,13 +208,14 @@ export function SalesListPage() {
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3">Cliente</th>
                   <th className="px-4 py-3">Total</th>
+                  <th className="px-4 py-3">Ações</th>
                 </tr>
               </thead>
               <tbody>
                 {sales.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={6}
+                      colSpan={7}
                       className="px-4 py-10 text-center text-sm text-muted-foreground"
                     >
                       Nenhuma venda no período.
@@ -177,6 +236,25 @@ export function SalesListPage() {
                       <td className="px-4 py-3 text-center font-medium">
                         {formatCurrencyFromCents(sale.totalCents)}
                       </td>
+                      <td className="px-4 py-3 text-center">
+                        {isAdmin && CANCELLABLE_STATUSES.has(sale.status) ? (
+                          <EntityListIconAction
+                            label="Cancelar venda"
+                            icon={Trash2}
+                            tone="destructive"
+                            iconClassName="text-red-600"
+                            onClick={() => openCancelDialog(sale._id)}
+                          />
+                        ) : sale.status === "CANCELADA" ? (
+                          <EntityListIconAction
+                            label="Ver venda cancelada"
+                            icon={Eye}
+                            onClick={() => openCancelledSaleDialog(sale)}
+                          />
+                        ) : (
+                          "—"
+                        )}
+                      </td>
                     </tr>
                   ))
                 )}
@@ -194,6 +272,32 @@ export function SalesListPage() {
         open={newSaleDialogOpen}
         onOpenChange={setNewSaleDialogOpen}
         onSuccess={() => loadSales()}
+      />
+
+      <CancelledSaleDialog
+        open={cancelledSaleDialogOpen}
+        sale={cancelledSaleView}
+        onOpenChange={(open) => {
+          setCancelledSaleDialogOpen(open);
+          if (!open) {
+            setCancelledSaleView(null);
+          }
+        }}
+      />
+
+      <CancelSaleDialog
+        open={cancelDialogOpen}
+        saving={cancelling}
+        cancelReason={cancelReason}
+        cancelReasonError={cancelReasonError}
+        onCancelReasonChange={(value) => {
+          setCancelReason(value);
+          if (cancelReasonError) {
+            setCancelReasonError("");
+          }
+        }}
+        onSubmit={handleCancelSubmit}
+        onClose={closeCancelDialog}
       />
     </div>
   );

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { FolderPlus, Plus, Search } from "lucide-react";
 import { CreateFab } from "@/components/cadastros/CreateFab";
+import { CategoriesTable } from "@/features/vendas/components/CategoriesTable";
 import { ProductsTable } from "@/features/vendas/components/ProductsTable";
 import { Button } from "@/components/ui/button";
 import {
@@ -35,6 +36,8 @@ import {
   listProductCategories,
   listProducts,
   updateProduct,
+  updateProductCategory,
+  updateProductCategoryStatus,
   updateProductStatus,
 } from "@/services/sales-api";
 
@@ -48,6 +51,17 @@ const EMPTY_FORM = {
 };
 
 const EMPTY_CATEGORY = { name: "" };
+
+function sortCategoriesByStatusAndName(items) {
+  return [...items].sort((a, b) => {
+    if (a.isActive !== b.isActive) {
+      return a.isActive ? -1 : 1;
+    }
+    return String(a.name ?? "").localeCompare(String(b.name ?? ""), "pt-BR", {
+      sensitivity: "base",
+    });
+  });
+}
 
 function sortProductsByStatusAndName(items) {
   return [...items].sort((a, b) => {
@@ -71,10 +85,12 @@ export function ProductsPage() {
   const [editingId, setEditingId] = useState("");
   const [form, setForm] = useState(EMPTY_FORM);
   const [categoryForm, setCategoryForm] = useState(EMPTY_CATEGORY);
+  const [editingCategoryId, setEditingCategoryId] = useState("");
   const [formDialogOpen, setFormDialogOpen] = useState(false);
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
 
   const isEditing = Boolean(editingId);
+  const isEditingCategory = Boolean(editingCategoryId);
 
   async function loadData() {
     setLoading(true);
@@ -108,6 +124,11 @@ export function ProductsPage() {
     });
     return sortProductsByStatusAndName(filtered);
   }, [products, search]);
+
+  const sortedCategories = useMemo(
+    () => sortCategoriesByStatusAndName(categories),
+    [categories],
+  );
 
   function resetForm() {
     setForm(EMPTY_FORM);
@@ -190,15 +211,53 @@ export function ProductsPage() {
     }
     setSaving(true);
     try {
-      await createProductCategory({ name: categoryForm.name.trim() });
-      toast.success("Categoria criada.");
-      setCategoryForm(EMPTY_CATEGORY);
-      setCategoryDialogOpen(false);
+      if (isEditingCategory) {
+        await updateProductCategory(editingCategoryId, { name: categoryForm.name.trim() });
+        toast.success("Categoria atualizada.");
+      } else {
+        await createProductCategory({ name: categoryForm.name.trim() });
+        toast.success("Categoria criada.");
+      }
+      resetCategoryForm();
       await loadData();
     } catch (err) {
-      toast.error(getApiErrorMessage(err, "Não foi possível criar a categoria."));
+      toast.error(
+        getApiErrorMessage(
+          err,
+          isEditingCategory
+            ? "Não foi possível atualizar a categoria."
+            : "Não foi possível criar a categoria.",
+        ),
+      );
     } finally {
       setSaving(false);
+    }
+  }
+
+  function resetCategoryForm() {
+    setCategoryForm(EMPTY_CATEGORY);
+    setEditingCategoryId("");
+    setCategoryDialogOpen(false);
+  }
+
+  function openCreateCategory() {
+    resetCategoryForm();
+    setCategoryDialogOpen(true);
+  }
+
+  function openEditCategory(category) {
+    setEditingCategoryId(category._id);
+    setCategoryForm({ name: category.name ?? "" });
+    setCategoryDialogOpen(true);
+  }
+
+  async function handleToggleCategoryStatus(category) {
+    try {
+      await updateProductCategoryStatus(category._id, !category.isActive);
+      toast.success(category.isActive ? "Categoria inativada." : "Categoria reativada.");
+      await loadData();
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, "Não foi possível alterar o status da categoria."));
     }
   }
 
@@ -210,7 +269,7 @@ export function ProductsPage() {
             <CardTitle className="text-ama-text">Produtos</CardTitle>
             <CardDescription>Cadastre itens da cantina e controle estoque.</CardDescription>
           </div>
-          <Button type="button" variant="secondary" onClick={() => setCategoryDialogOpen(true)}>
+          <Button type="button" variant="secondary" onClick={openCreateCategory}>
             <FolderPlus className="size-4" />
             Nova categoria
           </Button>
@@ -246,6 +305,22 @@ export function ProductsPage() {
               products={filteredProducts}
               onEdit={openEdit}
               onToggleStatus={handleToggleStatus}
+            />
+          ) : null}
+        </CardContent>
+      </Card>
+
+      <Card className="border-ama-cyan/30">
+        <CardHeader>
+          <CardTitle className="text-ama-text">Categorias</CardTitle>
+          <CardDescription>Gerencie as categorias dos produtos.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {!loading ? (
+            <CategoriesTable
+              categories={sortedCategories}
+              onEdit={openEditCategory}
+              onToggleStatus={handleToggleCategoryStatus}
             />
           ) : null}
         </CardContent>
@@ -344,8 +419,14 @@ export function ProductsPage() {
 
       <Dialog
         open={categoryDialogOpen}
-        onOpenChange={setCategoryDialogOpen}
-        title="Nova categoria"
+        onOpenChange={(open) => {
+          if (!open) {
+            resetCategoryForm();
+            return;
+          }
+          setCategoryDialogOpen(true);
+        }}
+        title={isEditingCategory ? "Editar categoria" : "Nova categoria"}
       >
         <form className="space-y-4" onSubmit={handleCreateCategory}>
           <div className="space-y-1">
@@ -358,11 +439,11 @@ export function ProductsPage() {
             />
           </div>
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => setCategoryDialogOpen(false)}>
+            <Button type="button" variant="outline" onClick={resetCategoryForm}>
               Cancelar
             </Button>
             <Button type="submit" disabled={saving}>
-              {saving ? "Salvando..." : "Criar"}
+              {saving ? "Salvando..." : isEditingCategory ? "Salvar" : "Criar"}
             </Button>
           </div>
         </form>

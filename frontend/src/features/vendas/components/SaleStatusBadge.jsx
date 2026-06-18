@@ -6,7 +6,7 @@ const SALE_STATUS_STYLES = {
   REGISTRADA: "border-transparent bg-emerald-600 text-white hover:bg-emerald-600",
   FIADO_PENDENTE: "border-transparent bg-amber-500 text-white hover:bg-amber-500",
   QUITADA: "border-transparent bg-emerald-600 text-white hover:bg-emerald-600",
-  CANCELADA: "border-muted-foreground/30 bg-muted text-muted-foreground",
+  CANCELADA: "border-transparent bg-red-600 text-white hover:bg-red-600",
 };
 
 export function SaleStatusBadge({ status }) {

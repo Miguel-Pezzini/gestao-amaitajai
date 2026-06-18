@@ -21,7 +21,7 @@ PDV de cantina/eventos da AMA: cadastro de produtos, registro de vendas com baix
 - Número sequencial anual: `AAAANNNNN` (mesmo padrão dos protocolos).
 - Ao finalizar venda à vista: status `REGISTRADA`, baixa automática de `stockQty` de cada produto.
 - Estoque insuficiente bloqueia a venda com erro específico por produto.
-- Cancelamento (apenas admin): status `CANCELADA`, estorno de estoque, `cancelReason` obrigatório. Só vendas `REGISTRADA` ou `QUITADA`.
+- Cancelamento (apenas admin): status `CANCELADA`, estorno de estoque, `cancelReason` obrigatório. Só vendas `REGISTRADA`, `QUITADA` ou `FIADO_PENDENTE`.
 
 ### Formas de pagamento
 
@@ -68,8 +68,8 @@ PDV de cantina/eventos da AMA: cadastro de produtos, registro de vendas com baix
 
 | Rota | Componente | Permissão | Descrição |
 |---|---|---|---|
-| `/vendas` | `SalesListPage` | admin, operador | Listagem de vendas + dialog de nova venda (PDV) |
-| `/vendas/produtos` | `ProductsPage` | admin | CRUD produtos (tabela + dialogs) |
+| `/vendas` | `SalesListPage` | admin, operador | Listagem de vendas + dialog de nova venda (PDV); cancelamento na coluna Ações (admin); ícone olho para vendas canceladas |
+| `/vendas/produtos` | `ProductsPage` | admin | CRUD produtos e categorias (tabela + dialogs) |
 | `/vendas/fiados` | `FiadosPage` | admin, operador | Fiados pendentes e recebimentos |
 
 Nova venda abre em **dialog** na tela de Vendas (botão no header + FAB mobile), alinhado ao padrão do restante do sistema.
@@ -118,6 +118,9 @@ Rotas legadas `/vendas/nova` e `/vendas/lista` redirecionam para `/vendas`.
 | Config nav | `frontend/src/config/vendas-modules.js` |
 | API client | `frontend/src/services/sales-api.js` |
 | Nova venda | `frontend/src/features/vendas/components/NewSaleDialog.jsx`, `frontend/src/hooks/useNewSale.js` |
+| Cancelamento | `frontend/src/features/vendas/components/CancelSaleDialog.jsx` |
+| Venda cancelada (detalhe) | `frontend/src/features/vendas/components/CancelledSaleDialog.jsx` |
+| Categorias | `frontend/src/features/vendas/components/CategoriesTable.jsx` |
 | Testes | `backend/tests/integration/sales.test.ts`, `sales-products.test.ts` |
 
 ---

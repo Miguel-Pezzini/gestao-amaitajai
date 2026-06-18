@@ -84,4 +84,44 @@ describe("Produtos de vendas", () => {
 
     expect(createResponse.status).toBe(403);
   });
+
+  it("admin edita e inativa categoria", async () => {
+    const createResponse = await request(app)
+      .post("/api/sales/categories")
+      .set("Cookie", adminCookie)
+      .send({ name: "Lanches" });
+
+    expect(createResponse.status).toBe(201);
+    const categoryId = createResponse.body.category._id as string;
+
+    const updateResponse = await request(app)
+      .patch(`/api/sales/categories/${categoryId}`)
+      .set("Cookie", adminCookie)
+      .send({ name: "Salgados" });
+
+    expect(updateResponse.status).toBe(200);
+    expect(updateResponse.body.category.name).toBe("Salgados");
+
+    const statusResponse = await request(app)
+      .patch(`/api/sales/categories/${categoryId}/status`)
+      .set("Cookie", adminCookie)
+      .send({ isActive: false });
+
+    expect(statusResponse.status).toBe(200);
+    expect(statusResponse.body.category.isActive).toBe(false);
+  });
+
+  it("rejeita categoria com nome duplicado", async () => {
+    await request(app)
+      .post("/api/sales/categories")
+      .set("Cookie", adminCookie)
+      .send({ name: "Doces" });
+
+    const duplicateResponse = await request(app)
+      .post("/api/sales/categories")
+      .set("Cookie", adminCookie)
+      .send({ name: "Doces" });
+
+    expect(duplicateResponse.status).toBe(409);
+  });
 });

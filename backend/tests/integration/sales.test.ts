@@ -159,4 +159,82 @@ describe("Vendas", () => {
 
     expect(cancelResponse.status).toBe(403);
   });
+
+  it("retorna detalhe da venda com itens", async () => {
+    const createResponse = await request(app)
+      .post("/api/sales")
+      .set("Cookie", operadorCookie)
+      .send({
+        paymentMethod: "PIX",
+        items: [{ productId, quantity: 2 }],
+      });
+
+    const saleId = createResponse.body.sale._id as string;
+
+    const detailResponse = await request(app)
+      .get(`/api/sales/${saleId}`)
+      .set("Cookie", operadorCookie);
+
+    expect(detailResponse.status).toBe(200);
+    expect(detailResponse.body.sale._id).toBe(saleId);
+    expect(detailResponse.body.sale.items).toHaveLength(1);
+    expect(detailResponse.body.sale.items[0].quantity).toBe(2);
+    expect(detailResponse.body.sale.items[0].product.name).toBe("Refrigerante");
+  });
+
+  it("retorna 404 para venda inexistente", async () => {
+    const response = await request(app)
+      .get("/api/sales/00000000-0000-4000-8000-000000000000")
+      .set("Cookie", operadorCookie);
+
+    expect(response.status).toBe(404);
+  });
+
+  it("rejeita cancelamento sem justificativa", async () => {
+    const createResponse = await request(app)
+      .post("/api/sales")
+      .set("Cookie", operadorCookie)
+      .send({
+        paymentMethod: "PIX",
+        items: [{ productId, quantity: 1 }],
+      });
+
+    const saleId = createResponse.body.sale._id as string;
+
+    const cancelResponse = await request(app)
+      .patch(`/api/sales/${saleId}/cancel`)
+      .set("Cookie", adminCookie)
+      .send({ cancelReason: "   " });
+
+    expect(cancelResponse.status).toBe(400);
+    expect(cancelResponse.body.message).toMatch(/justificativa/i);
+  });
+
+  it("admin cancela venda fiada pendente e restaura estoque", async () => {
+    const createResponse = await request(app)
+      .post("/api/sales")
+      .set("Cookie", operadorCookie)
+      .send({
+        paymentMethod: "FIADO",
+        buyerName: "Maria",
+        promisedPayAt: "2026-08-01",
+        items: [{ productId, quantity: 3 }],
+      });
+
+    const saleId = createResponse.body.sale._id as string;
+
+    const productBefore = await prisma.product.findUniqueOrThrow({ where: { id: productId } });
+    expect(productBefore.stockQty).toBe(7);
+
+    const cancelResponse = await request(app)
+      .patch(`/api/sales/${saleId}/cancel`)
+      .set("Cookie", adminCookie)
+      .send({ cancelReason: "Cliente desistiu" });
+
+    expect(cancelResponse.status).toBe(200);
+    expect(cancelResponse.body.sale.status).toBe("CANCELADA");
+
+    const productAfter = await prisma.product.findUniqueOrThrow({ where: { id: productId } });
+    expect(productAfter.stockQty).toBe(10);
+  });
 });
