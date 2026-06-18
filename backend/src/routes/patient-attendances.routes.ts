@@ -6,7 +6,7 @@ import { patientAttendanceService } from "../services/patient-attendance.service
 
 const router = Router();
 
-router.use(requireAuth, requireClinicalOperator);
+router.use("/agenda/sessions", requireAuth, requireClinicalOperator);
 
 router.get(
   "/agenda/sessions/:sessionId/attendance",
