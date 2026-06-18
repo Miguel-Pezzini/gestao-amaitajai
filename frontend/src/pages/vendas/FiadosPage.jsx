@@ -115,38 +115,46 @@ export function FiadosPage() {
                 </tr>
               </thead>
               <tbody>
-                {items.map((sale) => (
-                  <tr key={sale._id} className="border-t border-ama-cyan/10">
-                    <td className="px-4 py-3 text-center">{sale.buyerName ?? "-"}</td>
-                    <td className="px-4 py-3 text-center">
-                      {sale.promisedPayAt
-                        ? new Date(sale.promisedPayAt).toLocaleDateString("pt-BR")
-                        : "-"}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      {formatCurrencyFromCents(sale.totalCents)}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      {formatCurrencyFromCents(sale.amountPaidCents)}
-                    </td>
-                    <td className="px-4 py-3 text-center font-medium text-red-600">
-                      {formatCurrencyFromCents(sale.pendingCents)}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <SaleStatusBadge status={sale.status} />
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <Button type="button" size="sm" onClick={() => openPaymentDialog(sale)}>
-                        Receber
-                      </Button>
+                {items.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={7}
+                      className="px-4 py-10 text-center text-sm text-muted-foreground"
+                    >
+                      Nenhum fiado pendente.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  items.map((sale) => (
+                    <tr key={sale._id} className="border-t border-ama-cyan/10">
+                      <td className="px-4 py-3 text-center">{sale.buyerName ?? "-"}</td>
+                      <td className="px-4 py-3 text-center">
+                        {sale.promisedPayAt
+                          ? new Date(sale.promisedPayAt).toLocaleDateString("pt-BR")
+                          : "-"}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        {formatCurrencyFromCents(sale.totalCents)}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        {formatCurrencyFromCents(sale.amountPaidCents)}
+                      </td>
+                      <td className="px-4 py-3 text-center font-medium text-red-600">
+                        {formatCurrencyFromCents(sale.pendingCents)}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <SaleStatusBadge status={sale.status} />
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <Button type="button" size="sm" onClick={() => openPaymentDialog(sale)}>
+                          Receber
+                        </Button>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
-            {items.length === 0 ? (
-              <p className="p-4 text-sm text-muted-foreground">Nenhum fiado pendente.</p>
-            ) : null}
           </CardContent>
         </Card>
       ) : null}
