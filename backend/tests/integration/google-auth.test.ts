@@ -6,7 +6,8 @@ import {
   authenticateGoogleCode,
   findOrProvisionGoogleUser,
 } from "../../src/services/google-auth.service.js";
-import { createUser, loginAndGetCookie } from "./helpers/test-helpers.js";
+import { createUser, loginAs, withAuth } from "./helpers/test-helpers.js";
+import { withAuthTransport } from "./helpers/auth-transport-test.js";
 import { useIntegrationTestDatabase } from "./helpers/integration-db.js";
 
 vi.mock("../../src/services/google-auth.service.js", async () => {
@@ -75,89 +76,84 @@ describe("Autenticação Google", () => {
   });
 
   it("permite login Google para usuário ativo e autoativa conta pendente existente", async () => {
-    const activeUser = await createUser({
-      name: "Ativo",
-      email: "ativo@amaitajai.org.br",
-      password: "senha123456",
-      role: "TECNICO",
-    });
-
-    vi.mocked(authenticateGoogleCode).mockResolvedValueOnce({
-      id: activeUser._id,
-      name: activeUser.name,
-      email: activeUser.email,
-      role: activeUser.role,
-      accountStatus: "ATIVO",
-      passwordHash: "hash",
-      googleId: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
-
-    const success = await request(app).get("/api/auth/google/callback?code=ok&state=abc").set("Cookie", [
-      "ama_google_oauth_state=abc",
-    ]);
-
-    expect(success.status).toBe(302);
-    expect(success.headers.location).toBe("http://localhost:5173/");
-
-    await prisma.user.create({
-      data: {
-        name: "Legado",
-        email: "legado@amaitajai.org.br",
-        passwordHash: null,
+    await withAuthTransport("cookie", async (cookieApp) => {
+      const activeUser = await createUser({
+        name: "Ativo",
+        email: "ativo@amaitajai.org.br",
+        password: "senha123456",
         role: "TECNICO",
-        accountStatus: "PENDENTE",
-      },
-    });
+      });
 
-    const reactivated = await findOrProvisionGoogleUser({
-      googleId: "google-sub-3",
-      email: "legado@amaitajai.org.br",
-      name: "legado usuario",
-      hostedDomain: "amaitajai.org.br",
-    });
+      vi.mocked(authenticateGoogleCode).mockResolvedValueOnce({
+        id: activeUser._id,
+        name: activeUser.name,
+        email: activeUser.email,
+        role: activeUser.role,
+        accountStatus: "ATIVO",
+        passwordHash: "hash",
+        googleId: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
 
-    expect(reactivated.accountStatus).toBe("ATIVO");
+      const success = await request(cookieApp)
+        .get("/api/auth/google/callback?code=ok&state=abc")
+        .set("Cookie", ["ama_google_oauth_state=abc"]);
+
+      expect(success.status).toBe(302);
+      expect(success.headers.location).toBe("http://localhost:5173/");
+
+      await prisma.user.create({
+        data: {
+          name: "Legado",
+          email: "legado@amaitajai.org.br",
+          passwordHash: null,
+          role: "TECNICO",
+          accountStatus: "PENDENTE",
+        },
+      });
+
+      const reactivated = await findOrProvisionGoogleUser({
+        googleId: "google-sub-3",
+        email: "legado@amaitajai.org.br",
+        name: "legado usuario",
+        hostedDomain: "amaitajai.org.br",
+      });
+
+      expect(reactivated.accountStatus).toBe("ATIVO");
+    });
   });
 
   it("redireciona callback Google para /auth/callback em modo bearer", async () => {
-    const activeUser = await createUser({
-      name: "Bearer Google",
-      email: "bearer-google@amaitajai.org.br",
-      password: "senha123456",
-      role: "TECNICO",
+    await withAuthTransport("bearer", async (bearerApp) => {
+      const activeUser = await createUser({
+        name: "Bearer Google",
+        email: "bearer-google@amaitajai.org.br",
+        password: "senha123456",
+        role: "TECNICO",
+      });
+
+      vi.mocked(authenticateGoogleCode).mockResolvedValueOnce({
+        id: activeUser._id,
+        name: activeUser.name,
+        email: activeUser.email,
+        role: activeUser.role,
+        accountStatus: "ATIVO",
+        passwordHash: "hash",
+        googleId: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const bearerSuccess = await request(bearerApp)
+        .get("/api/auth/google/callback?code=ok&state=abc")
+        .set("Cookie", ["ama_google_oauth_state=abc"]);
+
+      expect(bearerSuccess.status).toBe(302);
+      expect(bearerSuccess.headers.location).toMatch(
+        /^http:\/\/localhost:5173\/auth\/callback#token=/,
+      );
     });
-
-    const previousTransport = process.env.AUTH_TRANSPORT;
-    process.env.AUTH_TRANSPORT = "bearer";
-    vi.resetModules();
-
-    const { default: bearerApp } = await import("../../src/app.js");
-
-    vi.mocked(authenticateGoogleCode).mockResolvedValueOnce({
-      id: activeUser._id,
-      name: activeUser.name,
-      email: activeUser.email,
-      role: activeUser.role,
-      accountStatus: "ATIVO",
-      passwordHash: "hash",
-      googleId: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
-
-    const bearerSuccess = await request(bearerApp)
-      .get("/api/auth/google/callback?code=ok&state=abc")
-      .set("Cookie", ["ama_google_oauth_state=abc"]);
-
-    expect(bearerSuccess.status).toBe(302);
-    expect(bearerSuccess.headers.location).toMatch(
-      /^http:\/\/localhost:5173\/auth\/callback#token=/,
-    );
-
-    process.env.AUTH_TRANSPORT = previousTransport;
-    vi.resetModules();
   });
 
   it("permite administrador reativar usuário inativo", async () => {
@@ -168,7 +164,7 @@ describe("Autenticação Google", () => {
       password: adminPassword,
       role: "ADMINISTRADOR",
     });
-    const adminCookie = await loginAndGetCookie(admin.email, adminPassword);
+    const adminToken = await loginAs(admin.email, adminPassword);
 
     const inactive = await prisma.user.create({
       data: {
@@ -180,10 +176,10 @@ describe("Autenticação Google", () => {
       },
     });
 
-    const response = await request(app)
-      .patch(`/api/users/${inactive.id}/status`)
-      .set("Cookie", adminCookie)
-      .send({ accountStatus: "ATIVO" });
+    const response = await withAuth(
+      request(app).patch(`/api/users/${inactive.id}/status`),
+      adminToken,
+    ).send({ accountStatus: "ATIVO" });
 
     expect(response.status).toBe(200);
     expect(response.body.user.accountStatus).toBe("ATIVO");

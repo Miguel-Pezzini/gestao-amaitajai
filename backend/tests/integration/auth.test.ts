@@ -1,33 +1,36 @@
 import request from "supertest";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import app from "../../src/app.js";
 import { prisma } from "../../src/db/prisma.js";
-import { createUser, loginAndGetCookie } from "./helpers/test-helpers.js";
+import { withAuthTransport } from "./helpers/auth-transport-test.js";
+import { createUser, loginAndGetCookie, loginAs, withAuth } from "./helpers/test-helpers.js";
 import { useIntegrationTestDatabase } from "./helpers/integration-db.js";
 
 describe("Autenticação", () => {
   useIntegrationTestDatabase();
 
   it("autentica com credenciais válidas e define cookie de sessão", async () => {
-    const password = "senha123456";
-    const user = await createUser({
-      name: "Maria Admin",
-      email: "maria@auth.test",
-      password,
-      role: "ADMINISTRADOR",
-    });
+    await withAuthTransport("cookie", async (cookieApp) => {
+      const password = "senha123456";
+      const user = await createUser({
+        name: "Maria Admin",
+        email: "maria@auth.test",
+        password,
+        role: "ADMINISTRADOR",
+      });
 
-    const response = await request(app)
-      .post("/api/auth/login")
-      .send({ email: user.email, password });
+      const response = await request(cookieApp)
+        .post("/api/auth/login")
+        .send({ email: user.email, password });
 
-    expect(response.status).toBe(200);
-    expect(response.body.user).toMatchObject({
-      email: user.email,
-      role: "ADMINISTRADOR",
-      accountStatus: "ATIVO",
+      expect(response.status).toBe(200);
+      expect(response.body.user).toMatchObject({
+        email: user.email,
+        role: "ADMINISTRADOR",
+        accountStatus: "ATIVO",
+      });
+      expect(response.headers["set-cookie"]?.[0]).toMatch(/ama_access_token=/);
     });
-    expect(response.headers["set-cookie"]?.[0]).toMatch(/ama_access_token=/);
   });
 
   it("rejeita login sem e-mail ou senha", async () => {
@@ -67,39 +70,32 @@ describe("Autenticação", () => {
       role: "TECNICO",
     });
 
-    const login = await request(app)
-      .post("/api/auth/login")
-      .send({ email: user.email, password });
-
-    const cookie = login.headers["set-cookie"]?.[0] ?? "";
-    const tokenMatch = cookie.match(/ama_access_token=([^;]+)/);
-    expect(tokenMatch?.[1]).toBeTruthy();
-
-    const withBearer = await request(app)
-      .get("/api/auth/me")
-      .set("Authorization", `Bearer ${tokenMatch?.[1]}`);
+    const token = await loginAs(user.email, password);
+    const withBearer = await withAuth(request(app).get("/api/auth/me"), token);
 
     expect(withBearer.status).toBe(200);
     expect(withBearer.body.user.email).toBe(user.email);
   });
 
   it("expõe sessão em /auth/me apenas com cookie válido", async () => {
-    const password = "me123456";
-    const user = await createUser({
-      name: "Usuario Me",
-      email: "me@auth.test",
-      password,
-      role: "TECNICO",
+    await withAuthTransport("cookie", async (cookieApp) => {
+      const password = "me123456";
+      const user = await createUser({
+        name: "Usuario Me",
+        email: "me@auth.test",
+        password,
+        role: "TECNICO",
+      });
+
+      const withoutCookie = await request(cookieApp).get("/api/auth/me");
+      expect(withoutCookie.status).toBe(401);
+
+      const cookie = await loginAndGetCookie(user.email, password, cookieApp);
+      const withCookie = await request(cookieApp).get("/api/auth/me").set("Cookie", cookie);
+
+      expect(withCookie.status).toBe(200);
+      expect(withCookie.body.user.email).toBe(user.email);
     });
-
-    const withoutCookie = await request(app).get("/api/auth/me");
-    expect(withoutCookie.status).toBe(401);
-
-    const cookie = await loginAndGetCookie(user.email, password);
-    const withCookie = await request(app).get("/api/auth/me").set("Cookie", cookie);
-
-    expect(withCookie.status).toBe(200);
-    expect(withCookie.body.user.email).toBe(user.email);
   });
 
   it("bloqueia /auth/me para conta inativa mesmo após login", async () => {
@@ -111,68 +107,64 @@ describe("Autenticação", () => {
       role: "TECNICO",
     });
 
-    const cookie = await loginAndGetCookie(user.email, password);
+    const token = await loginAs(user.email, password);
 
     await prisma.user.update({
       where: { id: user._id },
       data: { accountStatus: "INATIVO" },
     });
 
-    const me = await request(app).get("/api/auth/me").set("Cookie", cookie);
+    const me = await withAuth(request(app).get("/api/auth/me"), token);
 
     expect(me.status).toBe(403);
     expect(me.body.message).toMatch(/inativa/i);
   });
 
   it("retorna token no body quando AUTH_TRANSPORT=bearer", async () => {
-    const previousTransport = process.env.AUTH_TRANSPORT;
-    process.env.AUTH_TRANSPORT = "bearer";
-    vi.resetModules();
+    await withAuthTransport("bearer", async (bearerApp) => {
+      const password = "bearer-mode123";
+      const user = await createUser({
+        name: "Bearer Mode",
+        email: "bearermode@auth.test",
+        password,
+        role: "TECNICO",
+      });
 
-    const { default: bearerApp } = await import("../../src/app.js");
-    const password = "bearer-mode123";
-    const user = await createUser({
-      name: "Bearer Mode",
-      email: "bearermode@auth.test",
-      password,
-      role: "TECNICO",
+      const response = await request(bearerApp)
+        .post("/api/auth/login")
+        .send({ email: user.email, password });
+
+      expect(response.status).toBe(200);
+      expect(response.body.token).toBeTruthy();
+      expect(response.headers["set-cookie"]).toBeUndefined();
+
+      const me = await request(bearerApp)
+        .get("/api/auth/me")
+        .set("Authorization", `Bearer ${response.body.token}`);
+
+      expect(me.status).toBe(200);
+      expect(me.body.user.email).toBe(user.email);
     });
-
-    const response = await request(bearerApp)
-      .post("/api/auth/login")
-      .send({ email: user.email, password });
-
-    expect(response.status).toBe(200);
-    expect(response.body.token).toBeTruthy();
-    expect(response.headers["set-cookie"]).toBeUndefined();
-
-    const me = await request(bearerApp)
-      .get("/api/auth/me")
-      .set("Authorization", `Bearer ${response.body.token}`);
-
-    expect(me.status).toBe(200);
-    expect(me.body.user.email).toBe(user.email);
-
-    process.env.AUTH_TRANSPORT = previousTransport;
-    vi.resetModules();
   });
 
   it("realiza logout e limpa o cookie de sessão", async () => {
-    const password = "logout123";
-    const user = await createUser({
-      name: "Logout",
-      email: "logout@auth.test",
-      password,
-      role: "ADMINISTRADOR",
+    await withAuthTransport("cookie", async (cookieApp) => {
+      const password = "logout123";
+      const user = await createUser({
+        name: "Logout",
+        email: "logout@auth.test",
+        password,
+        role: "ADMINISTRADOR",
+      });
+
+      const cookie = await loginAndGetCookie(user.email, password, cookieApp);
+
+      const logout = await request(cookieApp).post("/api/auth/logout").set("Cookie", cookie);
+      expect(logout.status).toBe(200);
+      expect(logout.headers["set-cookie"]?.[0]).toMatch(/ama_access_token=;/);
+
+      const meWithoutCookie = await request(cookieApp).get("/api/auth/me");
+      expect(meWithoutCookie.status).toBe(401);
     });
-
-    const cookie = await loginAndGetCookie(user.email, password);
-
-    const logout = await request(app).post("/api/auth/logout").set("Cookie", cookie);
-    expect(logout.status).toBe(200);
-    expect(logout.headers["set-cookie"]?.[0]).toMatch(/ama_access_token=;/);
-
-    const meWithoutCookie = await request(app).get("/api/auth/me");
-    expect(meWithoutCookie.status).toBe(401);
   });
 });

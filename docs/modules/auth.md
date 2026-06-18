@@ -1,6 +1,6 @@
 # Módulo: Autenticação
 
-**Última atualização:** 2026-06-12  
+**Última atualização:** 2026-06-18  
 **Escopo:** fullstack
 
 ---
@@ -126,8 +126,15 @@ Módulo transversal — não define roles, apenas identidade. Autorização fica
 
 ## Como testar
 
-Manual:
+### Manual
+
 1. Login com credenciais válidas → cookie setado, `/auth/me` retorna usuário.
 2. Login com senha errada → mensagem genérica (sem vazar se e-mail existe).
 3. Google desabilitado → botão oculto; `/auth/google` redireciona com erro.
 4. Conta inativa → bloqueio no login.
+
+### Integração (backend)
+
+Os testes de domínio usam `loginAs` + `withAuth` em `backend/tests/integration/helpers/test-helpers.ts` — funcionam com `AUTH_TRANSPORT=cookie` ou `bearer` no `.env`.
+
+Comportamento específico de cada transporte (cookie no login, token no body, logout limpando cookie, OAuth bearer) é coberto em `backend/tests/integration/auth.test.ts` e `google-auth.test.ts`.

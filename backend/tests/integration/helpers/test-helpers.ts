@@ -26,12 +26,44 @@ export async function createUser(params: {
   return withMongoId(user);
 }
 
-export async function loginAndGetCookie(email: string, password: string) {
-  const response = await request(app).post("/api/auth/login").send({ email, password });
+/** Retorna header Set-Cookie completo — apenas para testes que validam transporte cookie. */
+export async function loginAndGetCookie(
+  email: string,
+  password: string,
+  testApp: Parameters<typeof request>[0] = app,
+): Promise<string> {
+  const response = await request(testApp).post("/api/auth/login").send({ email, password });
   expect(response.status).toBe(200);
   const cookie = response.headers["set-cookie"]?.[0];
   expect(cookie).toBeTruthy();
   return cookie as string;
+}
+
+/** JWT de sessão após POST /auth/login — funciona com cookie ou bearer. */
+export async function loginAs(
+  email: string,
+  password: string,
+  testApp: Parameters<typeof request>[0] = app,
+): Promise<string> {
+  const response = await request(testApp).post("/api/auth/login").send({ email, password });
+  expect(response.status).toBe(200);
+
+  if (typeof response.body?.token === "string" && response.body.token) {
+    return response.body.token;
+  }
+
+  const cookie = response.headers["set-cookie"]?.[0];
+  const match = cookie?.match(/ama_access_token=([^;]+)/);
+  expect(match?.[1]).toBeTruthy();
+  return match![1];
+}
+
+/** Aplica credencial em qualquer Test do supertest. */
+export function withAuth<T extends { set: (field: string, value: string) => T }>(
+  req: T,
+  token: string,
+): T {
+  return req.set("Authorization", `Bearer ${token}`);
 }
 
 const DEFAULT_PATIENT_FUNDING_SOURCES = [
@@ -102,9 +134,9 @@ export async function seedAgendaBase() {
     }),
   );
 
-  const adminCookie = await loginAndGetCookie(admin.email, adminPassword);
+  const adminToken = await loginAs(admin.email, adminPassword);
 
-  return { admin, adminPassword, profissional, paciente, room, sessionType, adminCookie };
+  return { admin, adminPassword, profissional, paciente, room, sessionType, adminToken };
 }
 
 export async function createPatient(data: {
