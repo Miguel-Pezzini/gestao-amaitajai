@@ -21,5 +21,6 @@ do
   sleep 1
 done
 
+npx prisma generate
 DATABASE_URL="$TEST_DATABASE_URL" DIRECT_URL="$TEST_DATABASE_URL" npx prisma migrate deploy
 DATABASE_URL="$TEST_DATABASE_URL" DIRECT_URL="$TEST_DATABASE_URL" vitest run
