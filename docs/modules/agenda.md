@@ -1,6 +1,6 @@
 # Módulo: Agenda
 
-**Última atualização:** 2026-06-16  
+**Última atualização:** 2026-06-18  
 **Escopo:** fullstack
 
 ---
@@ -125,6 +125,7 @@ Filtros de listagem: `status`, `startAt`, `endAt`, `professionalId` (só admin),
 | Rota | Componente | Descrição |
 |---|---|---|
 | `/agenda` | `AgendaPage` | Calendário dia/semana/mês; criar, editar, cancelar, detalhar sessões |
+| `/agenda/localizar-atendido` | `AgendaPatientLocatorPage` | Busca rápida por nome da criança ou responsável; exibe sala e profissional no dia (recepção e admin) |
 
 Visões: dia, semana (grade horária), mês, semana por slot. Suporte a recorrência na criação/cancelamento; edição com escopo em séries recorrentes. Sessões canceladas somem do calendário após o cancelamento.
 
@@ -147,6 +148,8 @@ Após criar, editar, cancelar ou concluir sessão, re-busca só o período visí
 **Pedidos de alteração (técnico):** em sessão `AGENDADA` sem pedido pendente, `SessionDetailDialog` exibe **Solicitar edição** e **Solicitar cancelamento** (reutiliza `CreateSessionDialog` e `CancelSessionDialog` com envio para API de pedidos). Badge **Pedido pendente** quando já existe solicitação aberta.
 
 **Fila de aprovação (admin):** botão **Pedidos pendentes (N)** no topo da `AgendaPage`; dialog com resumo da alteração e ações Aprovar/Rejeitar.
+
+**Localizar atendido (recepção/admin):** `AgendaPatientLocatorPage` em `/agenda/localizar-atendido`. Campo de busca (mín. 2 caracteres, debounce) por nome da criança ou responsável via `GET /agenda/lookups/patients?q=`; para cada paciente encontrado, lista sessões do dia via `GET /agenda/sessions?patientId&startAt&endAt`. Exibe sala, horário, tipo/modalidade, profissionais e badge **Em andamento** quando a sessão está em curso no dia atual. Sem dados clínicos (presença/evolução). Paciente sem sessão no dia exibe mensagem dedicada. Acesso bloqueado para `TECNICO`.
 
 ---
 
@@ -194,6 +197,7 @@ Após criar, editar, cancelar ou concluir sessão, re-busca só o período visí
 | Registrar/editar evolução na sessão | sim (qualquer) | sim (só própria) | não |
 | Registrar/editar presença na sessão | sim (qualquer) | sim (só própria) | não |
 | Ver agenda de outros | sim | não | sim (somente leitura) |
+| Localizar atendido (busca sala/profissional no dia) | sim | não | sim |
 | Cadastros (salas, tipos, modalidades) | sim | não | não |
 
 Auditoria: `createdById`, `updatedById` em sessões e séries.
@@ -213,6 +217,7 @@ Auditoria: `createdById`, `updatedById` em sessões e séries.
 | Domínio | `backend/src/domain/agenda.ts` |
 | Schema | `backend/prisma/schema.prisma` (Session, SessionSeries, Room, SessionType, SessionChangeRequest) |
 | Página | `frontend/src/pages/AgendaPage.jsx` |
+| Localizar atendido | `frontend/src/pages/AgendaPatientLocatorPage.jsx` |
 | Hook | `frontend/src/hooks/useAgendaPage.js` |
 | Feature | `frontend/src/features/agenda/` |
 | Editor apoio (GRUPO) | `frontend/src/features/agenda/components/SelectedProfessionalsEditor.jsx` |

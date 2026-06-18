@@ -5,6 +5,7 @@ import {
   LayoutDashboard,
   LayoutGrid,
   ListOrdered,
+  MapPin,
   ScanLine,
   Users,
 } from "lucide-react";
@@ -57,6 +58,18 @@ export const APP_MODULES = [
     enabled: true,
     requiredRoles: ["ADMINISTRADOR", "TECNICO", "RECEPCAO"],
     order: 2,
+  },
+  {
+    id: "patient-locator",
+    label: "Localizar atendido",
+    icon: MapPin,
+    description: "Encontre rapidamente a sala e o profissional de uma criança no dia.",
+    route: "/agenda/localizar-atendido",
+    showInSidebar: true,
+    showInQuickAccess: true,
+    enabled: true,
+    requiredRoles: ["ADMINISTRADOR", "RECEPCAO"],
+    order: 2.2,
   },
   {
     id: "room-occupancy",

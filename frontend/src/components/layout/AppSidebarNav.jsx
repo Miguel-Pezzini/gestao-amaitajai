@@ -4,11 +4,23 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-function isActiveRoute(currentPath, itemRoute) {
+function matchesRoute(currentPath, itemRoute) {
   if (itemRoute === "/") {
     return currentPath === "/";
   }
   return currentPath === itemRoute || currentPath.startsWith(`${itemRoute}/`);
+}
+
+function resolveActiveRoute(currentPath, routes) {
+  const matched = routes.filter((route) => matchesRoute(currentPath, route));
+  if (matched.length === 0) {
+    return null;
+  }
+  return matched.sort((left, right) => right.length - left.length)[0];
+}
+
+function isActiveRoute(currentPath, itemRoute, allRoutes) {
+  return resolveActiveRoute(currentPath, allRoutes) === itemRoute;
 }
 
 function isGroupActive(currentPath, routePrefix) {
@@ -51,6 +63,7 @@ function SidebarNavItem({ item, active, sidebarExpanded, onNavigate }) {
 function SidebarNavGroup({
   group,
   currentPath,
+  allRoutes,
   sidebarExpanded,
   isOpen,
   onToggle,
@@ -107,7 +120,7 @@ function SidebarNavGroup({
       {sidebarExpanded && isOpen ? (
         <div className="space-y-1 border-l border-white/15 pl-3">
           {group.items.map((item) => {
-            const active = isActiveRoute(currentPath, item.route);
+            const active = isActiveRoute(currentPath, item.route, allRoutes);
             const Icon = item.icon;
             return (
               <Button
@@ -181,6 +194,11 @@ export function AppSidebarNav({
     });
   }
 
+  const allRoutes = [
+    ...sidebarItems.map((item) => item.route),
+    ...sidebarGroups.flatMap((group) => group.items.map((item) => item.route)),
+  ];
+
   const sortedItems = [...sidebarItems].sort((a, b) => a.order - b.order);
   const sortedGroups = [...sidebarGroups].sort((a, b) => a.order - b.order);
 
@@ -198,7 +216,7 @@ export function AppSidebarNav({
             <SidebarNavItem
               key={item.id}
               item={item}
-              active={isActiveRoute(currentPath, item.route)}
+              active={isActiveRoute(currentPath, item.route, allRoutes)}
               sidebarExpanded={sidebarExpanded}
               onNavigate={handleNavigate}
             />
@@ -211,6 +229,7 @@ export function AppSidebarNav({
             key={group.id}
             group={group}
             currentPath={currentPath}
+            allRoutes={allRoutes}
             sidebarExpanded={sidebarExpanded}
             isOpen={openGroups.includes(group.id)}
             onToggle={(open) => handleToggleGroup(group.id, open)}
