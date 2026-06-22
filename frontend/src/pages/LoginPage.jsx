@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useSession } from "@/contexts/session-context";
 import { getGoogleLoginUrl, login } from "@/services/auth";
+import { normalizeRole } from "@/features/agenda/utils";
 
 const LOGIN_ERROR_MESSAGES = {
   conta_inativa: "Conta inativa. Entre em contato com a administração.",
@@ -48,7 +49,8 @@ export function LoginPage() {
     try {
       const data = await login({ email: email.trim(), password });
       setUser(data?.user ?? null);
-      navigate("/", { replace: true });
+      const role = normalizeRole(data?.user?.role);
+      navigate(role === "OPERADOR" ? "/vendas" : "/", { replace: true });
     } catch (err) {
       const message =
         err.response?.data?.message ??

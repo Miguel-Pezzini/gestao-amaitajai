@@ -269,3 +269,31 @@ export function buildRecurringSessionPayload(params: {
     },
   };
 }
+
+export async function createProductCategory(name: string) {
+  const category = await prisma.productCategory.create({
+    data: { name, isActive: true },
+  });
+  return withMongoId(category);
+}
+
+export async function createProduct(params: {
+  name: string;
+  categoryId: string;
+  salePriceCents: number;
+  stockQty?: number;
+  costCents?: number;
+}) {
+  const product = await prisma.product.create({
+    data: {
+      name: params.name,
+      categoryId: params.categoryId,
+      salePriceCents: params.salePriceCents,
+      stockQty: params.stockQty ?? 10,
+      costCents: params.costCents ?? null,
+      isActive: true,
+    },
+  });
+  return withMongoId(product);
+}
+

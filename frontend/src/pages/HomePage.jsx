@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
@@ -8,9 +9,17 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useSession } from "@/contexts/session-context";
+import { normalizeRole } from "@/features/agenda/utils";
 
-export function HomePage() {  const navigate = useNavigate();
-  const { userName, quickAccessItems } = useSession();
+export function HomePage() {
+  const navigate = useNavigate();
+  const { userName, quickAccessItems, user } = useSession();
+
+  useEffect(() => {
+    if (normalizeRole(user?.role) === "OPERADOR") {
+      navigate("/vendas", { replace: true });
+    }
+  }, [user, navigate]);
 
   return (
     <div className="space-y-6">

@@ -7,6 +7,7 @@ import {
   ListOrdered,
   MapPin,
   ScanLine,
+  ShoppingCart,
   Users,
 } from "lucide-react";
 
@@ -46,6 +47,18 @@ export const APP_MODULES = [
     enabled: true,
     requiredRoles: ["ADMINISTRADOR", "RECEPCAO"],
     order: 1.5,
+  },
+  {
+    id: "vendas",
+    label: "Vendas",
+    icon: ShoppingCart,
+    description: "PDV de cantina e eventos, produtos e fiados.",
+    route: "/vendas",
+    showInSidebar: true,
+    showInQuickAccess: true,
+    enabled: true,
+    requiredRoles: ["ADMINISTRADOR"],
+    order: 1.6,
   },
   {
     id: "agenda",

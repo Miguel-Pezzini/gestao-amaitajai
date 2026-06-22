@@ -15,6 +15,7 @@ describe("Autorização por perfil", () => {
   let adminToken: string;
   let tecnicoToken: string;
   let recepcaoToken: string;
+  let operadorToken: string;
 
   useIntegrationTestDatabase();
 
@@ -37,10 +38,17 @@ describe("Autorização por perfil", () => {
       password: "recep123456",
       role: "RECEPCAO",
     });
+    const operador = await createUser({
+      name: "Operador Authz",
+      email: "operador@authz.test",
+      password: "oper123456",
+      role: "OPERADOR",
+    });
 
     adminToken = await loginAs(admin.email, "admin123456");
     tecnicoToken = await loginAs(tecnico.email, "tech123456");
     recepcaoToken = await loginAs(recepcao.email, "recep123456");
+    operadorToken = await loginAs(operador.email, "oper123456");
   });
 
   describe("funcionários (/users)", () => {
@@ -208,6 +216,34 @@ describe("Autorização por perfil", () => {
         .get(`/api/patients/${paciente._id}/evolutions`), recepcaoToken);
 
       expect(patientEvolutionsResponse.status).toBe(403);
+    });
+  });
+
+  describe("vendas (/sales)", () => {
+    it("nega listagem ao técnico e à recepção", async () => {
+      const tecnicoResponse = await withAuth(request(app).get("/api/sales/products"), tecnicoToken);
+      expect(tecnicoResponse.status).toBe(403);
+
+      const recepcaoResponse = await withAuth(request(app).get("/api/sales/products"), recepcaoToken);
+      expect(recepcaoResponse.status).toBe(403);
+    });
+
+    it("permite listagem ao operador e ao administrador", async () => {
+      const operadorResponse = await withAuth(request(app).get("/api/sales/products"), operadorToken);
+      expect(operadorResponse.status).toBe(200);
+
+      const adminResponse = await withAuth(request(app).get("/api/sales/products"), adminToken);
+      expect(adminResponse.status).toBe(200);
+    });
+
+    it("nega pacientes ao operador", async () => {
+      const response = await withAuth(request(app).get("/api/patients"), operadorToken);
+      expect(response.status).toBe(403);
+    });
+
+    it("nega protocolos ao operador", async () => {
+      const response = await withAuth(request(app).get("/api/protocols"), operadorToken);
+      expect(response.status).toBe(403);
     });
   });
 });

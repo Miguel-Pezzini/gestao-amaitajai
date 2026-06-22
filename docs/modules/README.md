@@ -13,6 +13,7 @@ Cada módulo do sistema tem um arquivo `.md` com regras de negócio, funcionalid
 | Cadastros gerais | [cadastros.md](./cadastros.md) | fullstack |
 | Protocolos | [protocols.md](./protocols.md) | fullstack |
 | Ocupação de salas | [room-occupancy.md](./room-occupancy.md) | frontend |
+| Vendas | [vendas.md](./vendas.md) | fullstack |
 
 ## Regra para agentes de IA
 
