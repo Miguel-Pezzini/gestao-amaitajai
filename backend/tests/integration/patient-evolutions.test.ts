@@ -7,20 +7,19 @@ import {
   createPatient,
   createSessionType,
   createUser,
-  loginAndGetCookie,
+  loginAs, withAuth,
   seedAgendaBase,
 } from "./helpers/test-helpers.js";
 import { useIntegrationTestDatabase } from "./helpers/integration-db.js";
 
-async function createDuplaSession(adminCookie: string, params: {
+async function createDuplaSession(adminToken: string, params: {
   sessionTypeId: string;
   roomId: string;
   patientIds: string[];
   professionalIds: string[];
 }) {
-  const response = await request(app)
-    .post("/api/agenda/sessions")
-    .set("Cookie", adminCookie)
+  const response = await withAuth(request(app)
+    .post("/api/agenda/sessions"), adminToken)
     .send(
       buildSessionPayload({
         sessionTypeId: params.sessionTypeId,
@@ -44,7 +43,7 @@ describe("Patient evolutions integration", () => {
   });
 
   it("cria, atualiza e lista evoluções por paciente na sessão", async () => {
-    const { adminCookie, paciente, profissional, room } = await seedAgendaBase();
+    const { adminToken, paciente, profissional, room } = await seedAgendaBase();
     const pacienteB = await createPatient({
       fullName: "Paciente Dupla B",
       birthDate: new Date("2017-05-10"),
@@ -65,40 +64,36 @@ describe("Patient evolutions integration", () => {
       allowedModalities: ["DUPLA"],
     });
 
-    const sessionId = await createDuplaSession(adminCookie, {
+    const sessionId = await createDuplaSession(adminToken, {
       sessionTypeId: duplaType._id,
       roomId: room._id,
       patientIds: [paciente._id, pacienteB._id],
       professionalIds: [profissional._id, profissionalB._id],
     });
 
-    const tecnicoCookie = await loginAndGetCookie(profissional.email, "prof123456");
+    const tecnicoToken = await loginAs(profissional.email, "prof123456");
 
-    const emptyList = await request(app)
-      .get(`/api/agenda/sessions/${sessionId}/evolutions`)
-      .set("Cookie", tecnicoCookie);
+    const emptyList = await withAuth(request(app)
+      .get(`/api/agenda/sessions/${sessionId}/evolutions`), tecnicoToken);
     expect(emptyList.status).toBe(200);
     expect(emptyList.body.items).toHaveLength(2);
     expect(emptyList.body.items[0].current).toBeNull();
 
-    const created = await request(app)
-      .put(`/api/agenda/sessions/${sessionId}/evolutions/${paciente._id}`)
-      .set("Cookie", tecnicoCookie)
+    const created = await withAuth(request(app)
+      .put(`/api/agenda/sessions/${sessionId}/evolutions/${paciente._id}`), tecnicoToken)
       .send({ content: "  Evolução inicial do paciente A  " });
     expect(created.status).toBe(200);
     expect(created.body.evolution.content).toBe("Evolução inicial do paciente A");
     expect(created.body.evolution.createdBy.name).toBe("Profissional");
 
-    const updated = await request(app)
-      .put(`/api/agenda/sessions/${sessionId}/evolutions/${paciente._id}`)
-      .set("Cookie", tecnicoCookie)
+    const updated = await withAuth(request(app)
+      .put(`/api/agenda/sessions/${sessionId}/evolutions/${paciente._id}`), tecnicoToken)
       .send({ content: "Evolução revisada do paciente A" });
     expect(updated.status).toBe(200);
     expect(updated.body.evolution.content).toBe("Evolução revisada do paciente A");
 
-    const listed = await request(app)
-      .get(`/api/agenda/sessions/${sessionId}/evolutions`)
-      .set("Cookie", tecnicoCookie);
+    const listed = await withAuth(request(app)
+      .get(`/api/agenda/sessions/${sessionId}/evolutions`), tecnicoToken);
     expect(listed.status).toBe(200);
     const patientA = listed.body.items.find(
       (item: { patient: { _id: string } }) => item.patient._id === paciente._id,
@@ -107,11 +102,10 @@ describe("Patient evolutions integration", () => {
   });
 
   it("inclui histórico anterior do paciente ao listar evoluções da sessão", async () => {
-    const { adminCookie, paciente, profissional, room, sessionType } = await seedAgendaBase();
+    const { adminToken, paciente, profissional, room, sessionType } = await seedAgendaBase();
 
-    const firstSession = await request(app)
-      .post("/api/agenda/sessions")
-      .set("Cookie", adminCookie)
+    const firstSession = await withAuth(request(app)
+      .post("/api/agenda/sessions"), adminToken)
       .send(
         buildSessionPayload({
           sessionTypeId: sessionType._id,
@@ -123,9 +117,8 @@ describe("Patient evolutions integration", () => {
       );
     const firstSessionId = firstSession.body.session._id as string;
 
-    const secondSession = await request(app)
-      .post("/api/agenda/sessions")
-      .set("Cookie", adminCookie)
+    const secondSession = await withAuth(request(app)
+      .post("/api/agenda/sessions"), adminToken)
       .send(
         buildSessionPayload({
           sessionTypeId: sessionType._id,
@@ -137,15 +130,13 @@ describe("Patient evolutions integration", () => {
       );
     const secondSessionId = secondSession.body.session._id as string;
 
-    await request(app)
-      .put(`/api/agenda/sessions/${firstSessionId}/evolutions/${paciente._id}`)
-      .set("Cookie", adminCookie)
+    await withAuth(request(app)
+      .put(`/api/agenda/sessions/${firstSessionId}/evolutions/${paciente._id}`), adminToken)
       .send({ content: "Primeira sessão" });
 
-    const listed = await request(app)
+    const listed = await withAuth(request(app)
       .get(`/api/patients/${paciente._id}/evolutions`)
-      .query({ excludeSessionId: secondSessionId })
-      .set("Cookie", adminCookie);
+      .query({ excludeSessionId: secondSessionId }), adminToken);
     expect(listed.status).toBe(200);
     expect(listed.body.items).toHaveLength(1);
     expect(listed.body.items[0].content).toBe("Primeira sessão");
@@ -153,7 +144,7 @@ describe("Patient evolutions integration", () => {
   });
 
   it("inclui no histórico evoluções de outras modalidades do mesmo paciente", async () => {
-    const { adminCookie, paciente, profissional, room, sessionType } = await seedAgendaBase();
+    const { adminToken, paciente, profissional, room, sessionType } = await seedAgendaBase();
     const pacienteGrupo = await createPatient({
       fullName: "Paciente Grupo B",
       birthDate: new Date("2016-08-08"),
@@ -174,9 +165,8 @@ describe("Patient evolutions integration", () => {
       allowedModalities: ["GRUPO"],
     });
 
-    const individualSession = await request(app)
-      .post("/api/agenda/sessions")
-      .set("Cookie", adminCookie)
+    const individualSession = await withAuth(request(app)
+      .post("/api/agenda/sessions"), adminToken)
       .send(
         buildSessionPayload({
           sessionTypeId: sessionType._id,
@@ -189,9 +179,8 @@ describe("Patient evolutions integration", () => {
       );
     const individualSessionId = individualSession.body.session._id as string;
 
-    const grupoSession = await request(app)
-      .post("/api/agenda/sessions")
-      .set("Cookie", adminCookie)
+    const grupoSession = await withAuth(request(app)
+      .post("/api/agenda/sessions"), adminToken)
       .send(
         buildSessionPayload({
           sessionTypeId: grupoType._id,
@@ -205,28 +194,25 @@ describe("Patient evolutions integration", () => {
       );
     const grupoSessionId = grupoSession.body.session._id as string;
 
-    await request(app)
-      .put(`/api/agenda/sessions/${individualSessionId}/evolutions/${paciente._id}`)
-      .set("Cookie", adminCookie)
+    await withAuth(request(app)
+      .put(`/api/agenda/sessions/${individualSessionId}/evolutions/${paciente._id}`), adminToken)
       .send({ content: "Atendimento individual anterior" });
 
-    const listed = await request(app)
+    const listed = await withAuth(request(app)
       .get(`/api/patients/${paciente._id}/evolutions`)
-      .query({ excludeSessionId: grupoSessionId })
-      .set("Cookie", adminCookie);
+      .query({ excludeSessionId: grupoSessionId }), adminToken);
     expect(listed.status).toBe(200);
     expect(listed.body.items).toHaveLength(1);
     expect(listed.body.items[0].content).toBe("Atendimento individual anterior");
   });
 
   it("pagina histórico do paciente e exclui sessão atual quando solicitado", async () => {
-    const { adminCookie, paciente, profissional, room, sessionType } = await seedAgendaBase();
+    const { adminToken, paciente, profissional, room, sessionType } = await seedAgendaBase();
 
     const sessionIds: string[] = [];
     for (let index = 0; index < 3; index += 1) {
-      const created = await request(app)
-        .post("/api/agenda/sessions")
-        .set("Cookie", adminCookie)
+      const created = await withAuth(request(app)
+        .post("/api/agenda/sessions"), adminToken)
         .send(
           buildSessionPayload({
             sessionTypeId: sessionType._id,
@@ -238,37 +224,33 @@ describe("Patient evolutions integration", () => {
         );
       const sessionId = created.body.session._id as string;
       sessionIds.push(sessionId);
-      await request(app)
-        .put(`/api/agenda/sessions/${sessionId}/evolutions/${paciente._id}`)
-        .set("Cookie", adminCookie)
+      await withAuth(request(app)
+        .put(`/api/agenda/sessions/${sessionId}/evolutions/${paciente._id}`), adminToken)
         .send({ content: `Evolução ${index + 1}` });
     }
 
     const currentSessionId = sessionIds[2];
-    const pageOne = await request(app)
+    const pageOne = await withAuth(request(app)
       .get(`/api/patients/${paciente._id}/evolutions`)
-      .query({ excludeSessionId: currentSessionId, page: 1, limit: 1 })
-      .set("Cookie", adminCookie);
+      .query({ excludeSessionId: currentSessionId, page: 1, limit: 1 }), adminToken);
     expect(pageOne.status).toBe(200);
     expect(pageOne.body.items).toHaveLength(1);
     expect(pageOne.body.pagination.total).toBe(2);
     expect(pageOne.body.pagination.totalPages).toBe(2);
 
-    const pageTwo = await request(app)
+    const pageTwo = await withAuth(request(app)
       .get(`/api/patients/${paciente._id}/evolutions`)
-      .query({ excludeSessionId: currentSessionId, page: 2, limit: 1 })
-      .set("Cookie", adminCookie);
+      .query({ excludeSessionId: currentSessionId, page: 2, limit: 1 }), adminToken);
     expect(pageTwo.status).toBe(200);
     expect(pageTwo.body.items).toHaveLength(1);
     expect(pageTwo.body.items[0]._id).not.toBe(pageOne.body.items[0]._id);
   });
 
   it("lista histórico paginado do paciente", async () => {
-    const { adminCookie, paciente, profissional, room, sessionType } = await seedAgendaBase();
+    const { adminToken, paciente, profissional, room, sessionType } = await seedAgendaBase();
 
-    const session = await request(app)
-      .post("/api/agenda/sessions")
-      .set("Cookie", adminCookie)
+    const session = await withAuth(request(app)
+      .post("/api/agenda/sessions"), adminToken)
       .send(
         buildSessionPayload({
           sessionTypeId: sessionType._id,
@@ -279,14 +261,12 @@ describe("Patient evolutions integration", () => {
       );
     const sessionId = session.body.session._id as string;
 
-    await request(app)
-      .put(`/api/agenda/sessions/${sessionId}/evolutions/${paciente._id}`)
-      .set("Cookie", adminCookie)
+    await withAuth(request(app)
+      .put(`/api/agenda/sessions/${sessionId}/evolutions/${paciente._id}`), adminToken)
       .send({ content: "Histórico do paciente" });
 
-    const response = await request(app)
-      .get(`/api/patients/${paciente._id}/evolutions`)
-      .set("Cookie", adminCookie);
+    const response = await withAuth(request(app)
+      .get(`/api/patients/${paciente._id}/evolutions`), adminToken);
     expect(response.status).toBe(200);
     expect(response.body.items).toHaveLength(1);
     expect(response.body.items[0].content).toBe("Histórico do paciente");
@@ -294,7 +274,7 @@ describe("Patient evolutions integration", () => {
   });
 
   it("rejeita paciente fora da sessão e conteúdo inválido", async () => {
-    const { adminCookie, paciente, profissional, room, sessionType } = await seedAgendaBase();
+    const { adminToken, paciente, profissional, room, sessionType } = await seedAgendaBase();
     const outsider = await createPatient({
       fullName: "Paciente Fora",
       birthDate: new Date("2016-01-01"),
@@ -302,9 +282,8 @@ describe("Patient evolutions integration", () => {
       phone: "(47) 99999-0099",
     });
 
-    const created = await request(app)
-      .post("/api/agenda/sessions")
-      .set("Cookie", adminCookie)
+    const created = await withAuth(request(app)
+      .post("/api/agenda/sessions"), adminToken)
       .send(
         buildSessionPayload({
           sessionTypeId: sessionType._id,
@@ -315,27 +294,24 @@ describe("Patient evolutions integration", () => {
       );
     const sessionId = created.body.session._id as string;
 
-    const outsiderResponse = await request(app)
-      .put(`/api/agenda/sessions/${sessionId}/evolutions/${outsider._id}`)
-      .set("Cookie", adminCookie)
+    const outsiderResponse = await withAuth(request(app)
+      .put(`/api/agenda/sessions/${sessionId}/evolutions/${outsider._id}`), adminToken)
       .send({ content: "Não deveria salvar" });
     expect(outsiderResponse.status).toBe(400);
     expect(outsiderResponse.body.message).toContain("não participa");
 
-    const invalidContent = await request(app)
-      .put(`/api/agenda/sessions/${sessionId}/evolutions/${paciente._id}`)
-      .set("Cookie", adminCookie)
+    const invalidContent = await withAuth(request(app)
+      .put(`/api/agenda/sessions/${sessionId}/evolutions/${paciente._id}`), adminToken)
       .send({ content: 123 });
     expect(invalidContent.status).toBe(400);
     expect(invalidContent.body.message).toContain("texto");
   });
 
   it("impede evolução em sessão cancelada", async () => {
-    const { adminCookie, paciente, profissional, room, sessionType } = await seedAgendaBase();
+    const { adminToken, paciente, profissional, room, sessionType } = await seedAgendaBase();
 
-    const created = await request(app)
-      .post("/api/agenda/sessions")
-      .set("Cookie", adminCookie)
+    const created = await withAuth(request(app)
+      .post("/api/agenda/sessions"), adminToken)
       .send(
         buildSessionPayload({
           sessionTypeId: sessionType._id,
@@ -346,21 +322,19 @@ describe("Patient evolutions integration", () => {
       );
     const sessionId = created.body.session._id as string;
 
-    await request(app)
-      .patch(`/api/agenda/sessions/${sessionId}/cancel`)
-      .set("Cookie", adminCookie)
+    await withAuth(request(app)
+      .patch(`/api/agenda/sessions/${sessionId}/cancel`), adminToken)
       .send({ cancelReason: "Teste" });
 
-    const response = await request(app)
-      .put(`/api/agenda/sessions/${sessionId}/evolutions/${paciente._id}`)
-      .set("Cookie", adminCookie)
+    const response = await withAuth(request(app)
+      .put(`/api/agenda/sessions/${sessionId}/evolutions/${paciente._id}`), adminToken)
       .send({ content: "Depois do cancelamento" });
     expect(response.status).toBe(400);
     expect(response.body.message).toContain("cancelada");
   });
 
   it("restringe técnico à própria sessão e permite admin em qualquer sessão", async () => {
-    const { adminCookie, paciente, room, sessionType } = await seedAgendaBase();
+    const { adminToken, paciente, room, sessionType } = await seedAgendaBase();
 
     const tecnicoA = await createUser({
       name: "Tecnico A",
@@ -375,9 +349,8 @@ describe("Patient evolutions integration", () => {
       role: "TECNICO",
     });
 
-    const created = await request(app)
-      .post("/api/agenda/sessions")
-      .set("Cookie", adminCookie)
+    const created = await withAuth(request(app)
+      .post("/api/agenda/sessions"), adminToken)
       .send(
         buildSessionPayload({
           sessionTypeId: sessionType._id,
@@ -388,24 +361,21 @@ describe("Patient evolutions integration", () => {
       );
     const sessionId = created.body.session._id as string;
 
-    const tecnicoACookie = await loginAndGetCookie(tecnicoA.email, "tech123456");
-    const tecnicoBCookie = await loginAndGetCookie(tecnicoB.email, "tech123456");
+    const tecnicoAToken = await loginAs(tecnicoA.email, "tech123456");
+    const tecnicoBToken = await loginAs(tecnicoB.email, "tech123456");
 
-    const forbidden = await request(app)
-      .put(`/api/agenda/sessions/${sessionId}/evolutions/${paciente._id}`)
-      .set("Cookie", tecnicoBCookie)
+    const forbidden = await withAuth(request(app)
+      .put(`/api/agenda/sessions/${sessionId}/evolutions/${paciente._id}`), tecnicoBToken)
       .send({ content: "Sem permissão" });
     expect(forbidden.status).toBe(403);
 
-    const allowed = await request(app)
-      .put(`/api/agenda/sessions/${sessionId}/evolutions/${paciente._id}`)
-      .set("Cookie", tecnicoACookie)
+    const allowed = await withAuth(request(app)
+      .put(`/api/agenda/sessions/${sessionId}/evolutions/${paciente._id}`), tecnicoAToken)
       .send({ content: "Evolução do técnico A" });
     expect(allowed.status).toBe(200);
 
-    const adminEdit = await request(app)
-      .put(`/api/agenda/sessions/${sessionId}/evolutions/${paciente._id}`)
-      .set("Cookie", adminCookie)
+    const adminEdit = await withAuth(request(app)
+      .put(`/api/agenda/sessions/${sessionId}/evolutions/${paciente._id}`), adminToken)
       .send({ content: "Evolução editada pelo admin" });
     expect(adminEdit.status).toBe(200);
     expect(adminEdit.body.evolution.content).toBe("Evolução editada pelo admin");

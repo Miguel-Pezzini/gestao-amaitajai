@@ -6,7 +6,8 @@ import { patientEvolutionService } from "../services/patient-evolution.service.j
 
 const router = Router();
 
-router.use(requireAuth, requireClinicalOperator);
+router.use("/agenda/sessions", requireAuth, requireClinicalOperator);
+router.use("/patients", requireAuth, requireClinicalOperator);
 
 router.get(
   "/agenda/sessions/:sessionId/evolutions",

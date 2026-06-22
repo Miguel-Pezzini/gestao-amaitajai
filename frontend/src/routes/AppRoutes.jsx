@@ -18,6 +18,7 @@ import { LoginPage } from "@/pages/LoginPage";
 import { ModuleComingSoonPage } from "@/pages/ModuleComingSoonPage";
 import { RoomOccupancyPage } from "@/pages/RoomOccupancyPage";
 import { PatientsPage } from "@/pages/PatientsPage";
+import { AgendaPatientLocatorPage } from "@/pages/AgendaPatientLocatorPage";
 import { ProtocolsPage } from "@/pages/ProtocolsPage";
 import { FiadosPage } from "@/pages/vendas/FiadosPage";
 import { ProductsPage } from "@/pages/vendas/ProductsPage";
@@ -71,6 +72,14 @@ export function AppRoutes() {
               }
             />
             <Route path="/agenda" element={<AgendaPage />} />
+            <Route
+              path="/agenda/localizar-atendido"
+              element={
+                <RequireRolesRoute roles={["ADMINISTRADOR", "RECEPCAO"]}>
+                  <AgendaPatientLocatorPage />
+                </RequireRolesRoute>
+              }
+            />
             <Route
               path="/salas/ocupacao"
               element={

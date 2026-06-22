@@ -10,14 +10,14 @@ import {
   createPatient,
   createSessionType,
   createUser,
-  loginAndGetCookie,
+  loginAs, withAuth,
   seedAgendaBase,
   seedPatientFundingSources,
 } from "./helpers/test-helpers.js";
 import { useIntegrationTestDatabase } from "./helpers/integration-db.js";
 
 describe("Pacientes", () => {
-  let adminCookie: string;
+  let adminToken: string;
   let validPatientPayload: {
     fullName: string;
     birthDate: string;
@@ -35,7 +35,7 @@ describe("Pacientes", () => {
       password: "admin123456",
       role: "ADMINISTRADOR",
     });
-    adminCookie = await loginAndGetCookie(admin.email, "admin123456");
+    adminToken = await loginAs(admin.email, "admin123456");
 
     const fundingSources = await seedPatientFundingSources();
     validPatientPayload = {
@@ -53,9 +53,8 @@ describe("Pacientes", () => {
   });
 
   it("cria paciente com payload válido", async () => {
-    const response = await request(app)
-      .post("/api/patients")
-      .set("Cookie", adminCookie)
+    const response = await withAuth(request(app)
+      .post("/api/patients"), adminToken)
       .send(validPatientPayload);
 
     expect(response.status).toBe(201);
@@ -66,9 +65,8 @@ describe("Pacientes", () => {
   });
 
   it("rejeita criação com telefone inválido", async () => {
-    const response = await request(app)
-      .post("/api/patients")
-      .set("Cookie", adminCookie)
+    const response = await withAuth(request(app)
+      .post("/api/patients"), adminToken)
       .send({ ...validPatientPayload, phone: "123" });
 
     expect(response.status).toBe(400);
@@ -76,9 +74,8 @@ describe("Pacientes", () => {
   });
 
   it("cria paciente com campos clínicos preenchidos", async () => {
-    const response = await request(app)
-      .post("/api/patients")
-      .set("Cookie", adminCookie)
+    const response = await withAuth(request(app)
+      .post("/api/patients"), adminToken)
       .send({
         ...validPatientPayload,
         diagnosis: "TEA nível 2",
@@ -97,9 +94,8 @@ describe("Pacientes", () => {
   });
 
   it("cria paciente sem campos clínicos com valores vazios", async () => {
-    const response = await request(app)
-      .post("/api/patients")
-      .set("Cookie", adminCookie)
+    const response = await withAuth(request(app)
+      .post("/api/patients"), adminToken)
       .send(validPatientPayload);
 
     expect(response.status).toBe(201);
@@ -111,9 +107,8 @@ describe("Pacientes", () => {
   });
 
   it("atualiza parcialmente campo clínico preservando os demais", async () => {
-    const created = await request(app)
-      .post("/api/patients")
-      .set("Cookie", adminCookie)
+    const created = await withAuth(request(app)
+      .post("/api/patients"), adminToken)
       .send({
         ...validPatientPayload,
         diagnosis: "TEA",
@@ -122,9 +117,8 @@ describe("Pacientes", () => {
     expect(created.status).toBe(201);
     const patientId = created.body.patient._id as string;
 
-    const updated = await request(app)
-      .patch(`/api/patients/${patientId}`)
-      .set("Cookie", adminCookie)
+    const updated = await withAuth(request(app)
+      .patch(`/api/patients/${patientId}`), adminToken)
       .send({ medication: "Melatonina 3mg" });
 
     expect(updated.status).toBe(200);
@@ -133,9 +127,8 @@ describe("Pacientes", () => {
   });
 
   it("rejeita campo clínico acima do tamanho máximo", async () => {
-    const response = await request(app)
-      .post("/api/patients")
-      .set("Cookie", adminCookie)
+    const response = await withAuth(request(app)
+      .post("/api/patients"), adminToken)
       .send({
         ...validPatientPayload,
         diagnosis: "x".repeat(10_001),
@@ -146,60 +139,55 @@ describe("Pacientes", () => {
   });
 
   it("lista, busca, atualiza e inativa paciente", async () => {
-    const created = await request(app)
-      .post("/api/patients")
-      .set("Cookie", adminCookie)
+    const created = await withAuth(request(app)
+      .post("/api/patients"), adminToken)
       .send(validPatientPayload);
     expect(created.status).toBe(201);
     const patientId = created.body.patient._id as string;
 
-    const list = await request(app)
+    const list = await withAuth(request(app)
       .get("/api/patients")
-      .query({ search: "João" })
-      .set("Cookie", adminCookie);
+      .query({ search: "João" }), adminToken);
     expect(list.status).toBe(200);
     expect(list.body.items.some((p: { _id: string }) => p._id === patientId)).toBe(true);
 
-    const detail = await request(app)
-      .get(`/api/patients/${patientId}`)
-      .set("Cookie", adminCookie);
+    const detail = await withAuth(request(app)
+      .get(`/api/patients/${patientId}`), adminToken);
     expect(detail.status).toBe(200);
     expect(detail.body.patient._id).toBe(patientId);
 
-    const updated = await request(app)
-      .patch(`/api/patients/${patientId}`)
-      .set("Cookie", adminCookie)
+    const updated = await withAuth(request(app)
+      .patch(`/api/patients/${patientId}`), adminToken)
       .send({ guardianName: "Maria Santos" });
     expect(updated.status).toBe(200);
     expect(updated.body.patient.guardianName).toBe("Maria Santos");
 
-    const deactivated = await request(app)
-      .patch(`/api/patients/${patientId}/status`)
-      .set("Cookie", adminCookie)
+    const deactivated = await withAuth(request(app)
+      .patch(`/api/patients/${patientId}/status`), adminToken)
       .send({ isActive: false });
     expect(deactivated.status).toBe(200);
     expect(deactivated.body.patient.isActive).toBe(false);
 
-    const inactiveList = await request(app)
+    const inactiveList = await withAuth(request(app)
       .get("/api/patients")
-      .query({ status: "inactive" })
-      .set("Cookie", adminCookie);
+      .query({ status: "inactive" }), adminToken);
     expect(
       inactiveList.body.items.some((p: { _id: string }) => p._id === patientId),
     ).toBe(true);
   });
 
   it("retorna 404 para paciente inexistente", async () => {
-    const response = await request(app)
-      .get(`/api/patients/${randomUUID()}`)
-      .set("Cookie", adminCookie);
+    const response = await withAuth(
+      request(app).get(`/api/patients/${randomUUID()}`),
+      adminToken,
+    );
 
     expect(response.status).toBe(404);
   });
 
   describe("inativação e sessões futuras", () => {
     it("cancela sessões individuais na inativação", async () => {
-      const { adminCookie, paciente, profissional, room } = await seedAgendaBase();
+      const { adminToken, paciente, profissional, room } = await seedAgendaBase();
       const sessionType = await createSessionType({
         name: "PSICOPED",
         slug: `psicoped-individual-${Date.now()}`,
@@ -207,9 +195,8 @@ describe("Pacientes", () => {
         allowedModalities: ["INDIVIDUAL"],
       });
 
-      await request(app)
-        .post("/api/agenda/sessions")
-        .set("Cookie", adminCookie)
+      await withAuth(request(app)
+        .post("/api/agenda/sessions"), adminToken)
         .send(
           buildSessionPayload({
             sessionTypeId: sessionType._id,
@@ -220,9 +207,8 @@ describe("Pacientes", () => {
           }),
         );
 
-      const deactivated = await request(app)
-        .patch(`/api/patients/${paciente._id}/status`)
-        .set("Cookie", adminCookie)
+      const deactivated = await withAuth(request(app)
+        .patch(`/api/patients/${paciente._id}/status`), adminToken)
         .send({ isActive: false });
       expect(deactivated.status).toBe(200);
       expect(deactivated.body.sessionsCancelled).toBe(1);
@@ -239,7 +225,7 @@ describe("Pacientes", () => {
     });
 
     it("exige substituição em sessão em grupo com outros participantes", async () => {
-      const { adminCookie, paciente, profissional, room } = await seedAgendaBase();
+      const { adminToken, paciente, profissional, room } = await seedAgendaBase();
       const paciente2 = await createPatient({
         fullName: "Paciente Grupo 2",
         birthDate: new Date("2017-02-02"),
@@ -267,9 +253,8 @@ describe("Pacientes", () => {
         allowedModalities: ["GRUPO"],
       });
 
-      const created = await request(app)
-        .post("/api/agenda/sessions")
-        .set("Cookie", adminCookie)
+      const created = await withAuth(request(app)
+        .post("/api/agenda/sessions"), adminToken)
         .send(
           buildSessionPayload({
             sessionTypeId: groupType._id,
@@ -291,23 +276,20 @@ describe("Pacientes", () => {
         fundingSource: "ESTADUAL",
       });
 
-      const impact = await request(app)
-        .get(`/api/patients/${paciente._id}/deactivation-impact`)
-        .set("Cookie", adminCookie);
+      const impact = await withAuth(request(app)
+        .get(`/api/patients/${paciente._id}/deactivation-impact`), adminToken);
       expect(impact.status).toBe(200);
       expect(impact.body.requiresReplacement).toBe(true);
       expect(impact.body.replacements).toHaveLength(1);
       expect(impact.body.replacements[0]?.sessionId).toBe(sessionId);
 
-      const blocked = await request(app)
-        .patch(`/api/patients/${paciente._id}/status`)
-        .set("Cookie", adminCookie)
+      const blocked = await withAuth(request(app)
+        .patch(`/api/patients/${paciente._id}/status`), adminToken)
         .send({ isActive: false });
       expect(blocked.status).toBe(400);
 
-      const deactivated = await request(app)
-        .patch(`/api/patients/${paciente._id}/status`)
-        .set("Cookie", adminCookie)
+      const deactivated = await withAuth(request(app)
+        .patch(`/api/patients/${paciente._id}/status`), adminToken)
         .send({
           isActive: false,
           replacements: [{ sessionId, replacementPatientId: substituto._id }],
@@ -327,7 +309,7 @@ describe("Pacientes", () => {
     });
 
     it("substitui paciente em grupo mesmo quando fica abaixo do mínimo configurado", async () => {
-      const { adminCookie, paciente, profissional, room } = await seedAgendaBase();
+      const { adminToken, paciente, profissional, room } = await seedAgendaBase();
       const paciente2 = await createPatient({
         fullName: "Paciente Dupla Grupo",
         birthDate: new Date("2017-04-04"),
@@ -348,9 +330,8 @@ describe("Pacientes", () => {
         allowedModalities: ["GRUPO"],
       });
 
-      await request(app)
-        .patch("/api/agenda/session-modalities/GRUPO")
-        .set("Cookie", adminCookie)
+      await withAuth(request(app)
+        .patch("/api/agenda/session-modalities/GRUPO"), adminToken)
         .send({
           minPatients: 2,
           maxPatients: 15,
@@ -359,9 +340,8 @@ describe("Pacientes", () => {
           isActive: true,
         });
 
-      const created = await request(app)
-        .post("/api/agenda/sessions")
-        .set("Cookie", adminCookie)
+      const created = await withAuth(request(app)
+        .post("/api/agenda/sessions"), adminToken)
         .send(
           buildSessionPayload({
             sessionTypeId: groupType._id,
@@ -383,9 +363,8 @@ describe("Pacientes", () => {
         fundingSource: "ESTADUAL",
       });
 
-      const deactivated = await request(app)
-        .patch(`/api/patients/${paciente._id}/status`)
-        .set("Cookie", adminCookie)
+      const deactivated = await withAuth(request(app)
+        .patch(`/api/patients/${paciente._id}/status`), adminToken)
         .send({
           isActive: false,
           replacements: [{ sessionId, replacementPatientId: substituto._id }],
@@ -405,7 +384,7 @@ describe("Pacientes", () => {
     });
 
     it("substitui paciente em sessão em dupla sem cancelar a sessão", async () => {
-      const { adminCookie, paciente, profissional, room } = await seedAgendaBase();
+      const { adminToken, paciente, profissional, room } = await seedAgendaBase();
       const paciente2 = await createPatient({
         fullName: "Paciente Dupla 2",
         birthDate: new Date("2017-05-05"),
@@ -426,9 +405,8 @@ describe("Pacientes", () => {
         allowedModalities: ["DUPLA"],
       });
 
-      const created = await request(app)
-        .post("/api/agenda/sessions")
-        .set("Cookie", adminCookie)
+      const created = await withAuth(request(app)
+        .post("/api/agenda/sessions"), adminToken)
         .send(
           buildSessionPayload({
             sessionTypeId: duplaType._id,
@@ -450,9 +428,8 @@ describe("Pacientes", () => {
         fundingSource: "ESTADUAL",
       });
 
-      const deactivated = await request(app)
-        .patch(`/api/patients/${paciente._id}/status`)
-        .set("Cookie", adminCookie)
+      const deactivated = await withAuth(request(app)
+        .patch(`/api/patients/${paciente._id}/status`), adminToken)
         .send({
           isActive: false,
           replacements: [{ sessionId, replacementPatientId: substituto._id }],
@@ -472,7 +449,7 @@ describe("Pacientes", () => {
     });
 
     it("substitui paciente em série recorrente com uma única troca", async () => {
-      const { adminCookie, paciente, profissional, room } = await seedAgendaBase();
+      const { adminToken, paciente, profissional, room } = await seedAgendaBase();
       const paciente2 = await createPatient({
         fullName: "Paciente Série 2",
         birthDate: new Date("2017-09-09"),
@@ -500,9 +477,8 @@ describe("Pacientes", () => {
         allowedModalities: ["DUPLA"],
       });
 
-      const created = await request(app)
-        .post("/api/agenda/sessions")
-        .set("Cookie", adminCookie)
+      const created = await withAuth(request(app)
+        .post("/api/agenda/sessions"), adminToken)
         .send(
           buildRecurringSessionPayload({
             sessionTypeId: duplaType._id,
@@ -519,18 +495,16 @@ describe("Pacientes", () => {
       expect(created.status).toBe(201);
       const seriesId = created.body.series._id as string;
 
-      const impact = await request(app)
-        .get(`/api/patients/${paciente._id}/deactivation-impact`)
-        .set("Cookie", adminCookie);
+      const impact = await withAuth(request(app)
+        .get(`/api/patients/${paciente._id}/deactivation-impact`), adminToken);
       expect(impact.status).toBe(200);
       expect(impact.body.replacements).toHaveLength(1);
       expect(impact.body.replacements[0]?.type).toBe("series");
       expect(impact.body.replacements[0]?.seriesId).toBe(seriesId);
       expect(impact.body.replacements[0]?.sessionCount).toBeGreaterThan(1);
 
-      const deactivated = await request(app)
-        .patch(`/api/patients/${paciente._id}/status`)
-        .set("Cookie", adminCookie)
+      const deactivated = await withAuth(request(app)
+        .patch(`/api/patients/${paciente._id}/status`), adminToken)
         .send({
           isActive: false,
           replacements: [{ seriesId, replacementPatientId: substituto._id }],
@@ -558,7 +532,7 @@ describe("Pacientes", () => {
     });
 
     it("cancela sessão em grupo quando o paciente é o único participante", async () => {
-      const { adminCookie, paciente, profissional, room } = await seedAgendaBase();
+      const { adminToken, paciente, profissional, room } = await seedAgendaBase();
       const profissional2 = await createUser({
         name: "Prof Grupo Único",
         email: `prof-grupo-unico-${Date.now()}@patients.test`,
@@ -572,9 +546,8 @@ describe("Pacientes", () => {
         allowedModalities: ["GRUPO"],
       });
 
-      const created = await request(app)
-        .post("/api/agenda/sessions")
-        .set("Cookie", adminCookie)
+      const created = await withAuth(request(app)
+        .post("/api/agenda/sessions"), adminToken)
         .send(
           buildSessionPayload({
             sessionTypeId: groupType._id,
@@ -589,9 +562,8 @@ describe("Pacientes", () => {
       expect(created.status).toBe(201);
       const sessionId = created.body.session._id as string;
 
-      const deactivated = await request(app)
-        .patch(`/api/patients/${paciente._id}/status`)
-        .set("Cookie", adminCookie)
+      const deactivated = await withAuth(request(app)
+        .patch(`/api/patients/${paciente._id}/status`), adminToken)
         .send({ isActive: false });
       expect(deactivated.status).toBe(200);
       expect(deactivated.body.sessionsCancelled).toBe(1);
@@ -603,11 +575,10 @@ describe("Pacientes", () => {
     });
 
     it("cancela sessão agendada mesmo quando o horário de início já passou", async () => {
-      const { adminCookie, paciente, profissional, room, sessionType } = await seedAgendaBase();
+      const { adminToken, paciente, profissional, room, sessionType } = await seedAgendaBase();
 
-      const created = await request(app)
-        .post("/api/agenda/sessions")
-        .set("Cookie", adminCookie)
+      const created = await withAuth(request(app)
+        .post("/api/agenda/sessions"), adminToken)
         .send(
           buildSessionPayload({
             sessionTypeId: sessionType._id,
@@ -620,9 +591,8 @@ describe("Pacientes", () => {
       expect(created.status).toBe(201);
       const sessionId = created.body.session._id as string;
 
-      const deactivated = await request(app)
-        .patch(`/api/patients/${paciente._id}/status`)
-        .set("Cookie", adminCookie)
+      const deactivated = await withAuth(request(app)
+        .patch(`/api/patients/${paciente._id}/status`), adminToken)
         .send({ isActive: false });
       expect(deactivated.status).toBe(200);
       expect(deactivated.body.sessionsCancelled).toBe(1);
@@ -633,11 +603,10 @@ describe("Pacientes", () => {
     });
 
     it("não altera sessões já realizadas", async () => {
-      const { adminCookie, paciente, profissional, room, sessionType } = await seedAgendaBase();
+      const { adminToken, paciente, profissional, room, sessionType } = await seedAgendaBase();
 
-      const created = await request(app)
-        .post("/api/agenda/sessions")
-        .set("Cookie", adminCookie)
+      const created = await withAuth(request(app)
+        .post("/api/agenda/sessions"), adminToken)
         .send(
           buildSessionPayload({
             sessionTypeId: sessionType._id,
@@ -649,14 +618,12 @@ describe("Pacientes", () => {
         );
       const sessionId = created.body.session._id as string;
 
-      await request(app)
-        .patch(`/api/agenda/sessions/${sessionId}/complete`)
-        .set("Cookie", adminCookie)
+      await withAuth(request(app)
+        .patch(`/api/agenda/sessions/${sessionId}/complete`), adminToken)
         .send();
 
-      const deactivated = await request(app)
-        .patch(`/api/patients/${paciente._id}/status`)
-        .set("Cookie", adminCookie)
+      const deactivated = await withAuth(request(app)
+        .patch(`/api/patients/${paciente._id}/status`), adminToken)
         .send({ isActive: false });
       expect(deactivated.status).toBe(200);
       expect(deactivated.body.sessionsCancelled).toBe(0);
@@ -671,7 +638,7 @@ describe("Pacientes", () => {
     });
 
     it("mantém paciente em sessão realizada de série ao substituir ocorrências futuras", async () => {
-      const { adminCookie, paciente, profissional, room } = await seedAgendaBase();
+      const { adminToken, paciente, profissional, room } = await seedAgendaBase();
       const paciente2 = await createPatient({
         fullName: "Paciente Série Realizada 2",
         birthDate: new Date("2017-11-11"),
@@ -699,9 +666,8 @@ describe("Pacientes", () => {
         allowedModalities: ["DUPLA"],
       });
 
-      const created = await request(app)
-        .post("/api/agenda/sessions")
-        .set("Cookie", adminCookie)
+      const created = await withAuth(request(app)
+        .post("/api/agenda/sessions"), adminToken)
         .send(
           buildRecurringSessionPayload({
             sessionTypeId: duplaType._id,
@@ -723,14 +689,12 @@ describe("Pacientes", () => {
         orderBy: { startAt: "asc" },
       });
 
-      await request(app)
-        .patch(`/api/agenda/sessions/${firstSession.id}/complete`)
-        .set("Cookie", adminCookie)
+      await withAuth(request(app)
+        .patch(`/api/agenda/sessions/${firstSession.id}/complete`), adminToken)
         .send();
 
-      const deactivated = await request(app)
-        .patch(`/api/patients/${paciente._id}/status`)
-        .set("Cookie", adminCookie)
+      const deactivated = await withAuth(request(app)
+        .patch(`/api/patients/${paciente._id}/status`), adminToken)
         .send({
           isActive: false,
           replacements: [{ seriesId, replacementPatientId: substituto._id }],

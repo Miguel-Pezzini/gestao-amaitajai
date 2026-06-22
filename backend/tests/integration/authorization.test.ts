@@ -6,16 +6,16 @@ import {
   createPatient,
   createProtocolType,
   createUser,
-  loginAndGetCookie,
+  loginAs, withAuth,
   seedAgendaBase,
 } from "./helpers/test-helpers.js";
 import { useIntegrationTestDatabase } from "./helpers/integration-db.js";
 
 describe("Autorização por perfil", () => {
-  let adminCookie: string;
-  let tecnicoCookie: string;
-  let recepcaoCookie: string;
-  let operadorCookie: string;
+  let adminToken: string;
+  let tecnicoToken: string;
+  let recepcaoToken: string;
+  let operadorToken: string;
 
   useIntegrationTestDatabase();
 
@@ -45,10 +45,10 @@ describe("Autorização por perfil", () => {
       role: "OPERADOR",
     });
 
-    adminCookie = await loginAndGetCookie(admin.email, "admin123456");
-    tecnicoCookie = await loginAndGetCookie(tecnico.email, "tech123456");
-    recepcaoCookie = await loginAndGetCookie(recepcao.email, "recep123456");
-    operadorCookie = await loginAndGetCookie(operador.email, "oper123456");
+    adminToken = await loginAs(admin.email, "admin123456");
+    tecnicoToken = await loginAs(tecnico.email, "tech123456");
+    recepcaoToken = await loginAs(recepcao.email, "recep123456");
+    operadorToken = await loginAs(operador.email, "oper123456");
   });
 
   describe("funcionários (/users)", () => {
@@ -58,19 +58,19 @@ describe("Autorização por perfil", () => {
     });
 
     it("nega acesso ao técnico", async () => {
-      const response = await request(app).get("/api/users").set("Cookie", tecnicoCookie);
+      const response = await withAuth(request(app).get("/api/users"), tecnicoToken);
       expect(response.status).toBe(403);
       expect(response.body.message).toMatch(/negado/i);
     });
 
     it("nega acesso à recepção", async () => {
-      const response = await request(app).get("/api/users").set("Cookie", recepcaoCookie);
+      const response = await withAuth(request(app).get("/api/users"), recepcaoToken);
       expect(response.status).toBe(403);
       expect(response.body.message).toMatch(/negado/i);
     });
 
     it("permite listagem ao administrador", async () => {
-      const response = await request(app).get("/api/users").set("Cookie", adminCookie);
+      const response = await withAuth(request(app).get("/api/users"), adminToken);
       expect(response.status).toBe(200);
       expect(Array.isArray(response.body.items)).toBe(true);
     });
@@ -78,13 +78,13 @@ describe("Autorização por perfil", () => {
 
   describe("pacientes (/patients)", () => {
     it("permite listagem ao técnico autenticado", async () => {
-      const response = await request(app).get("/api/patients").set("Cookie", tecnicoCookie);
+      const response = await withAuth(request(app).get("/api/patients"), tecnicoToken);
       expect(response.status).toBe(200);
       expect(Array.isArray(response.body.items)).toBe(true);
     });
 
     it("nega listagem à recepção", async () => {
-      const response = await request(app).get("/api/patients").set("Cookie", recepcaoCookie);
+      const response = await withAuth(request(app).get("/api/patients"), recepcaoToken);
       expect(response.status).toBe(403);
       expect(response.body.message).toMatch(/negado/i);
     });
@@ -92,26 +92,25 @@ describe("Autorização por perfil", () => {
 
   describe("protocolos (/protocols)", () => {
     it("nega listagem ao técnico", async () => {
-      const response = await request(app).get("/api/protocols").set("Cookie", tecnicoCookie);
+      const response = await withAuth(request(app).get("/api/protocols"), tecnicoToken);
       expect(response.status).toBe(403);
     });
 
     it("permite listagem ao administrador", async () => {
-      const response = await request(app).get("/api/protocols").set("Cookie", adminCookie);
+      const response = await withAuth(request(app).get("/api/protocols"), adminToken);
       expect(response.status).toBe(200);
       expect(Array.isArray(response.body.items)).toBe(true);
     });
 
     it("permite listagem à recepção", async () => {
-      const response = await request(app).get("/api/protocols").set("Cookie", recepcaoCookie);
+      const response = await withAuth(request(app).get("/api/protocols"), recepcaoToken);
       expect(response.status).toBe(200);
       expect(Array.isArray(response.body.items)).toBe(true);
     });
 
     it("nega cadastro de tipo de protocolo à recepção", async () => {
-      const response = await request(app)
-        .post("/api/protocol-types")
-        .set("Cookie", recepcaoCookie)
+      const response = await withAuth(request(app)
+        .post("/api/protocol-types"), recepcaoToken)
         .send({ name: "Tipo Bloqueado" });
 
       expect(response.status).toBe(403);
@@ -126,9 +125,8 @@ describe("Autorização por perfil", () => {
       });
       const protocolType = await createProtocolType({ name: "Documento escolar" });
 
-      const createResponse = await request(app)
-        .post("/api/protocols")
-        .set("Cookie", recepcaoCookie)
+      const createResponse = await withAuth(request(app)
+        .post("/api/protocols"), recepcaoToken)
         .send({
           patientId: patient._id,
           protocolTypeId: protocolType._id,
@@ -140,9 +138,8 @@ describe("Autorização por perfil", () => {
 
       const protocolId = createResponse.body.protocol._id as string;
 
-      const completeResponse = await request(app)
-        .patch(`/api/protocols/${protocolId}/status`)
-        .set("Cookie", recepcaoCookie)
+      const completeResponse = await withAuth(request(app)
+        .patch(`/api/protocols/${protocolId}/status`), recepcaoToken)
         .send({ status: "CONCLUIDO" });
 
       expect(completeResponse.status).toBe(403);
@@ -151,27 +148,24 @@ describe("Autorização por perfil", () => {
 
   describe("agenda — cadastro de salas", () => {
     it("nega criação de sala ao técnico", async () => {
-      const response = await request(app)
-        .post("/api/agenda/rooms")
-        .set("Cookie", tecnicoCookie)
+      const response = await withAuth(request(app)
+        .post("/api/agenda/rooms"), tecnicoToken)
         .send({ name: "Sala Bloqueada" });
 
       expect(response.status).toBe(403);
     });
 
     it("nega criação de sala à recepção", async () => {
-      const response = await request(app)
-        .post("/api/agenda/rooms")
-        .set("Cookie", recepcaoCookie)
+      const response = await withAuth(request(app)
+        .post("/api/agenda/rooms"), recepcaoToken)
         .send({ name: "Sala Bloqueada Recepção" });
 
       expect(response.status).toBe(403);
     });
 
     it("permite criação de sala ao administrador", async () => {
-      const response = await request(app)
-        .post("/api/agenda/rooms")
-        .set("Cookie", adminCookie)
+      const response = await withAuth(request(app)
+        .post("/api/agenda/rooms"), adminToken)
         .send({ name: "Sala Permitida" });
 
       expect(response.status).toBe(201);
@@ -181,12 +175,11 @@ describe("Autorização por perfil", () => {
 
   describe("agenda — recepção", () => {
     it("lista sessões de outros profissionais e bloqueia conclusão e evoluções", async () => {
-      const { adminCookie: seededAdminCookie, profissional, paciente, room, sessionType } =
+      const { adminToken: seededAdminToken, profissional, paciente, room, sessionType } =
         await seedAgendaBase();
 
-      const createResponse = await request(app)
-        .post("/api/agenda/sessions")
-        .set("Cookie", seededAdminCookie)
+      const createResponse = await withAuth(request(app)
+        .post("/api/agenda/sessions"), seededAdminToken)
         .send(
           buildSessionPayload({
             sessionTypeId: sessionType._id,
@@ -200,31 +193,27 @@ describe("Autorização por perfil", () => {
       expect(createResponse.status).toBe(201);
       const sessionId = createResponse.body.session._id as string;
 
-      const listResponse = await request(app)
+      const listResponse = await withAuth(request(app)
         .get("/api/agenda/sessions")
-        .query({ startAt: "2026-06-10T00:00:00.000Z", endAt: "2026-06-10T23:59:59.999Z" })
-        .set("Cookie", recepcaoCookie);
+        .query({ startAt: "2026-06-10T00:00:00.000Z", endAt: "2026-06-10T23:59:59.999Z" }), recepcaoToken);
 
       expect(listResponse.status).toBe(200);
       expect(listResponse.body.items.some((item: { _id: string }) => item._id === sessionId)).toBe(
         true,
       );
 
-      const completeResponse = await request(app)
-        .patch(`/api/agenda/sessions/${sessionId}/complete`)
-        .set("Cookie", recepcaoCookie);
+      const completeResponse = await withAuth(request(app)
+        .patch(`/api/agenda/sessions/${sessionId}/complete`), recepcaoToken);
 
       expect(completeResponse.status).toBe(403);
 
-      const evolutionsResponse = await request(app)
-        .get(`/api/agenda/sessions/${sessionId}/evolutions`)
-        .set("Cookie", recepcaoCookie);
+      const evolutionsResponse = await withAuth(request(app)
+        .get(`/api/agenda/sessions/${sessionId}/evolutions`), recepcaoToken);
 
       expect(evolutionsResponse.status).toBe(403);
 
-      const patientEvolutionsResponse = await request(app)
-        .get(`/api/patients/${paciente._id}/evolutions`)
-        .set("Cookie", recepcaoCookie);
+      const patientEvolutionsResponse = await withAuth(request(app)
+        .get(`/api/patients/${paciente._id}/evolutions`), recepcaoToken);
 
       expect(patientEvolutionsResponse.status).toBe(403);
     });
@@ -232,36 +221,28 @@ describe("Autorização por perfil", () => {
 
   describe("vendas (/sales)", () => {
     it("nega listagem ao técnico e à recepção", async () => {
-      const tecnicoResponse = await request(app)
-        .get("/api/sales/products")
-        .set("Cookie", tecnicoCookie);
+      const tecnicoResponse = await withAuth(request(app).get("/api/sales/products"), tecnicoToken);
       expect(tecnicoResponse.status).toBe(403);
 
-      const recepcaoResponse = await request(app)
-        .get("/api/sales/products")
-        .set("Cookie", recepcaoCookie);
+      const recepcaoResponse = await withAuth(request(app).get("/api/sales/products"), recepcaoToken);
       expect(recepcaoResponse.status).toBe(403);
     });
 
     it("permite listagem ao operador e ao administrador", async () => {
-      const operadorResponse = await request(app)
-        .get("/api/sales/products")
-        .set("Cookie", operadorCookie);
+      const operadorResponse = await withAuth(request(app).get("/api/sales/products"), operadorToken);
       expect(operadorResponse.status).toBe(200);
 
-      const adminResponse = await request(app)
-        .get("/api/sales/products")
-        .set("Cookie", adminCookie);
+      const adminResponse = await withAuth(request(app).get("/api/sales/products"), adminToken);
       expect(adminResponse.status).toBe(200);
     });
 
     it("nega pacientes ao operador", async () => {
-      const response = await request(app).get("/api/patients").set("Cookie", operadorCookie);
+      const response = await withAuth(request(app).get("/api/patients"), operadorToken);
       expect(response.status).toBe(403);
     });
 
     it("nega protocolos ao operador", async () => {
-      const response = await request(app).get("/api/protocols").set("Cookie", operadorCookie);
+      const response = await withAuth(request(app).get("/api/protocols"), operadorToken);
       expect(response.status).toBe(403);
     });
   });

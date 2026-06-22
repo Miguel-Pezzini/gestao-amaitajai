@@ -7,20 +7,19 @@ import {
   createPatient,
   createSessionType,
   createUser,
-  loginAndGetCookie,
+  loginAs, withAuth,
   seedAgendaBase,
 } from "./helpers/test-helpers.js";
 import { useIntegrationTestDatabase } from "./helpers/integration-db.js";
 
-async function createDuplaSession(adminCookie: string, params: {
+async function createDuplaSession(adminToken: string, params: {
   sessionTypeId: string;
   roomId: string;
   patientIds: string[];
   professionalIds: string[];
 }) {
-  const response = await request(app)
-    .post("/api/agenda/sessions")
-    .set("Cookie", adminCookie)
+  const response = await withAuth(request(app)
+    .post("/api/agenda/sessions"), adminToken)
     .send(
       buildSessionPayload({
         sessionTypeId: params.sessionTypeId,
@@ -44,7 +43,7 @@ describe("Patient attendances integration", () => {
   });
 
   it("lista presença padrão PRESENTE e atualiza por paciente", async () => {
-    const { adminCookie, paciente, profissional, room } = await seedAgendaBase();
+    const { adminToken, paciente, profissional, room } = await seedAgendaBase();
     const pacienteB = await createPatient({
       fullName: "Paciente Dupla B",
       birthDate: new Date("2017-05-10"),
@@ -65,35 +64,32 @@ describe("Patient attendances integration", () => {
       allowedModalities: ["DUPLA"],
     });
 
-    const sessionId = await createDuplaSession(adminCookie, {
+    const sessionId = await createDuplaSession(adminToken, {
       sessionTypeId: duplaType._id,
       roomId: room._id,
       patientIds: [paciente._id, pacienteB._id],
       professionalIds: [profissional._id, profissionalB._id],
     });
 
-    const tecnicoCookie = await loginAndGetCookie(profissional.email, "prof123456");
+    const tecnicoToken = await loginAs(profissional.email, "prof123456");
 
-    const listed = await request(app)
-      .get(`/api/agenda/sessions/${sessionId}/attendance`)
-      .set("Cookie", tecnicoCookie);
+    const listed = await withAuth(request(app)
+      .get(`/api/agenda/sessions/${sessionId}/attendance`), tecnicoToken);
     expect(listed.status).toBe(200);
     expect(listed.body.items).toHaveLength(2);
     expect(listed.body.items[0].current.status).toBe("PRESENTE");
     expect(listed.body.items[0].current.justification).toBe("");
 
-    const updated = await request(app)
-      .put(`/api/agenda/sessions/${sessionId}/attendance/${paciente._id}`)
-      .set("Cookie", tecnicoCookie)
+    const updated = await withAuth(request(app)
+      .put(`/api/agenda/sessions/${sessionId}/attendance/${paciente._id}`), tecnicoToken)
       .send({ status: "FALTA" });
     expect(updated.status).toBe(200);
     expect(updated.body.attendance.status).toBe("FALTA");
     expect(updated.body.attendance.justification).toBe("");
     expect(updated.body.attendance.updatedBy.name).toBe("Profissional");
 
-    const justified = await request(app)
-      .put(`/api/agenda/sessions/${sessionId}/attendance/${pacienteB._id}`)
-      .set("Cookie", tecnicoCookie)
+    const justified = await withAuth(request(app)
+      .put(`/api/agenda/sessions/${sessionId}/attendance/${pacienteB._id}`), tecnicoToken)
       .send({
         status: "FALTA_JUSTIFICADA",
         justification: "  Consulta médica agendada  ",
@@ -104,11 +100,10 @@ describe("Patient attendances integration", () => {
   });
 
   it("rejeita falta justificada sem justificativa e justificativa em outros status", async () => {
-    const { adminCookie, paciente, profissional, room, sessionType } = await seedAgendaBase();
+    const { adminToken, paciente, profissional, room, sessionType } = await seedAgendaBase();
 
-    const created = await request(app)
-      .post("/api/agenda/sessions")
-      .set("Cookie", adminCookie)
+    const created = await withAuth(request(app)
+      .post("/api/agenda/sessions"), adminToken)
       .send(
         buildSessionPayload({
           sessionTypeId: sessionType._id,
@@ -119,23 +114,21 @@ describe("Patient attendances integration", () => {
       );
     const sessionId = created.body.session._id as string;
 
-    const missingJustification = await request(app)
-      .put(`/api/agenda/sessions/${sessionId}/attendance/${paciente._id}`)
-      .set("Cookie", adminCookie)
+    const missingJustification = await withAuth(request(app)
+      .put(`/api/agenda/sessions/${sessionId}/attendance/${paciente._id}`), adminToken)
       .send({ status: "FALTA_JUSTIFICADA", justification: "   " });
     expect(missingJustification.status).toBe(400);
     expect(missingJustification.body.message).toContain("obrigatória");
 
-    const invalidJustification = await request(app)
-      .put(`/api/agenda/sessions/${sessionId}/attendance/${paciente._id}`)
-      .set("Cookie", adminCookie)
+    const invalidJustification = await withAuth(request(app)
+      .put(`/api/agenda/sessions/${sessionId}/attendance/${paciente._id}`), adminToken)
       .send({ status: "PRESENTE", justification: "Não deveria aceitar" });
     expect(invalidJustification.status).toBe(400);
     expect(invalidJustification.body.message).toContain("só é permitida");
   });
 
   it("rejeita paciente fora da sessão e status inválido", async () => {
-    const { adminCookie, paciente, profissional, room, sessionType } = await seedAgendaBase();
+    const { adminToken, paciente, profissional, room, sessionType } = await seedAgendaBase();
     const outsider = await createPatient({
       fullName: "Paciente Fora",
       birthDate: new Date("2016-01-01"),
@@ -143,9 +136,8 @@ describe("Patient attendances integration", () => {
       phone: "(47) 99999-0099",
     });
 
-    const created = await request(app)
-      .post("/api/agenda/sessions")
-      .set("Cookie", adminCookie)
+    const created = await withAuth(request(app)
+      .post("/api/agenda/sessions"), adminToken)
       .send(
         buildSessionPayload({
           sessionTypeId: sessionType._id,
@@ -156,27 +148,24 @@ describe("Patient attendances integration", () => {
       );
     const sessionId = created.body.session._id as string;
 
-    const outsiderResponse = await request(app)
-      .put(`/api/agenda/sessions/${sessionId}/attendance/${outsider._id}`)
-      .set("Cookie", adminCookie)
+    const outsiderResponse = await withAuth(request(app)
+      .put(`/api/agenda/sessions/${sessionId}/attendance/${outsider._id}`), adminToken)
       .send({ status: "PRESENTE" });
     expect(outsiderResponse.status).toBe(400);
     expect(outsiderResponse.body.message).toContain("não participa");
 
-    const invalidStatus = await request(app)
-      .put(`/api/agenda/sessions/${sessionId}/attendance/${paciente._id}`)
-      .set("Cookie", adminCookie)
+    const invalidStatus = await withAuth(request(app)
+      .put(`/api/agenda/sessions/${sessionId}/attendance/${paciente._id}`), adminToken)
       .send({ status: "AUSENTE" });
     expect(invalidStatus.status).toBe(400);
     expect(invalidStatus.body.message).toContain("PRESENTE");
   });
 
   it("impede presença em sessão cancelada", async () => {
-    const { adminCookie, paciente, profissional, room, sessionType } = await seedAgendaBase();
+    const { adminToken, paciente, profissional, room, sessionType } = await seedAgendaBase();
 
-    const created = await request(app)
-      .post("/api/agenda/sessions")
-      .set("Cookie", adminCookie)
+    const created = await withAuth(request(app)
+      .post("/api/agenda/sessions"), adminToken)
       .send(
         buildSessionPayload({
           sessionTypeId: sessionType._id,
@@ -187,21 +176,19 @@ describe("Patient attendances integration", () => {
       );
     const sessionId = created.body.session._id as string;
 
-    await request(app)
-      .patch(`/api/agenda/sessions/${sessionId}/cancel`)
-      .set("Cookie", adminCookie)
+    await withAuth(request(app)
+      .patch(`/api/agenda/sessions/${sessionId}/cancel`), adminToken)
       .send({ cancelReason: "Teste" });
 
-    const response = await request(app)
-      .put(`/api/agenda/sessions/${sessionId}/attendance/${paciente._id}`)
-      .set("Cookie", adminCookie)
+    const response = await withAuth(request(app)
+      .put(`/api/agenda/sessions/${sessionId}/attendance/${paciente._id}`), adminToken)
       .send({ status: "FALTA" });
     expect(response.status).toBe(400);
     expect(response.body.message).toContain("cancelada");
   });
 
   it("restringe técnico à própria sessão e permite admin em qualquer sessão", async () => {
-    const { adminCookie, paciente, room, sessionType } = await seedAgendaBase();
+    const { adminToken, paciente, room, sessionType } = await seedAgendaBase();
 
     const tecnicoA = await createUser({
       name: "Tecnico A Att",
@@ -216,9 +203,8 @@ describe("Patient attendances integration", () => {
       role: "TECNICO",
     });
 
-    const created = await request(app)
-      .post("/api/agenda/sessions")
-      .set("Cookie", adminCookie)
+    const created = await withAuth(request(app)
+      .post("/api/agenda/sessions"), adminToken)
       .send(
         buildSessionPayload({
           sessionTypeId: sessionType._id,
@@ -229,36 +215,32 @@ describe("Patient attendances integration", () => {
       );
     const sessionId = created.body.session._id as string;
 
-    const tecnicoACookie = await loginAndGetCookie(tecnicoA.email, "tech123456");
-    const tecnicoBCookie = await loginAndGetCookie(tecnicoB.email, "tech123456");
+    const tecnicoAToken = await loginAs(tecnicoA.email, "tech123456");
+    const tecnicoBToken = await loginAs(tecnicoB.email, "tech123456");
 
-    const forbidden = await request(app)
-      .put(`/api/agenda/sessions/${sessionId}/attendance/${paciente._id}`)
-      .set("Cookie", tecnicoBCookie)
+    const forbidden = await withAuth(request(app)
+      .put(`/api/agenda/sessions/${sessionId}/attendance/${paciente._id}`), tecnicoBToken)
       .send({ status: "FALTA" });
     expect(forbidden.status).toBe(403);
 
-    const allowed = await request(app)
-      .put(`/api/agenda/sessions/${sessionId}/attendance/${paciente._id}`)
-      .set("Cookie", tecnicoACookie)
+    const allowed = await withAuth(request(app)
+      .put(`/api/agenda/sessions/${sessionId}/attendance/${paciente._id}`), tecnicoAToken)
       .send({ status: "FALTA" });
     expect(allowed.status).toBe(200);
 
-    const adminEdit = await request(app)
-      .put(`/api/agenda/sessions/${sessionId}/attendance/${paciente._id}`)
-      .set("Cookie", adminCookie)
+    const adminEdit = await withAuth(request(app)
+      .put(`/api/agenda/sessions/${sessionId}/attendance/${paciente._id}`), adminToken)
       .send({ status: "PRESENTE" });
     expect(adminEdit.status).toBe(200);
     expect(adminEdit.body.attendance.status).toBe("PRESENTE");
   });
 
   it("bloqueia conclusão da sessão com falta justificada sem justificativa", async () => {
-    const { adminCookie, paciente, profissional, room, sessionType } = await seedAgendaBase();
+    const { adminToken, paciente, profissional, room, sessionType } = await seedAgendaBase();
     const { prisma } = await import("../../src/db/prisma.js");
 
-    const created = await request(app)
-      .post("/api/agenda/sessions")
-      .set("Cookie", adminCookie)
+    const created = await withAuth(request(app)
+      .post("/api/agenda/sessions"), adminToken)
       .send(
         buildSessionPayload({
           sessionTypeId: sessionType._id,
@@ -282,33 +264,29 @@ describe("Patient attendances integration", () => {
       },
     });
 
-    const blocked = await request(app)
-      .patch(`/api/agenda/sessions/${sessionId}/complete`)
-      .set("Cookie", adminCookie);
+    const blocked = await withAuth(request(app)
+      .patch(`/api/agenda/sessions/${sessionId}/complete`), adminToken);
     expect(blocked.status).toBe(400);
     expect(blocked.body.message).toContain("justificativa");
 
-    await request(app)
-      .put(`/api/agenda/sessions/${sessionId}/attendance/${paciente._id}`)
-      .set("Cookie", adminCookie)
+    await withAuth(request(app)
+      .put(`/api/agenda/sessions/${sessionId}/attendance/${paciente._id}`), adminToken)
       .send({
         status: "FALTA_JUSTIFICADA",
         justification: "Atestado médico",
       });
 
-    const completed = await request(app)
-      .patch(`/api/agenda/sessions/${sessionId}/complete`)
-      .set("Cookie", adminCookie);
+    const completed = await withAuth(request(app)
+      .patch(`/api/agenda/sessions/${sessionId}/complete`), adminToken);
     expect(completed.status).toBe(200);
     expect(completed.body.session.status).toBe("REALIZADA");
   });
 
   it("permite concluir sessão com presença padrão PRESENTE", async () => {
-    const { adminCookie, paciente, profissional, room, sessionType } = await seedAgendaBase();
+    const { adminToken, paciente, profissional, room, sessionType } = await seedAgendaBase();
 
-    const created = await request(app)
-      .post("/api/agenda/sessions")
-      .set("Cookie", adminCookie)
+    const created = await withAuth(request(app)
+      .post("/api/agenda/sessions"), adminToken)
       .send(
         buildSessionPayload({
           sessionTypeId: sessionType._id,
@@ -319,9 +297,8 @@ describe("Patient attendances integration", () => {
       );
     const sessionId = created.body.session._id as string;
 
-    const completed = await request(app)
-      .patch(`/api/agenda/sessions/${sessionId}/complete`)
-      .set("Cookie", adminCookie);
+    const completed = await withAuth(request(app)
+      .patch(`/api/agenda/sessions/${sessionId}/complete`), adminToken);
     expect(completed.status).toBe(200);
     expect(completed.body.session.status).toBe("REALIZADA");
   });
