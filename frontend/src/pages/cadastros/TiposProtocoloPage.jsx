@@ -184,7 +184,7 @@ export function TiposProtocoloPage() {
             Tipos de protocolo
           </CardTitle>
           <CardDescription className="mt-1 break-words sm:mt-2">
-            Olá, {userName}. Cadastre os tipos de solicitação usados nos protocolos dos atendidos.
+            Olá, {userName}. Cadastre os tipos de solicitação usados nos protocolos dos usuários.
           </CardDescription>
         </CardHeader>
       </Card>
@@ -267,7 +267,7 @@ export function TiposProtocoloPage() {
             <EmptyState
               icon={ClipboardList}
               title="Nenhum tipo cadastrado"
-              description="Cadastre tipos de solicitação para usar nos protocolos dos atendidos."
+              description="Cadastre tipos de solicitação para usar nos protocolos dos usuários."
               actionLabel="Cadastrar tipo"
               onAction={openCreateDialog}
             />

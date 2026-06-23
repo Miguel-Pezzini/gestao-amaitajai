@@ -80,7 +80,7 @@ export function PatientReplacementPicker({
         id={inputId}
         value={searchTerm}
         onChange={(event) => setSearchTerm(event.target.value)}
-        placeholder="Buscar paciente por nome"
+        placeholder="Buscar usuário por nome"
         disabled={disabled}
         aria-invalid={Boolean(error)}
       />
@@ -88,7 +88,7 @@ export function PatientReplacementPicker({
       {loading ? <p className="text-xs text-muted-foreground">Buscando…</p> : null}
 
       {!loading && searchTerm.trim() && options.length === 0 ? (
-        <p className="text-xs text-muted-foreground">Nenhum paciente encontrado.</p>
+        <p className="text-xs text-muted-foreground">Nenhum usuário encontrado.</p>
       ) : null}
 
       {!loading && options.length > 0 ? (

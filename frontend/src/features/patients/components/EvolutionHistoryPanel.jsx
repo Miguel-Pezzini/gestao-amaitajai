@@ -54,7 +54,7 @@ export function EvolutionHistoryPanel({ entry }) {
 
 export function EvolutionHistoryList({
   items,
-  emptyMessage = "Nenhuma evolução registrada para este paciente.",
+  emptyMessage = "Nenhuma evolução registrada para este usuário.",
   listClassName = "max-h-56",
 }) {
   if (!items?.length) {

@@ -14,7 +14,7 @@ export function ProtocolPatientSearchField({
 }) {
   return (
     <div className="space-y-1.5">
-      <Label htmlFor="protocol-patient-search">Paciente</Label>
+      <Label htmlFor="protocol-patient-search">Usuário</Label>
 
       {selectedPatient ? (
         <div className="flex items-center justify-between gap-2 rounded-md border border-ama-cyan/30 bg-ama-light/40 px-3 py-2">
@@ -34,7 +34,7 @@ export function ProtocolPatientSearchField({
             id="protocol-patient-search"
             value={searchTerm}
             onChange={(event) => onSearchTermChange(event.target.value)}
-            placeholder="Buscar paciente"
+            placeholder="Buscar usuário"
             disabled={saving}
             aria-invalid={Boolean(fieldError)}
           />

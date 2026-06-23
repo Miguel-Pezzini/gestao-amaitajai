@@ -192,7 +192,7 @@ export function ProtocolsPage() {
           <CardDescription className="mt-1 break-words sm:mt-2">
             Olá, {userName}.{" "}
             {canManageProtocols
-              ? "Registre solicitações administrativas dos responsáveis e acompanhe pendências por atendido."
+              ? "Registre solicitações administrativas dos responsáveis e acompanhe pendências por usuário."
               : "Abra novas solicitações administrativas dos responsáveis e acompanhe o status dos pedidos."}
           </CardDescription>
         </CardHeader>
@@ -206,7 +206,7 @@ export function ProtocolsPage() {
           if (!open) closeFormDialog();
         }}
         title="Novo protocolo"
-        description="Abra um pedido vinculado ao atendido. O número será gerado automaticamente."
+        description="Abra um pedido vinculado ao usuário. O número será gerado automaticamente."
       >
         <ProtocolForm
           form={form}
@@ -262,7 +262,7 @@ export function ProtocolsPage() {
             noValidate
           >
             <div className="min-w-0 space-y-2">
-              <Label htmlFor="protocol-search">Paciente, responsável ou número</Label>
+              <Label htmlFor="protocol-search">Usuário, responsável ou número</Label>
               <Input
                 id="protocol-search"
                 value={search}
@@ -328,7 +328,7 @@ export function ProtocolsPage() {
                   key={protocol._id}
                   title={
                     <span className="inline-flex flex-wrap items-center gap-2">
-                      <span>{protocol.patient?.fullName ?? "Paciente"}</span>
+                      <span>{protocol.patient?.fullName ?? "Usuário"}</span>
                       {protocol.status === "PENDENTE" ? <PendingProtocolBadge /> : null}
                     </span>
                   }

@@ -51,7 +51,7 @@ Número sequencial por ano: `AAAANNNNN` (ex.: 202600001).
 | Rota | Componente | Descrição |
 |---|---|---|
 | `/protocols` | `ProtocolsPage` | Lista geral, conclusão e cancelamento |
-| Pacientes | `PatientProtocolsDialog` | Protocolos por paciente |
+| Pacientes (UI: **Usuários**) | `PatientProtocolsDialog` | Protocolos por paciente |
 
 Lista exibe data de abertura; para concluídos, data de conclusão; para cancelados, data e justificativa.
 

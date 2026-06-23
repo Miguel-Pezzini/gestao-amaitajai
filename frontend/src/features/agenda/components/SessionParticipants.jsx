@@ -21,7 +21,7 @@ export function SessionParticipantsPreview({ session }) {
     <div className="mt-1.5 space-y-0.5 text-xs text-muted-foreground">
       {patients.length > 0 ? (
         <p className="line-clamp-2">
-          <span className="font-medium text-ama-blue-dark/70">Pacientes: </span>
+          <span className="font-medium text-ama-blue-dark/70">Usuários: </span>
           {patients.map((item) => item.label).join(", ")}
         </p>
       ) : null}
@@ -55,9 +55,9 @@ export function SessionParticipantsDetail({ session }) {
 
   return (
     <div className="space-y-4">
-      <ParticipantSection title="Pacientes">
+      <ParticipantSection title="Usuários">
         {patients.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Nenhum paciente vinculado.</p>
+          <p className="text-sm text-muted-foreground">Nenhum usuário vinculado.</p>
         ) : (
           <ul className="space-y-2">
             {patients.map((patient) => (

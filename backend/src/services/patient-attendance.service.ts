@@ -77,7 +77,7 @@ class PatientAttendanceService {
   private assertPatientInSession(session: SessionWithParticipants, patientId: string): void {
     const isParticipant = session.patients.some((row) => row.patientId === patientId);
     if (!isParticipant) {
-      throw new ValidationError("O paciente não participa desta sessão.");
+      throw new ValidationError("O usuário não participa desta sessão.");
     }
   }
 
@@ -129,7 +129,7 @@ class PatientAttendanceService {
     currentUser: AuthUser,
   ) {
     if (!isUuid(patientId)) {
-      throw new ValidationError("Identificador de paciente inválido.");
+      throw new ValidationError("Identificador de usuário inválido.");
     }
 
     const session = await this.findSessionOrThrow(sessionId);

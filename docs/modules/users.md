@@ -5,6 +5,12 @@
 
 ---
 
+## Terminologia
+
+Na **interface**, este módulo aparece como **Funcionários** (Cadastros gerais). No **código**, a entidade é `User` (`/users`). Não confundir com **usuário atendido** pela ONG — na UI do módulo de cadastro clínico (`Patient`, `/patients`); ver [`patients.md`](./patients.md).
+
+---
+
 ## Visão geral
 
 Gestão de funcionários (usuários do sistema) com perfis `ADMINISTRADOR`, `TECNICO`, `RECEPCAO` ou `OPERADOR` e status de conta. Acesso restrito a administradores.

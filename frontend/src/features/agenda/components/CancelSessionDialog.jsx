@@ -67,7 +67,7 @@ export function CancelSessionDialog({
             id="cancelReason"
             value={cancelReason}
             onChange={(event) => onCancelReasonChange(event.target.value)}
-            placeholder="Ex.: paciente ausente"
+            placeholder="Ex.: usuário ausente"
             disabled={saving}
             aria-invalid={Boolean(cancelReasonError)}
           />

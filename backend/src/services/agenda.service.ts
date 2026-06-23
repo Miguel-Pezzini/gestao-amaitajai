@@ -1095,7 +1095,7 @@ export class AgendaService {
     return { sessionsCancelled, sessionsReplaced };
   }
 
-  /** Sessões pendentes (`agendada`) em que o paciente participa; realizadas/canceladas ficam intactas. */
+  /** Sessões pendentes (`agendada`) em que o usuário participa; realizadas/canceladas ficam intactas. */
   private async findScheduledSessionsForPatient(patientId: string) {
     return prisma.session.findMany({
       where: {
@@ -1154,7 +1154,7 @@ export class AgendaService {
 
     if (replacementByKey.size !== requiredReplacements.length) {
       throw new ValidationError(
-        "Informe o paciente substituto para todas as sessões que exigem troca.",
+        "Informe o usuário substituto para todas as sessões que exigem troca.",
       );
     }
 
@@ -1163,8 +1163,8 @@ export class AgendaService {
       if (!replacement || replacement.replacementPatientId === patientId) {
         throw new ValidationError(
           replacement?.replacementPatientId === patientId
-            ? "O paciente substituto deve ser diferente do paciente inativado."
-            : "Informe o paciente substituto para todas as sessões que exigem troca.",
+            ? "O usuário substituto deve ser diferente do usuário inativado."
+            : "Informe o usuário substituto para todas as sessões que exigem troca.",
         );
       }
     }
@@ -1207,12 +1207,12 @@ export class AgendaService {
       where: { seriesId, patientId: newPatientId },
     });
     if (alreadyInSeries) {
-      throw new ValidationError("O paciente substituto já participa desta série.");
+      throw new ValidationError("O usuário substituto já participa desta série.");
     }
 
     for (const session of seriesSessions) {
       if (session.patients.some((row) => row.patientId === newPatientId)) {
-        throw new ValidationError("O paciente substituto já participa de uma sessão desta série.");
+        throw new ValidationError("O usuário substituto já participa de uma sessão desta série.");
       }
 
       const nextPatientIds = session.patients
@@ -1286,11 +1286,11 @@ export class AgendaService {
     }
 
     if (!session.patients.some((row) => row.patientId === oldPatientId)) {
-      throw new ValidationError("O paciente inativado não participa desta sessão.");
+      throw new ValidationError("O usuário inativado não participa desta sessão.");
     }
 
     if (session.patients.some((row) => row.patientId === newPatientId)) {
-      throw new ValidationError("O paciente substituto já participa desta sessão.");
+      throw new ValidationError("O usuário substituto já participa desta sessão.");
     }
 
     const nextPatientIds = session.patients
@@ -1325,7 +1325,7 @@ export class AgendaService {
     deactivatedPatientId: string,
   ) {
     if (replacementPatientId === deactivatedPatientId) {
-      throw new ValidationError("O paciente substituto deve ser diferente do paciente inativado.");
+      throw new ValidationError("O usuário substituto deve ser diferente do usuário inativado.");
     }
 
     const replacementPatient = await tx.patient.findUnique({
@@ -1334,7 +1334,7 @@ export class AgendaService {
     });
 
     if (!replacementPatient?.isActive) {
-      throw new ValidationError("O paciente substituto não existe ou está inativo.");
+      throw new ValidationError("O usuário substituto não existe ou está inativo.");
     }
   }
 
@@ -1957,11 +1957,11 @@ export class AgendaService {
     if (patientCount < limits.minPatients || patientCount > limits.maxPatients) {
       if (limits.minPatients === limits.maxPatients) {
         throw new ValidationError(
-          `Para tipo de sessão ${formatLabel}, selecione exatamente ${limits.minPatients} paciente(s).`,
+          `Para tipo de sessão ${formatLabel}, selecione exatamente ${limits.minPatients} usuário(s).`,
         );
       }
       throw new ValidationError(
-        `Para tipo de sessão ${formatLabel}, selecione entre ${limits.minPatients} e ${limits.maxPatients} pacientes.`,
+        `Para tipo de sessão ${formatLabel}, selecione entre ${limits.minPatients} e ${limits.maxPatients} usuários.`,
       );
     }
 
@@ -2004,7 +2004,7 @@ export class AgendaService {
       throw new ValidationError("A sala selecionada não existe ou está inativa.");
     }
     if (patientsCount !== input.patientIds.length) {
-      throw new ValidationError("Um ou mais pacientes selecionados não existem ou estão inativos.");
+      throw new ValidationError("Um ou mais usuários selecionados não existem ou estão inativos.");
     }
     if (professionalsCount !== professionalIds.length) {
       throw new ValidationError(
@@ -2176,7 +2176,7 @@ export class AgendaService {
     }
 
     if (patientConflict) {
-      throw new ConflictError("Um dos pacientes já possui sessão nesse horário.");
+      throw new ConflictError("Um dos usuários já possui sessão nesse horário.");
     }
   }
 }

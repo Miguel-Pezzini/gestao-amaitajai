@@ -26,9 +26,9 @@ export const APP_MODULES = [
   },
   {
     id: "patients",
-    label: "Pacientes",
+    label: "Usuários",
     icon: Users,
-    description: "Cadastre, pesquise e mantenha pacientes ativos.",
+    description: "Cadastre, pesquise e mantenha usuários ativos.",
     route: "/patients",
     showInSidebar: true,
     showInQuickAccess: true,
@@ -74,7 +74,7 @@ export const APP_MODULES = [
   },
   {
     id: "patient-locator",
-    label: "Localizar atendido",
+    label: "Localizar usuário",
     icon: MapPin,
     description: "Encontre rapidamente a sala e o profissional de uma criança no dia.",
     route: "/agenda/localizar-atendido",

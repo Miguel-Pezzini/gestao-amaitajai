@@ -16,7 +16,7 @@ function PatientEvolutionCard({
   onDiscard,
   onSave,
 }) {
-  const patientName = item.patient?.fullName ?? "Paciente";
+  const patientName = item.patient?.fullName ?? "Usuário";
   const savedContent = item.current?.content ?? "";
   const hasUnsavedChanges = draft !== savedContent;
 
@@ -33,7 +33,7 @@ function PatientEvolutionCard({
           excludeSessionId={sessionId}
           enabled={historyEnabled}
           pageSize={SESSION_HISTORY_PAGE_SIZE}
-          emptyMessage="Nenhuma evolução anterior registrada para este paciente."
+          emptyMessage="Nenhuma evolução anterior registrada para este usuário."
         />
       </div>
 
@@ -50,7 +50,7 @@ function PatientEvolutionCard({
           value={draft}
           onChange={(event) => onDraftChange(item.patient._id, event.target.value)}
           disabled={readOnly || saving}
-          placeholder="Descreva a evolução do paciente nesta sessão..."
+          placeholder="Descreva a evolução do usuário nesta sessão..."
         />
       </div>
 
@@ -108,16 +108,16 @@ export function SessionPatientEvolutions({
   return (
     <section className="min-w-0 space-y-3 overflow-hidden border-t border-ama-cyan/15 pt-4">
       <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        Evolução dos pacientes
+        Evolução dos usuários
       </h3>
 
       {loading ? (
         <p className="text-sm text-muted-foreground">Carregando evoluções...</p>
       ) : items.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Nenhum paciente vinculado a esta sessão.</p>
+        <p className="text-sm text-muted-foreground">Nenhum usuário vinculado a esta sessão.</p>
       ) : presentItems.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          Nenhum paciente presente nesta sessão para registrar evolução.
+          Nenhum usuário presente nesta sessão para registrar evolução.
         </p>
       ) : (
         <div className="space-y-4">

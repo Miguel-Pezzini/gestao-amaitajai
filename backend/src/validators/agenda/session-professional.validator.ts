@@ -117,7 +117,7 @@ export function validateSessionProfessionals(
 
   for (const professional of professionals) {
     if (!isUuid(professional.professionalId)) {
-      throw new ValidationError("Paciente ou profissional selecionado é inválido.");
+      throw new ValidationError("Usuário ou profissional selecionado é inválido.");
     }
 
     if (professional.isApoio && params.modality !== "GRUPO") {

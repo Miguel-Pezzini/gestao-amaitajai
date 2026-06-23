@@ -34,7 +34,7 @@ function PatientAttendanceCard({
   onDiscard,
   onSave,
 }) {
-  const patientName = item.patient?.fullName ?? "Paciente";
+  const patientName = item.patient?.fullName ?? "Usuário";
   const saved = item.current;
   const savedStatus = saved?.status ?? "PRESENTE";
   const savedJustification = saved?.justification ?? "";
@@ -142,13 +142,13 @@ export function SessionPatientAttendance({ attendance, readOnly }) {
   return (
     <section className="min-w-0 space-y-3 overflow-hidden border-t border-ama-cyan/15 pt-4">
       <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        Presença dos pacientes
+        Presença dos usuários
       </h3>
 
       {loading ? (
         <p className="text-sm text-muted-foreground">Carregando presença...</p>
       ) : items.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Nenhum paciente vinculado a esta sessão.</p>
+        <p className="text-sm text-muted-foreground">Nenhum usuário vinculado a esta sessão.</p>
       ) : (
         <div className="space-y-4">
           {items.map((item) => (

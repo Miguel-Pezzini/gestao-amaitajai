@@ -495,7 +495,7 @@ function mapParticipantRefs(items, labelKey, defaultLabel, extraFields) {
 }
 
 export function getSessionPatients(session) {
-  return mapParticipantRefs(session?.patientIds, "fullName", "Paciente", (item) => ({
+  return mapParticipantRefs(session?.patientIds, "fullName", "Usuário", (item) => ({
     fundingSource: item?.fundingSource ?? "",
   }));
 }

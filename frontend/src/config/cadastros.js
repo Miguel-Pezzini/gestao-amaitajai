@@ -44,7 +44,7 @@ export const CADASTRO_ITEMS = [
   {
     id: "tipos-custeio",
     label: "Fontes de Custeio",
-    description: "Cadastre as fontes de custeio dos atendidos.",
+    description: "Cadastre as fontes de custeio dos usuários.",
     icon: Wallet,
     route: "/cadastros/tipos-custeio",
     order: 4,

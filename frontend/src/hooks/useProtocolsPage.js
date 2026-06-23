@@ -155,7 +155,7 @@ export function useProtocolsPage() {
 
     const errors = {};
     if (!form.patientId) {
-      errors.patientId = "Selecione o paciente.";
+      errors.patientId = "Selecione o usuário.";
     }
     if (!form.protocolTypeId) {
       errors.protocolTypeId = "Selecione o tipo de solicitação.";

@@ -98,7 +98,7 @@ export function AgendaPatientLocatorPage() {
     <div className="space-y-6">
       <Card className="border-ama-cyan/30">
         <CardHeader>
-          <CardTitle className="text-xl text-ama-text">Localizar atendido</CardTitle>
+          <CardTitle className="text-xl text-ama-text">Localizar usuário</CardTitle>
           <CardDescription>
             Busque pelo nome da criança ou do responsável para ver sala e profissional no dia
             selecionado.
@@ -144,7 +144,7 @@ export function AgendaPatientLocatorPage() {
         <EmptyState
           icon={Search}
           title="Nenhum resultado"
-          description="Nenhum paciente encontrado com esse nome."
+          description="Nenhum usuário encontrado com esse nome."
         />
       ) : (
         <div className="space-y-4">

@@ -88,7 +88,7 @@ export function PatientSessionsDialog({ patient, open, onOpenChange }) {
       setPagination(response.pagination ?? null);
       setPage(targetPage);
     } catch (err) {
-      setError(getApiErrorMessage(err, "Não foi possível carregar as sessões deste paciente."));
+      setError(getApiErrorMessage(err, "Não foi possível carregar as sessões deste usuário."));
     } finally {
       setLoading(false);
     }

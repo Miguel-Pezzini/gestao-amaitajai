@@ -11,7 +11,7 @@ export function EvolutionHistorySection({
   enabled = true,
   pageSize = 10,
   listClassName = "max-h-56",
-  emptyMessage = "Nenhuma evolução registrada para este paciente.",
+  emptyMessage = "Nenhuma evolução registrada para este usuário.",
 }) {
   const { items, pagination, loading, error, handlePageChange } = usePatientEvolutionHistory(
     patientId,

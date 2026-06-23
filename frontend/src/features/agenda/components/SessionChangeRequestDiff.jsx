@@ -129,7 +129,7 @@ function buildEditDiff(request, { rooms, sessionTypes }) {
   const resolvePatientLabel = (id) =>
     labelMaps.patients[id] ??
     getSessionPatients(session).find((item) => item.id === id)?.label ??
-    "Paciente";
+    "Usuário";
 
   const resolveProfessionalLabel = (id) =>
     labelMaps.professionals[id] ??
@@ -279,7 +279,7 @@ export function SessionChangeRequestDiff({ request, rooms = [], sessionTypes = [
       {diff.rows.map((row) => (
         <DiffRow key={row.key} label={row.label} before={row.before} after={row.after} />
       ))}
-      <ListDiff label="Pacientes" {...diff.patientLabels} />
+      <ListDiff label="Usuários" {...diff.patientLabels} />
       <ListDiff label="Profissionais" {...diff.professionalLabels} />
     </div>
   );

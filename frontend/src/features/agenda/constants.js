@@ -17,7 +17,7 @@ import {
 /** Horário inicial ao abrir o diálogo de nova sessão (alinhado ao início da grade). */
 export const DEFAULT_SESSION_START_TIME = `${String(OCCUPANCY_START_HOUR).padStart(2, "0")}:00`;
 
-/** Mínimo de caracteres para buscar paciente/profissional com disponibilidade no horário. */
+/** Mínimo de caracteres para buscar usuário/profissional com disponibilidade no horário. */
 export const PARTICIPANT_SEARCH_MIN_LENGTH = 2;
 
 export const STATUS_OPTIONS = ["AGENDADA", "REALIZADA", "CANCELADA"];
@@ -77,8 +77,8 @@ export function getSessionFormatHint(modality, limitsByModality = SESSION_FORMAT
 
   const patients =
     limits.minPatients === limits.maxPatients
-      ? `${limits.minPatients} paciente(s)`
-      : `${limits.minPatients} a ${limits.maxPatients} pacientes`;
+      ? `${limits.minPatients} usuário(s)`
+      : `${limits.minPatients} a ${limits.maxPatients} usuários`;
   const professionals =
     limits.minProfessionals === limits.maxProfessionals
       ? `${limits.minProfessionals} profissional(is)`
@@ -143,9 +143,9 @@ export function getParticipantFieldErrors(
 
   if (patientCount < limits.minPatients || patientCount > limits.maxPatients) {
     if (limits.minPatients === limits.maxPatients) {
-      errors.patients = `Para tipo de sessão ${label}, selecione exatamente ${limits.minPatients} paciente(s).`;
+      errors.patients = `Para tipo de sessão ${label}, selecione exatamente ${limits.minPatients} usuário(s).`;
     } else {
-      errors.patients = `Para tipo de sessão ${label}, selecione entre ${limits.minPatients} e ${limits.maxPatients} pacientes.`;
+      errors.patients = `Para tipo de sessão ${label}, selecione entre ${limits.minPatients} e ${limits.maxPatients} usuários.`;
     }
   }
 
@@ -189,7 +189,7 @@ export function getSessionFormFieldErrors(form, limitsByModality = SESSION_FORMA
   );
 
   if (form.selectedPatients.length === 0 && !participantErrors.patients) {
-    errors.patients = "Adicione ao menos um paciente.";
+    errors.patients = "Adicione ao menos um usuário.";
   }
   if (form.selectedProfessionals.length === 0 && !participantErrors.professionals) {
     errors.professionals = "Adicione ao menos um profissional.";
@@ -375,7 +375,7 @@ export function buildSessionFormFromSession(session) {
     notes: session?.notes ?? "",
     selectedPatients: (session?.patientIds ?? []).map((patient) => ({
       id: patient._id ?? patient.id ?? patient,
-      label: patient.fullName ?? patient.label ?? "Paciente",
+      label: patient.fullName ?? patient.label ?? "Usuário",
     })),
     selectedProfessionals: (session?.professionalIds ?? []).map((professional) => {
       const participationStartTime = professional.participationStartAt

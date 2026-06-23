@@ -18,7 +18,7 @@ export function PatientSearchField({
   return (
     <div className="space-y-1.5">
       <div className="flex items-baseline justify-between gap-2">
-        <Label htmlFor="patientSearch">Pacientes</Label>
+        <Label htmlFor="patientSearch">Usuários</Label>
         {countLabel ? <span className="text-xs text-muted-foreground">{countLabel}</span> : null}
       </div>
 
@@ -26,7 +26,7 @@ export function PatientSearchField({
         id="patientSearch"
         value={searchTerm}
         onChange={(event) => onSearchTermChange(event.target.value)}
-        placeholder="Buscar paciente"
+        placeholder="Buscar usuário"
         disabled={saving}
         aria-invalid={Boolean(fieldError)}
       />

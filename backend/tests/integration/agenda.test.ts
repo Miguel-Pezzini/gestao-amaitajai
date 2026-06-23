@@ -558,7 +558,7 @@ describe("Agenda integration", () => {
           ],
         });
       expect(patientConflict.status).toBe(409);
-      expect(patientConflict.body.message).toContain("pacientes");
+      expect(patientConflict.body.message).toContain("usuários");
     });
 
     it("rejeita sessão dupla sem quantidade correta de participantes", async () => {
@@ -656,7 +656,7 @@ describe("Agenda integration", () => {
         );
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toContain("entre 1 e 2 pacientes");
+      expect(response.body.message).toContain("entre 1 e 2 usuários");
     });
 
     it("rejeita modalidade não permitida pelo tipo de sessão", async () => {

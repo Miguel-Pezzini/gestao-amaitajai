@@ -252,7 +252,7 @@ export class ProtocolService {
     ]);
 
     if (!patient) {
-      throw new NotFoundError("Paciente não encontrado.");
+      throw new NotFoundError("Usuário não encontrado.");
     }
     if (!protocolType) {
       throw new NotFoundError("Tipo de protocolo não encontrado.");
@@ -325,7 +325,7 @@ export class ProtocolService {
 
   async listProtocolsByPatient(patientId: string) {
     if (!isUuid(patientId)) {
-      throw new NotFoundError("Paciente não encontrado.");
+      throw new NotFoundError("Usuário não encontrado.");
     }
 
     const patient = await prisma.patient.findUnique({
@@ -333,7 +333,7 @@ export class ProtocolService {
       select: { id: true },
     });
     if (!patient) {
-      throw new NotFoundError("Paciente não encontrado.");
+      throw new NotFoundError("Usuário não encontrado.");
     }
 
     const rows = await prisma.patientProtocol.findMany({

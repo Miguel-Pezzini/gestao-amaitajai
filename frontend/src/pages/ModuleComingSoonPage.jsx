@@ -42,7 +42,7 @@ export function ModuleComingSoonPage() {
           className="border-ama-cyan text-ama-blue hover:bg-ama-light"
           onClick={() => navigate("/patients")}
         >
-          Ir para Pacientes
+          Ir para Usuários
         </Button>
       </CardContent>
     </Card>

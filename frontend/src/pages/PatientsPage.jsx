@@ -432,7 +432,7 @@ export function PatientsPage() {
     } catch (err) {
       setError(
         err.response?.data?.message ??
-          "Não foi possível carregar os pacientes. Tente novamente.",
+          "Não foi possível carregar os usuários. Tente novamente.",
       );
     } finally {
       setLoading(false);
@@ -526,17 +526,17 @@ export function PatientsPage() {
     try {
       if (isEditing) {
         await updatePatient(editingId, payload);
-        toast.success("Paciente atualizado com sucesso.");
+        toast.success("Usuário atualizado com sucesso.");
       } else {
         await createPatient(payload);
-        toast.success("Paciente cadastrado com sucesso.");
+        toast.success("Usuário cadastrado com sucesso.");
       }
       closeFormDialog();
       await loadPatients();
     } catch (err) {
       toast.error(
         err.response?.data?.message ??
-          "Não foi possível salvar o paciente. Verifique os dados e tente novamente.",
+          "Não foi possível salvar o usuário. Verifique os dados e tente novamente.",
       );
     } finally {
       setSaving(false);
@@ -578,10 +578,10 @@ export function PatientsPage() {
       <Card className="overflow-hidden border-ama-cyan/30">
         <CardHeader className="gap-2 p-4 sm:gap-4 sm:p-6">
           <CardTitle className="text-lg tracking-tight text-ama-text sm:text-xl">
-            Pacientes
+            Usuários
           </CardTitle>
           <CardDescription className="mt-1 break-words sm:mt-2">
-            Olá, {userName}. Cadastre e mantenha pacientes para os módulos de Agenda,
+            Olá, {userName}. Cadastre e mantenha usuários para os módulos de Agenda,
             Presença, Check-in e Fila.
           </CardDescription>
         </CardHeader>
@@ -634,10 +634,10 @@ export function PatientsPage() {
           if (!open) closeFormDialog();
         }}
         className="sm:max-w-2xl"
-        title={isEditing ? "Editar paciente" : "Novo paciente"}
+        title={isEditing ? "Editar usuário" : "Novo usuário"}
         description={
           isEditing
-            ? "Atualize os dados cadastrais do paciente."
+            ? "Atualize os dados cadastrais do usuário."
             : "Preencha os dados mínimos do cadastro."
         }
       >
@@ -655,14 +655,14 @@ export function PatientsPage() {
       </Dialog>
 
       {!formDialogOpen ? (
-        <CreateFab onClick={openCreateDialog} label="Novo paciente" />
+        <CreateFab onClick={openCreateDialog} label="Novo usuário" />
       ) : null}
 
       <Card className="min-w-0 overflow-hidden border-ama-cyan/30">
         <CardHeader className="space-y-4 p-4 sm:p-6">
           <div className="min-w-0">
             <CardTitle className="text-base text-ama-blue-dark">
-              Pacientes cadastrados
+              Usuários cadastrados
             </CardTitle>
             <CardDescription className="break-words">
               {loading && !pagination
@@ -731,16 +731,16 @@ export function PatientsPage() {
               <EmptyState
                 icon={Search}
                 title="Nenhum resultado"
-                description="Nenhum paciente encontrado para os filtros informados."
+                description="Nenhum usuário encontrado para os filtros informados."
                 actionLabel="Limpar filtros"
                 onAction={clearFilters}
               />
             ) : (
               <EmptyState
                 icon={Users}
-                title="Nenhum paciente cadastrado"
-                description="Comece cadastrando o primeiro paciente do sistema."
-                actionLabel="Cadastrar paciente"
+                title="Nenhum usuário cadastrado"
+                description="Comece cadastrando o primeiro usuário do sistema."
+                actionLabel="Cadastrar usuário"
                 onAction={openCreateDialog}
               />
             )

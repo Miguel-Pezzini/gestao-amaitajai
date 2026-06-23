@@ -18,7 +18,7 @@ function parsePositiveInt(value) {
 function buildFieldErrors(values) {
   const errors = {};
   if (values.maxPatients < values.minPatients) {
-    errors.patients = "Máximo de pacientes deve ser maior ou igual ao mínimo.";
+    errors.patients = "Máximo de usuários deve ser maior ou igual ao mínimo.";
   }
   if (values.maxProfessionals < values.minProfessionals) {
     errors.professionals = "Máximo de profissionais deve ser maior ou igual ao mínimo.";
@@ -131,7 +131,7 @@ export function TiposSessaoPage() {
             Tipos de sessão
           </CardTitle>
           <CardDescription>
-            Configure limites mínimos e máximos de pacientes e profissionais para cada tipo de sessão.
+            Configure limites mínimos e máximos de usuários e profissionais para cada tipo de sessão.
           </CardDescription>
         </CardHeader>
       </Card>
@@ -156,7 +156,7 @@ export function TiposSessaoPage() {
                 <CardContent className="space-y-4 p-4 pt-0">
                   <div className="grid gap-3 sm:grid-cols-2">
                     <div className="space-y-2">
-                      <Label>Mínimo de pacientes</Label>
+                      <Label>Mínimo de usuários</Label>
                       <Input
                         type="number"
                         min={1}
@@ -167,7 +167,7 @@ export function TiposSessaoPage() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>Máximo de pacientes</Label>
+                      <Label>Máximo de usuários</Label>
                       <Input
                         type="number"
                         min={1}

@@ -184,7 +184,7 @@ export function TiposCusteioPage() {
             Fontes de custeio
           </CardTitle>
           <CardDescription className="mt-1 break-words sm:mt-2">
-            Olá, {userName}. Cadastre as fontes de custeio usadas no cadastro dos atendidos.
+            Olá, {userName}. Cadastre as fontes de custeio usadas no cadastro dos usuários.
           </CardDescription>
         </CardHeader>
       </Card>
@@ -199,7 +199,7 @@ export function TiposCusteioPage() {
         title={isEditing ? "Editar fonte de custeio" : "Nova fonte de custeio"}
         description={
           isEditing
-            ? "Altere o nome exibido no cadastro de pacientes."
+            ? "Altere o nome exibido no cadastro de usuários."
             : "Informe o nome da nova fonte de custeio."
         }
       >
@@ -267,7 +267,7 @@ export function TiposCusteioPage() {
             <EmptyState
               icon={Coins}
               title="Nenhuma fonte cadastrada"
-              description="Cadastre fontes de custeio para vincular aos pacientes."
+              description="Cadastre fontes de custeio para vincular aos usuários."
               actionLabel="Cadastrar fonte"
               onAction={openCreateDialog}
             />

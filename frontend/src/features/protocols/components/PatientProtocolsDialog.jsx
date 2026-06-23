@@ -68,7 +68,7 @@ export function PatientProtocolsDialog({ patient, open, onOpenChange, onChanged 
     } catch (err) {
       setError(
         err.response?.data?.message ??
-          "Não foi possível carregar os protocolos deste paciente.",
+          "Não foi possível carregar os protocolos deste usuário.",
       );
     } finally {
       setLoading(false);
@@ -201,7 +201,7 @@ export function PatientProtocolsDialog({ patient, open, onOpenChange, onChanged 
         open={open}
         onOpenChange={onOpenChange}
         title={`Protocolos — ${patient?.fullName ?? ""}`}
-        description="Solicitações administrativas em aberto ou concluídas deste atendido."
+        description="Solicitações administrativas em aberto ou concluídas deste usuário."
       >
       <div className="space-y-4">
         {error ? (
@@ -286,7 +286,7 @@ export function PatientProtocolsDialog({ patient, open, onOpenChange, onChanged 
           <p className="text-sm text-muted-foreground">Carregando protocolos...</p>
         ) : protocols.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            Nenhum protocolo registrado para este paciente.
+            Nenhum protocolo registrado para este usuário.
           </p>
         ) : (
           <div className="space-y-2.5">

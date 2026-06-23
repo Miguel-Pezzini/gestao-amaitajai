@@ -15,7 +15,7 @@ export function validatePatientDeactivationReplacements(
   }
 
   if (!Array.isArray(payload)) {
-    throw new ValidationError("Substituições de paciente inválidas.");
+    throw new ValidationError("Substituições de usuário inválidas.");
   }
 
   return payload.map((item, index) => {
@@ -38,7 +38,7 @@ export function validatePatientDeactivationReplacements(
         : "";
 
     if (!replacementPatientId) {
-      throw new ValidationError(`Informe o paciente substituto na substituição ${index + 1}.`);
+      throw new ValidationError(`Informe o usuário substituto na substituição ${index + 1}.`);
     }
 
     if (Boolean(seriesId) === Boolean(sessionId)) {

@@ -1,7 +1,13 @@
 # Módulo: Pacientes
 
-**Última atualização:** 2026-06-16  
+**Última atualização:** 2026-06-23  
 **Escopo:** fullstack
+
+---
+
+## Terminologia
+
+Na **interface**, a entidade é chamada **usuário** (menu **Usuários**, labels, toasts e mensagens exibidas). No **código e na API**, permanece **paciente** (`Patient`, `/patients`, `patientId`). Não confundir com **funcionário** (`User`, `/users`) — quem faz login no sistema; ver [`users.md`](./users.md).
 
 ---
 
@@ -32,7 +38,7 @@ Ao desativar, o sistema analisa sessões `AGENDADA` futuras do paciente:
 
 - Substituições podem ser por **série** (`seriesId`) ou **sessão isolada** (`sessionId`), nunca ambos.
 - Substituto deve existir e estar ativo.
-- Motivo de cancelamento: `Paciente desativado: <nome>`.
+- Motivo de cancelamento (texto exibido na agenda): `Usuário desativado: <nome>` (`buildPatientDeactivatedCancelReason`).
 - Reativação (`isActive: true`) não reverte sessões canceladas.
 
 ### Listagem
@@ -59,16 +65,16 @@ Filtros: `search` (nome ou responsável), `fundingSourceId`, `status` (`active`/
 
 | Rota | Componente | Descrição |
 |---|---|---|
-| `/patients` | `PatientsPage` | Lista, cadastro, edição, desativação |
+| `/patients` | `PatientsPage` | Lista, cadastro, edição, desativação (UI: **Usuários**) |
 
 Componentes de desativação: `DeactivatePatientDialog`, `PatientReplacementPicker`.  
 Hook: `usePatientDeactivation.js`.
 
-**Lista de pacientes:** ações por item (`Sessões`, `Evoluções`, `Protocolos`, `Editar`, `Inativar`/`Reativar`) exibidas como ícones compactos com tooltip no hover, via `EntityListIconAction` + `Tooltip` em `EntityListItem.jsx`.
+**Lista de usuários (UI):** ações por item (`Sessões`, `Evoluções`, `Protocolos`, `Editar`, `Inativar`/`Reativar`) exibidas como ícones compactos com tooltip no hover, via `EntityListIconAction` + `Tooltip` em `EntityListItem.jsx`.
 
 **Histórico de sessões:** ícone `Sessões` abre `PatientSessionsDialog` com listagem paginada via `GET /agenda/sessions?patientId=…&includeCancelled=true&page&limit`, filtros de status (`AGENDADA`, `REALIZADA`, `CANCELADA`) e intervalo de datas. Resumo `Mostrando X–Y de Z` e controles Anterior/Próxima (20 itens por página).
 
-**Evolução clínica:** texto livre por paciente e por sessão (`PatientSessionEvolution`). Preenchimento na agenda (`SessionDetailDialog`); histórico na lista de pacientes via ícone `Evoluções` → `PatientEvolutionsDialog` (`GET /patients/:id/evolutions`, paginado). O histórico é **por paciente**, independente da modalidade (individual, dupla ou grupo) — como prontuário contínuo (relato de atendimento). PDI permanece fora do sistema nesta fase.
+**Evolução clínica:** texto livre por paciente e por sessão (`PatientSessionEvolution`). Preenchimento na agenda (`SessionDetailDialog`); histórico na lista de usuários (UI) via ícone `Evoluções` → `PatientEvolutionsDialog` (`GET /patients/:id/evolutions`, paginado). O histórico é **por paciente**, independente da modalidade (individual, dupla ou grupo) — como prontuário contínuo (relato de atendimento). PDI permanece fora do sistema nesta fase.
 
 **Paginação:** a listagem consome `page`/`limit` da API (20 itens por página). Resumo `Mostrando X–Y de Z` no cabeçalho; controles Anterior/Próxima via `EntityListPagination` quando há mais de uma página. Nova busca com filtros reinicia na página 1.
 

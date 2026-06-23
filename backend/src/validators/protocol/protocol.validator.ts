@@ -17,7 +17,7 @@ export function validateCreateProtocol(payload: {
   const notes = normalizeText(payload.notes);
 
   if (!patientId || !isUuid(patientId)) {
-    throw new ValidationError("Paciente inválido para o protocolo.");
+    throw new ValidationError("Usuário inválido para o protocolo.");
   }
   if (!protocolTypeId || !isUuid(protocolTypeId)) {
     throw new ValidationError("Selecione um tipo de protocolo válido.");

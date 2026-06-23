@@ -25,7 +25,7 @@ Se você acabou de entrar no projeto, siga esta ordem:
 ### O que o sistema faz hoje
 
 - **Login** com perfis `administrador` e `tecnico`
-- **Pacientes** — cadastro, busca, edição, inativação, filtro por fonte de custeio
+- **Usuários** — cadastro, busca, edição, inativação, filtro por fonte de custeio (pessoas atendidas pela ONG; no código: `Patient`)
 - **Agenda** — sessões em modalidade individual, dupla ou grupo; visualização dia/semana/mês; conflitos bloqueados; cancelamento; técnico confirma execução
 - **Cadastros gerais** (só admin) — salas, modalidades, tipos de sessão, funcionários
 - **Ocupação das salas** — grade semanal de uso por sala

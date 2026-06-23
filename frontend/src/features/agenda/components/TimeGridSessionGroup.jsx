@@ -13,7 +13,7 @@ function getParticipantShortLabel(session) {
   if (patients.length === 1) {
     return patients[0].label;
   }
-  return `${patients.length} pacientes`;
+  return `${patients.length} usuários`;
 }
 
 function SessionPreviewLine({ session }) {

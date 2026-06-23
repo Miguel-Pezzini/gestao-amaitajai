@@ -672,7 +672,7 @@ export function useAgendaPage(user) {
       );
       setFieldErrors((current) => ({
         ...current,
-        patients: errors.patients ?? "Limite de pacientes atingido para este tipo de sessão.",
+        patients: errors.patients ?? "Limite de usuários atingido para este tipo de sessão.",
       }));
       return;
     }

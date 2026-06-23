@@ -81,7 +81,7 @@ Definidas em `routes/AppRoutes.jsx`. Módulos do menu lateral vêm de `config/mo
 | Rota | Página | Quem acessa | Status |
 |---|---|---|---|
 | `/` | Home | admin, técnico | Ativo |
-| `/patients` | Pacientes | admin | Ativo |
+| `/patients` | Usuários | admin | Ativo |
 | `/agenda` | Agenda | admin, técnico | Ativo |
 | `/salas/ocupacao` | Ocupação salas | admin | Ativo |
 | `/cadastros/*` | Cadastros gerais | admin | Ativo |
@@ -123,7 +123,7 @@ Implementação principal em `features/agenda/`:
 - Modos de visualização: dia, semana, mês (`AgendaViewModeToggle`)
 - Criação/edição/cancelamento via dialogs (`CreateSessionDialog`, `CancelSessionDialog`, `SessionDetailDialog`)
 - Grade horária com sessões sobrepostas (`AgendaTimeGrid`, `AgendaWeekView`, …)
-- Busca de pacientes e profissionais para vincular à sessão
+- Busca de usuários e profissionais para vincular à sessão
 
 Regras de negócio (modalidades, conflitos, permissões): [`../docs/REGRAS-NEGOCIO-AGENDA.md`](../docs/REGRAS-NEGOCIO-AGENDA.md).
 
@@ -153,7 +153,7 @@ Cores institucionais aplicadas via classes Tailwind (ver paleta no README da rai
 |---|---|
 | `services/api.js` | Instância Axios compartilhada |
 | `services/auth.js` | Login, logout, sessão |
-| `services/patients.js` | Pacientes |
+| `services/patients.js` | Usuários (API `/patients`) |
 | `services/agenda.js` | Sessões, lookups da agenda |
 | `services/users.js` | Funcionários |
 

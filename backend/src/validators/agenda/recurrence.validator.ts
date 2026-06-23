@@ -107,6 +107,6 @@ export function validateUpdateScope(value: unknown): UpdateScope {
 
 export function validatePatientId(patientId: string): void {
   if (!isUuid(patientId)) {
-    throw new ValidationError("Identificador de paciente inválido.");
+    throw new ValidationError("Identificador de usuário inválido.");
   }
 }

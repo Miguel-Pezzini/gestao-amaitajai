@@ -31,11 +31,11 @@ export function DeactivatePatientDialog({
           onClose();
         }
       }}
-      title="Inativar paciente"
+      title="Inativar usuário"
       description={
         replacements.length > 0
-          ? `Escolha quem assume as sessões de ${patient?.fullName ?? "o paciente"}.`
-          : `Confirme a inativação de ${patient?.fullName ?? "o paciente"}.`
+          ? `Escolha quem assume as sessões de ${patient?.fullName ?? "o usuário"}.`
+          : `Confirme a inativação de ${patient?.fullName ?? "o usuário"}.`
       }
     >
       <form

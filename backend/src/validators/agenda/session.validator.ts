@@ -93,10 +93,10 @@ export function validateSession(input: NormalizedSessionInput): void {
     throw new ValidationError("Informe uma duração válida em minutos.");
   }
   if (input.patientIds.length === 0) {
-    throw new ValidationError("Adicione ao menos um paciente à sessão.");
+    throw new ValidationError("Adicione ao menos um usuário à sessão.");
   }
   if (!input.patientIds.every((id) => isUuid(id))) {
-    throw new ValidationError("Paciente ou profissional selecionado é inválido.");
+    throw new ValidationError("Usuário ou profissional selecionado é inválido.");
   }
 }
 

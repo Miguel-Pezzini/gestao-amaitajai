@@ -319,7 +319,7 @@ router.get("/patients/:id", async (req: Request, res: Response) => {
   const id = getRouteId(req.params.id);
 
   if (!isUuid(id)) {
-    res.status(400).json({ message: "Identificador de paciente inválido." });
+    res.status(400).json({ message: "Identificador de usuário inválido." });
     return;
   }
 
@@ -328,7 +328,7 @@ router.get("/patients/:id", async (req: Request, res: Response) => {
     include: patientInclude,
   });
   if (!patient) {
-    res.status(404).json({ message: "Paciente não encontrado." });
+    res.status(404).json({ message: "Usuário não encontrado." });
     return;
   }
 
@@ -339,7 +339,7 @@ router.patch("/patients/:id", async (req: Request, res: Response) => {
   const id = getRouteId(req.params.id);
 
   if (!isUuid(id)) {
-    res.status(400).json({ message: "Identificador de paciente inválido." });
+    res.status(400).json({ message: "Identificador de usuário inválido." });
     return;
   }
 
@@ -358,7 +358,7 @@ router.patch("/patients/:id", async (req: Request, res: Response) => {
 
   const existing = await prisma.patient.findUnique({ where: { id } });
   if (!existing) {
-    res.status(404).json({ message: "Paciente não encontrado." });
+    res.status(404).json({ message: "Usuário não encontrado." });
     return;
   }
 
@@ -380,13 +380,13 @@ router.get(
     const id = getRouteId(req.params.id);
 
     if (!isUuid(id)) {
-      res.status(400).json({ message: "Identificador de paciente inválido." });
+      res.status(400).json({ message: "Identificador de usuário inválido." });
       return;
     }
 
     const existing = await prisma.patient.findUnique({ where: { id } });
     if (!existing) {
-      res.status(404).json({ message: "Paciente não encontrado." });
+      res.status(404).json({ message: "Usuário não encontrado." });
       return;
     }
 
@@ -401,7 +401,7 @@ router.patch(
   const id = getRouteId(req.params.id);
 
   if (!isUuid(id)) {
-    res.status(400).json({ message: "Identificador de paciente inválido." });
+    res.status(400).json({ message: "Identificador de usuário inválido." });
     return;
   }
 
@@ -413,7 +413,7 @@ router.patch(
 
   const existing = await prisma.patient.findUnique({ where: { id } });
   if (!existing) {
-    res.status(404).json({ message: "Paciente não encontrado." });
+    res.status(404).json({ message: "Usuário não encontrado." });
     return;
   }
 

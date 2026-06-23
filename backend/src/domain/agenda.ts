@@ -26,5 +26,5 @@ export const SESSION_FORMAT_LABELS: Record<SessionModality, string> = {
 };
 
 export function buildPatientDeactivatedCancelReason(patientFullName: string): string {
-  return `Paciente desativado: ${patientFullName}`;
+  return `Usuário desativado: ${patientFullName}`;
 }

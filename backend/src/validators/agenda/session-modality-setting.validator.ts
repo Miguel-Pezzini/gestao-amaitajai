@@ -31,7 +31,7 @@ export function validateSessionModalitySettingUpdate(
     !Number.isFinite(minProfessionals) ||
     !Number.isFinite(maxProfessionals)
   ) {
-    throw new ValidationError("Informe limites válidos para pacientes e profissionais.");
+    throw new ValidationError("Informe limites válidos para usuários e profissionais.");
   }
 
   if (minPatients <= 0 || maxPatients <= 0 || minProfessionals <= 0 || maxProfessionals <= 0) {
@@ -39,7 +39,7 @@ export function validateSessionModalitySettingUpdate(
   }
 
   if (maxPatients < minPatients) {
-    throw new ValidationError("Pacientes: máximo deve ser maior ou igual ao mínimo.");
+    throw new ValidationError("Usuários: máximo deve ser maior ou igual ao mínimo.");
   }
 
   if (maxProfessionals < minProfessionals) {

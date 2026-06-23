@@ -51,14 +51,14 @@ export function usePatientDeactivation({ onCompleted }) {
 
           if (cancelled > 0 && replaced > 0) {
             toast.success(
-              `Paciente inativado. ${cancelled} sessão(ões) cancelada(s) e ${replaced} substituída(s).`,
+              `Usuário inativado. ${cancelled} sessão(ões) cancelada(s) e ${replaced} substituída(s).`,
             );
           } else if (cancelled > 0) {
-            toast.success(`Paciente inativado. ${cancelled} sessão(ões) cancelada(s).`);
+            toast.success(`Usuário inativado. ${cancelled} sessão(ões) cancelada(s).`);
           } else if (replaced > 0) {
-            toast.success(`Paciente inativado. ${replaced} sessão(ões) com paciente substituído.`);
+            toast.success(`Usuário inativado. ${replaced} sessão(ões) com usuário substituído.`);
           } else {
-            toast.success("Paciente inativado com sucesso.");
+            toast.success("Usuário inativado com sucesso.");
           }
 
           await onCompleted?.();
@@ -74,7 +74,7 @@ export function usePatientDeactivation({ onCompleted }) {
         setDialogOpen(true);
       } catch (err) {
         toast.error(
-          getApiErrorMessage(err, "Não foi possível preparar a inativação do paciente."),
+          getApiErrorMessage(err, "Não foi possível preparar a inativação do usuário."),
         );
       } finally {
         setLoadingImpact(false);
@@ -113,7 +113,7 @@ export function usePatientDeactivation({ onCompleted }) {
 
     for (const item of replacements) {
       if (!selections[item.key]) {
-        nextSelectionErrors[item.key] = "Selecione o paciente substituto.";
+        nextSelectionErrors[item.key] = "Selecione o usuário substituto.";
       }
     }
 
@@ -135,19 +135,19 @@ export function usePatientDeactivation({ onCompleted }) {
 
       if (cancelled > 0 && replaced > 0) {
         toast.success(
-          `Paciente inativado. ${cancelled} sessão(ões) cancelada(s) e ${replaced} substituída(s).`,
+          `Usuário inativado. ${cancelled} sessão(ões) cancelada(s) e ${replaced} substituída(s).`,
         );
       } else if (replaced > 0) {
-        toast.success(`Paciente inativado. ${replaced} sessão(ões) com paciente substituído.`);
+        toast.success(`Usuário inativado. ${replaced} sessão(ões) com usuário substituído.`);
       } else {
-        toast.success("Paciente inativado com sucesso.");
+        toast.success("Usuário inativado com sucesso.");
       }
 
       await onCompleted?.();
       resetState();
     } catch (err) {
       setError(
-        getApiErrorMessage(err, "Não foi possível inativar o paciente com as substituições informadas."),
+        getApiErrorMessage(err, "Não foi possível inativar o usuário com as substituições informadas."),
       );
     } finally {
       setSaving(false);
@@ -161,11 +161,11 @@ export function usePatientDeactivation({ onCompleted }) {
         setError("");
         try {
           await updatePatientStatus(selectedPatient._id, true);
-          toast.success("Paciente reativado com sucesso.");
+          toast.success("Usuário reativado com sucesso.");
           await onCompleted?.();
         } catch (err) {
           toast.error(
-            getApiErrorMessage(err, "Não foi possível atualizar o status do paciente."),
+            getApiErrorMessage(err, "Não foi possível atualizar o status do usuário."),
           );
         } finally {
           setSaving(false);

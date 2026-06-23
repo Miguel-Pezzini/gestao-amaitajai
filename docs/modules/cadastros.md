@@ -73,7 +73,7 @@ Todas as rotas de cadastro exigem `RequireAdminRoute`.
 
 Constantes compartilhadas: `frontend/src/features/cadastros/constants.js` (labels de modalidade e role).
 
-**Listas de cadastro:** ações por item (`Editar`, `Inativar`/`Reativar`) usam ícones com tooltip no hover via `EntityListIconAction` (mesmo padrão da lista de pacientes).
+**Listas de cadastro:** ações por item (`Editar`, `Inativar`/`Reativar`) usam ícones com tooltip no hover via `EntityListIconAction` (mesmo padrão da lista de usuários na UI).
 
 ---
 
