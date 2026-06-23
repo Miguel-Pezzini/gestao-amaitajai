@@ -57,7 +57,7 @@ export const APP_MODULES = [
     showInSidebar: true,
     showInQuickAccess: true,
     enabled: true,
-    requiredRoles: ["ADMINISTRADOR"],
+    requiredRoles: ["ADMINISTRADOR", "RECEPCAO"],
     order: 1.6,
   },
   {

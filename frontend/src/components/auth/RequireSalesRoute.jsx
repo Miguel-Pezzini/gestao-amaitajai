@@ -2,7 +2,7 @@ import { Navigate } from "react-router-dom";
 import { useSession } from "@/contexts/session-context";
 import { normalizeRole } from "@/features/agenda/utils";
 
-const SALES_ROLES = ["ADMINISTRADOR", "OPERADOR"];
+const SALES_ROLES = ["ADMINISTRADOR", "OPERADOR", "RECEPCAO"];
 
 export function RequireSalesRoute({ children }) {
   const { user, hydrating } = useSession();

@@ -220,17 +220,17 @@ describe("Autorização por perfil", () => {
   });
 
   describe("vendas (/sales)", () => {
-    it("nega listagem ao técnico e à recepção", async () => {
+    it("nega listagem ao técnico", async () => {
       const tecnicoResponse = await withAuth(request(app).get("/api/sales/products"), tecnicoToken);
       expect(tecnicoResponse.status).toBe(403);
-
-      const recepcaoResponse = await withAuth(request(app).get("/api/sales/products"), recepcaoToken);
-      expect(recepcaoResponse.status).toBe(403);
     });
 
-    it("permite listagem ao operador e ao administrador", async () => {
+    it("permite listagem ao operador, à recepção e ao administrador", async () => {
       const operadorResponse = await withAuth(request(app).get("/api/sales/products"), operadorToken);
       expect(operadorResponse.status).toBe(200);
+
+      const recepcaoResponse = await withAuth(request(app).get("/api/sales/products"), recepcaoToken);
+      expect(recepcaoResponse.status).toBe(200);
 
       const adminResponse = await withAuth(request(app).get("/api/sales/products"), adminToken);
       expect(adminResponse.status).toBe(200);

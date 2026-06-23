@@ -1,6 +1,6 @@
 # Módulo: Usuários / Funcionários
 
-**Última atualização:** 2026-06-17  
+**Última atualização:** 2026-06-23  
 **Escopo:** fullstack
 
 ---
@@ -17,7 +17,7 @@ Gestão de funcionários (usuários do sistema) com perfis `ADMINISTRADOR`, `TEC
 
 - `ADMINISTRADOR`: acesso total, incluindo este módulo.
 - `TECNICO`: usuário operacional da agenda.
-- `RECEPCAO`: usuário de recepção com acesso à agenda (leitura de todas as sessões), abertura e consulta de protocolos (sem concluir/cancelar) e sem dados clínicos de pacientes.
+- `RECEPCAO`: usuário de recepção com acesso à agenda (leitura de todas as sessões), abertura e consulta de protocolos (sem concluir/cancelar), PDV de vendas (cantina/eventos, fiados) e sem dados clínicos de pacientes.
 - `OPERADOR`: usuário de vendas (cantina/eventos) com acesso exclusivo ao módulo Vendas; sem acesso a agenda, pacientes ou protocolos clínicos.
 
 ### Status de conta

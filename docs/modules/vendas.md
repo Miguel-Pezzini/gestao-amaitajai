@@ -1,6 +1,6 @@
 # Módulo: Vendas
 
-**Última atualização:** 2026-06-18  
+**Última atualização:** 2026-06-23  
 **Escopo:** fullstack
 
 ---
@@ -9,7 +9,7 @@
 
 PDV de cantina/eventos da AMA: cadastro de produtos, registro de vendas com baixa automática de estoque, controle de fiados e listagem para conferência interna. Pagamentos são registrados manualmente (sem gateway Pix/cartão).
 
-**Perfis:** `ADMINISTRADOR` (acesso clínico + vendas completo) e `OPERADOR` (somente módulo vendas).
+**Perfis:** `ADMINISTRADOR` (acesso clínico + vendas completo), `RECEPCAO` (recepção + PDV de vendas) e `OPERADOR` (somente módulo vendas).
 
 ---
 
@@ -49,34 +49,34 @@ PDV de cantina/eventos da AMA: cadastro de produtos, registro de vendas com baix
 
 | Método | Rota | Permissão | Descrição |
 |---|---|---|---|
-| GET | `/sales/categories` | admin, operador | Lista categorias |
+| GET | `/sales/categories` | admin, operador, recepcao | Lista categorias |
 | POST | `/sales/categories` | admin | Criar categoria |
 | PATCH | `/sales/categories/:id` | admin | Editar categoria |
 | PATCH | `/sales/categories/:id/status` | admin | Ativar/inativar categoria |
-| GET | `/sales/products` | admin, operador | Lista produtos |
+| GET | `/sales/products` | admin, operador, recepcao | Lista produtos |
 | POST | `/sales/products` | admin | Criar produto |
 | PATCH | `/sales/products/:id` | admin | Editar produto |
 | PATCH | `/sales/products/:id/status` | admin | Ativar/inativar produto |
-| GET | `/sales` | admin, operador | Lista vendas (filtros) |
-| GET | `/sales/fiados` | admin, operador | Lista fiados pendentes/parciais |
-| GET | `/sales/:id` | admin, operador | Detalhe da venda |
-| POST | `/sales` | admin, operador | Finalizar venda |
-| POST | `/sales/:id/payments` | admin, operador | Receber pagamento de fiado |
+| GET | `/sales` | admin, operador, recepcao | Lista vendas (filtros) |
+| GET | `/sales/fiados` | admin, operador, recepcao | Lista fiados pendentes/parciais |
+| GET | `/sales/:id` | admin, operador, recepcao | Detalhe da venda |
+| POST | `/sales` | admin, operador, recepcao | Finalizar venda |
+| POST | `/sales/:id/payments` | admin, operador, recepcao | Receber pagamento de fiado |
 | PATCH | `/sales/:id/cancel` | admin | Cancelar venda |
 
 ### Frontend
 
 | Rota | Componente | Permissão | Descrição |
 |---|---|---|---|
-| `/vendas` | `SalesListPage` | admin, operador | Listagem de vendas + dialog de nova venda (PDV); cancelamento na coluna Ações (admin); ícone olho para vendas canceladas |
+| `/vendas` | `SalesListPage` | admin, operador, recepcao | Listagem de vendas + dialog de nova venda (PDV); cancelamento na coluna Ações (admin); ícone olho para vendas canceladas |
 | `/vendas/produtos` | `ProductsPage` | admin | CRUD produtos e categorias (tabela + dialogs) |
-| `/vendas/fiados` | `FiadosPage` | admin, operador | Fiados pendentes e recebimentos |
+| `/vendas/fiados` | `FiadosPage` | admin, operador, recepcao | Fiados pendentes e recebimentos |
 
 Nova venda abre em **dialog** na tela de Vendas (botão no header + FAB mobile), alinhado ao padrão do restante do sistema.
 
 Rotas legadas `/vendas/nova` e `/vendas/lista` redirecionam para `/vendas`.
 
-`OPERADOR` usa layout dedicado (`VendasLayout`) sem menu clínico. `ADMINISTRADOR` acessa vendas pelo menu principal.
+`OPERADOR` usa layout dedicado (`VendasLayout`) sem menu clínico. `RECEPCAO` e `ADMINISTRADOR` acessam vendas pelo menu principal.
 
 ---
 
@@ -95,13 +95,13 @@ Rotas legadas `/vendas/nova` e `/vendas/lista` redirecionam para `/vendas`.
 
 ## Permissões
 
-| Ação | administrador | operador | tecnico | recepcao |
+| Ação | administrador | operador | recepcao | tecnico |
 |---|---|---|---|---|
-| Registrar venda | sim | sim | não | não |
-| Listar vendas / fiados | sim | sim | não | não |
+| Registrar venda | sim | sim | sim | não |
+| Listar vendas / fiados | sim | sim | sim | não |
 | CRUD produtos/categorias | sim | não | não | não |
 | Cancelar venda | sim | não | não | não |
-| Receber fiado | sim | sim | não | não |
+| Receber fiado | sim | sim | sim | não |
 
 ---
 
@@ -146,5 +146,5 @@ Manual:
 1. Admin cadastra produto com estoque.
 2. Operador finaliza venda Pix → estoque decrementa.
 3. Venda fiada → aparece em `/vendas/fiados`; receber pagamento quita.
-4. Técnico/recepção → 403 em `/sales`.
+4. Técnico → 403 em `/sales`. Recepção → acesso ao PDV e fiados; sem CRUD de produtos nem cancelamento.
 5. Admin cancela venda → estoque restaurado.
